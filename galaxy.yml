@@ -4,7 +4,10 @@ name: linstor
 version: 0.9.0
 readme: README.md
 authors:
-- LINBIT <info@linbit.com>
+- Ryan Ronnander <rronnander@linbit.com>
+- Matt Kereczman <matt@linbit.com>
+- Michael Troutman <michael@linbit.com>
+- Devin Vance <devin@linbit.com>
 description: Full LINSTOR stack: client, controller, satellite, and LINSTOR Gateway for NFS and iSCSI HA
 license:
 - MIT
@@ -19,6 +22,6 @@ tags:
 - drbd
 dependencies: {}
 repository: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor
-documentation: https://linbit.com/linbit-software-download/
+documentation: https://linbit.com/user-guides-and-product-documentation/
 homepage: https://linbit.com
 issues: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor/-/issues
