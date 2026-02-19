@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 galaxy_info:
   author: LINBIT
   description: Install SCST for iSCSI target support
@@ -28,7 +29,6 @@ galaxy_info:
         - 15SP6
 
   min_ansible_version: 2.1
-
 
   galaxy_tags:
     - linbit
