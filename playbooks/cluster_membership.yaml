@@ -21,7 +21,7 @@
       vars:
         node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
       ansible.builtin.shell: |
-        linstor node create {{ linstor_hostname }} {{ drbd_ip }} --node-type {{ node_type }}
+        linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type {{ node_type }}
       register: n_c_result
       failed_when: >
         n_c_result.rc != 0 and
@@ -34,7 +34,7 @@
     # Initialize pure satellites only
     - name: Initialize LINSTOR satellite membership
       ansible.builtin.shell: |
-        linstor node create {{ linstor_hostname }} {{ drbd_ip }} --node-type Satellite
+        linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type Satellite
       register: n_c_result
       failed_when: >
         n_c_result.rc != 0 and

@@ -13,9 +13,9 @@ linstor_satellite_packages:
 # placeholder for Ubuntu
 linstor_zfs_packages: []
 
-# simply override, but internally we'll assume drbd_ip is defined per host
+# simply override, but internally we'll assume replication_ip is defined per host
 linstor_controller_addresses:
-  "{{ groups['linstor_controllers'] | map('extract', hostvars, 'drbd_ip') | list | flatten }}"
+  "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
 
 satellite_install_drbd_path: >-
   {%- if ansible_os_family | lower == 'debian' -%}
