@@ -1,12 +1,8 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 galaxy_info:
-  author: your name
-  description: your role description
-  company: your company (optional)
-
-  # If the issue tracker for your role is not on github, uncomment the
-  # next line and provide a value
-  # issue_tracker_url: http://example.com/issue/tracker
+  author: LINBIT
+  description: Install and configure the LINSTOR client
+  company: LINBIT
 
   license: MIT
 
@@ -34,14 +30,9 @@ galaxy_info:
 
   min_ansible_version: 2.1
 
-  # If this a Container Enabled role, provide the minimum Ansible Container version.
-  # min_ansible_container_version:
-
   galaxy_tags:
     - linbit
     - linstor
     - storage
 
 dependencies: []
-  # List your role dependencies here, one per line. Be sure to remove the '[]' above,
-  # if you add dependencies to this list.
