@@ -1,0 +1,2 @@
+[linstor]
+controllers = [ {% for node in groups['linstor_controllers'] %}"{{ hostvars[node]['drbd_ip'] }}"{% if not loop.last %},{% endif %}{% endfor %} ]

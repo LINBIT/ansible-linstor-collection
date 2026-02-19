@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for linstor_controller
+- name: Install LINSTOR controller packages
+  ansible.builtin.package:
+    name:
+      - linstor-controller
+      - linstor-gui
+    state: present
+  register: controller_install_packages_result
+
+- name: Check if firewalld is running
+  ansible.builtin.command: systemctl status firewalld
+  register: firewalld
+  failed_when: firewalld.rc not in [0, 3, 4]
+  changed_when: false
+  when:
+    - ansible_os_family | lower == 'redhat' or
+      ansible_os_family | lower == 'suse'
+
+- name: Open firewalld ports LINSTOR controllers
+  ansible.posix.firewalld:
+    port: 3370/tcp
+    permanent: true
+    immediate: true
+    state: enabled
+  when:
+    - firewalld.rc is defined
+    - firewalld.rc == 0
+
+- ansible.builtin.service_facts:
+
+- name: Set per-host LINSTOR controller status
+  ansible.builtin.set_fact:
+    controller_is_active: >-
+      {{
+        ansible_facts.services['linstor-controller.service'].state == 'running'
+      }}
+  when: inventory_hostname in groups['linstor_controllers']
+
+- name: Set fact based on LINSTOR controller service instances
+  ansible.builtin.set_fact:
+    controller_active_count: >-
+      {{
+        groups['linstor_controllers']
+        | map('extract', hostvars, 'controller_is_active')
+        | select('equalto', true)
+        | list
+        | length
+      }}
+  when: inventory_hostname in groups['linstor_controllers']
+
+### HA controller logic ###
+# Before HA is active, we need to run the controller service initially ALWAYS (assume first controller host, controller[0])
+# Once HA, only restart the controller service on the active host if it was updated
+# Restarting the service handles patching/update cases (single and multi controller)
+
+# Case 0 - New cluster, controller is running everywhere (Debian/Ubuntu/Proxmox), stop controller except for controller[0]
+# Case 1 - New cluster, controller isn't running anywhere (RHEL), start on controller[0]
+# Case 2 - Old cluster, non-HA, controller running (systemd controlled), restart controller service if updated
+# Case 3 - Old cluster, HA, controller running (Reactor controlled), restart controller service if updated on active node
+###
+
+### How do we handle controller updates/patching with Reactor controlled HA operation?
+### Does restarting the active controller suffice - test?
+
+# Should handle case 2 and case 3 when this role is used or LINSTOR upgrades
+- name: Restart LINSTOR controller service when already running and updated
+  ansible.builtin.service:
+    name: linstor-controller.service
+    state: restarted
+  when:
+    - inventory_hostname in groups['linstor_controllers']
+    - ansible_facts.services['linstor-controller.service'] is defined
+    - ansible_facts.services['linstor-controller.service'].state == 'running'
+    - controller_active_count | int == 1
+    - controller_install_packages_result.changed
+
+# Fixes Debian auto-start after initial installation
+- name: Stop LINSTOR controller instances when multiple controllers are active
+  ansible.builtin.systemd:
+    name: linstor-controller.service
+    state: stopped
+    enabled: false
+  when:
+    - controller_active_count | int > 1
+    - inventory_hostname not in groups['linstor_controllers'][0]
+
+# Start LINSTOR controller (non-HA operation)
+# ALso starts LINSTOR controller for initial HA installations (RHEL)
+- name: Enable and start LINSTOR controller service (non-HA)
+  ansible.builtin.systemd:
+    name: linstor-controller.service
+    state: started
+    enabled: true
+  when:
+    - ((groups['linstor_controllers'] | length == 1) or
+      (controller_active_count | int == 0))
+    - inventory_hostname in groups['linstor_controllers'][0]
+
+# reload service facts
+- ansible.builtin.service_facts:
+
+- name: Wait for LINSTOR controller service to respond
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ controller_port }}"
+    delay: 1
+    timeout: 20
+  when:
+    - ansible_facts.services['linstor-controller.service'] is defined
+    - ansible_facts.services['linstor-controller.service'].state == 'running'

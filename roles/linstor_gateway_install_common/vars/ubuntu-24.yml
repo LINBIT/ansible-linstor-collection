@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for linstor_gateway_install
+linstor_gateway_supplemental_packages:
+  - iptables # for portblock
+  - nfs-kernel-server
+  - nfs-common
+  - psmisc # Missing from Debian? Might not be included in minimal installs
+  - rpcbind
+  - targetcli-fb
+  # - xfsprogs  # for debian
+
+linstor_gateway_ra_packages:
+  - resource-agents-common
+  - resource-agents-base
+  - resource-agents-extra

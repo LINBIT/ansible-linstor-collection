@@ -1,0 +1,184 @@
+- name: LINSTOR cluster storage
+  hosts: linstor_diskful_satellites
+  any_errors_fatal: true
+  become: true
+  tags:
+    - linstor
+    - linstor_storage_pool
+  vars:
+    # LINSTOR UG sets '/var/lib/linbit-sds/pool1'
+    linstor_filethin_path: '/var/lib/linstor-filethin/'
+    sp_use_filethin: "{{ linstor_filethin | default(false) }}"
+    sp_use_thinpools: "{{ linstor_thinpools | default(true) }}"
+    sp_use_zfs: "{{ linstor_zfs | default(false) }}"
+    sp_lv_thinpool_size: '95%VG' # Leave a little extra for metadata
+    # Default to striped LVM storage with 64K stripe size
+    sp_lv_create_options: |
+      {%- if lv_create_options is defined -%}
+        {{ lv_create_options }}
+      {%- elif physical_devices | length > 1 -%}
+        -i {{ physical_devices | length }} -I 64
+      {%- else -%}
+      {%- endif -%}
+    # Force short hostnames for certain stacks (Proxmox)
+    short_hostnames: false # default
+    linstor_hostname: >-
+      {%- if short_hostnames | bool -%}
+        "{{ inventory_hostname_short }}"
+      {%- else -%}
+        "{{ inventory_hostname }}"
+      {%- endif -%}
+  pre_tasks:
+    - name: Check for ZFS
+      ansible.builtin.stat:
+        path: /usr/sbin/zfs
+      register: zfs_check
+      when: sp_use_zfs | bool
+
+    - name: Halt playbook if ZFS is not installed
+      ansible.builtin.fail:
+      when:
+        - sp_use_zfs | bool
+        - not zfs_check.stat.exists
+
+    - name: Check if ZFS zpool already exists
+      ansible.builtin.command: |
+        zpool list {{ linstor_vg }}
+      register: zfs_zpool_check
+      when: sp_use_zfs | bool
+      failed_when: false
+      changed_when: false
+
+    - name: End play if ZFS zpool already exists
+      ansible.builtin.meta: end_play
+      when:
+        - sp_use_zfs | bool
+        - zfs_zpool_check.rc == 0
+
+  tasks:
+    - name: Create LINSTOR filethin storage pool directory
+      ansible.builtin.file:
+        path: "{{ linstor_filethin_path }}"
+        state: directory
+        mode: '0755'
+      when: sp_use_filethin | bool
+
+    # Mostly used for demonstration or experiments, hard-coded SP name
+    - name: Create LINSTOR storage pool (type filethin)
+      ansible.builtin.shell: |
+        linstor sp create filethin {{ linstor_hostname }} file-thin {{ linstor_filethin_path }}
+      register: sp_c_result
+      failed_when: >
+        sp_c_result.rc != 0 and
+        'already exists' not in sp_c_result.stdout | lower and
+        'already exists' not in sp_c_result.stderr | lower
+      changed_when: >
+        sp_c_result.rc == 0
+      when: sp_use_filethin | bool
+
+    # Don't wipe out physical volumes if the volume group is already enumerated
+    - name: Run wipefs on storage pool backing disks
+      ansible.builtin.command: wipefs -afq {{ item }}
+      changed_when: true
+      with_items: "{{ physical_devices }}"
+      when:
+        (linstor_vg not in ansible_lvm.vgs) or
+        (sp_use_zfs | bool) or
+        (wipefs is defined and wipefs | bool)
+
+    - name: Create LVM primary partition on backing disks
+      community.general.parted:
+        device: "{{ item }}"
+        number: 1
+        label: gpt
+        flags: [lvm]
+        state: present
+      with_items: "{{ physical_devices }}"
+      when: not sp_use_zfs | bool
+
+    # loops through backing disk count to create multi-pv volume groups
+    - name: Create LVM volume group for LINSTOR
+      community.general.lvg:
+        vg: "{{ linstor_vg }}"
+        pvs: "{{ item }}1"
+        remove_extra_pvs: false
+        state: present
+      with_items: "{{ physical_devices }}"
+      register: vg_created
+      when: not sp_use_zfs | bool
+
+    # Stripe volumes by default when more than 1 device exists
+    - name: Create LVM thin pool for LINSTOR
+      community.general.lvol:
+        vg: "{{ linstor_vg }}"
+        thinpool: "{{ linstor_vg_thinpool }}"
+        size: "{{ sp_lv_thinpool_size }}"
+        opts: "{{ sp_lv_create_options }}"
+        shrink: false
+      register: thinpool_created
+      when:
+        - not sp_use_zfs | bool
+        - sp_use_thinpools | bool
+
+    - name: Create ZFS zpool for LINSTOR
+      community.general.zpool:
+        name: "{{ linstor_vg }}"
+        vdevs:
+          - disks: "{{ physical_devices }}"
+        state: present
+        force: true
+      register: zpool_created
+      when: sp_use_zfs | bool
+
+    # Force LINSTOR to recognize new storage
+    - name: Restart linstor-satellite.service
+      ansible.builtin.systemd_service:
+        service: linstor-satellite.service
+        state: restarted
+      when:
+        vg_created.changed or
+        zpool_created.changed or
+        thinpool_created.changed
+
+    # Refactor SSL/non-SSL port later
+    - name: Wait until LINSTOR satellite service is ready
+      vars:
+        satellite_port: 3366 # non-SSL port
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ satellite_port }}"
+        delay: 1
+        timeout: 20
+      when:
+        vg_created.changed or
+        zpool_created.changed or
+        thinpool_created.changed
+
+    - name: Create LINSTOR storage pool
+      vars:
+        sp_type: >-
+          {%- if ((sp_use_zfs | bool) and (sp_use_thinpools | bool)) -%}
+            zfsthin
+          {%- elif sp_use_zfs | bool -%}
+            zfs
+          {%- elif sp_use_thinpools | bool -%}
+            lvmthin
+          {%- else -%}
+            lvm
+          {%- endif -%}
+        sp_storage: >-
+          {%- if ((not sp_use_zfs | bool) and (sp_use_thinpools | bool)) -%}
+            {{ linstor_vg }}/{{ linstor_vg_thinpool }}
+          {%- else -%}
+            {{ linstor_vg }}
+          {%- endif -%}
+      ansible.builtin.shell: |
+        linstor sp create {{ sp_type }} {{ linstor_hostname }} {{ linstor_sp }} {{ sp_storage }}
+      register: sp_c_result
+      failed_when: >
+        sp_c_result.rc != 0 and
+        'already exists' not in sp_c_result.stdout | lower and
+        'already exists' not in sp_c_result.stderr | lower
+      changed_when: >
+        sp_c_result.rc == 0
+      retries: 3

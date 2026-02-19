@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT-0
+---
+# handlers file for linstor_gateway_install_common
+- name: Restart linstor-satellite.service
+  ansible.builtin.systemd_service:
+    name: linstor-satellite.service
+    daemon_reload: true
+    enabled: true
+    state: restarted
+
+- name: Disable and stop NFS (Debian)
+  ansible.builtin.systemd_service:
+    name: nfs-server.service
+    enabled: false
+  ignore_errors: true # for now, come back to Debian family nuances
+  listen: disable_and_stop_nfs
+  when: ansible_os_family == 'Debian'

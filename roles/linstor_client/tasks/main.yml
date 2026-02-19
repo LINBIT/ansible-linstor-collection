@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for linstor_client
+- name: Install linstor-client
+  ansible.builtin.package:
+    name: linstor-client
+    state: present
+
+# Might be redundant in the future if packaging changes?
+# https://gitlab.at.linbit.com/linstor/linstor-client/-/issues/93
+- name: Create /etc/linstor directory
+  ansible.builtin.file:
+    path: /etc/linstor
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Setup linstor-client.conf
+  ansible.builtin.template:
+    src: "linstor-client.j2"
+    dest: /etc/linstor/linstor-client.conf
+    owner: root
+    group: root
+    mode: '644'

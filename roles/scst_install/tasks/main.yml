@@ -1,0 +1,120 @@
+---
+# tasks file for scst
+# Only run when scst=true - 'ansible-playbook <playbook.yaml> -e scst=true'
+- name: Install SCST (RHEL)
+  when:
+    - ansible_os_family == 'RedHat'
+  block:
+    - name: Install EPEL repo
+      ansible.builtin.package:
+        name: epel-release
+        state: present
+
+    - name: Install SCST prereqs (RHEL)
+      ansible.builtin.package:
+        name:
+          - '@Development tools'
+          - kernel-devel
+          - perl
+          - perl-Data-Dumper
+          - perl-ExtUtils-MakeMaker
+          - rpm-build
+          - dkms
+          - git
+        state: present
+
+    - name: Checkout SCST repo (RHEL)
+      ansible.builtin.git: # noqa: latest[git]
+        repo: 'https://github.com/SCST-project/scst.git'
+        version: "{{ scst_install_version }}"
+        dest: /tmp/scst
+
+    # Install SCST - https://github.com/SCST-project/scst/blob/master/INSTALL.md#building-scst
+    - name: Compile SCST (RHEL)
+      ansible.builtin.shell: |
+        cd /tmp/scst
+        make rpm-dkms
+        rm -f /usr/src/packages/RPMS/x86_64/*debug*
+
+    - name: Remove SCST debug packages (RHEL)
+      ansible.builtin.shell: |
+        rm -f /usr/src/packages/RPMS/x86_64/scst*debug*
+
+    - name: Install SCST (RHEL)
+      ansible.builtin.shell: |
+        dnf install -y /usr/src/packages/RPMS/x86_64/scst*.rpm
+
+- name: Install SCST (Debian)
+  when:
+    - ansible_os_family == 'Debian'
+  block:
+    - name: Install git if needed
+      ansible.builtin.package:
+        name: git
+
+    - name: Checkout SCST repo (Debian)
+      ansible.builtin.git: # noqa: latest[git]
+        repo: 'https://github.com/SCST-project/scst.git'
+        version: "{{ scst_install_version }}"
+        dest: /tmp/scst
+
+    # Install SCST - https://github.com/SCST-project/scst/blob/master/INSTALL.md#building-scst
+    - name: Compile SCST (Debian)
+      ansible.builtin.shell: |
+        cd /tmp/scst
+        make 2release
+        apt -y install build-essential debhelper devscripts gcc make lintian quilt
+        apt -y install linux-headers-$(uname -r) || sudo apt install pve-headers-$(uname -r)
+        make dpkg 1>/dev/null 2>/dev/null
+      failed_when: false # fixes compiler warnings preventing ansible from continuing
+      changed_when: true
+
+    - name: Install SCST (Debian)
+      ansible.builtin.shell: |
+        dpkg -i /tmp/scstdpkg/iscsi-scst_*.deb
+        # dpkg -i /tmp/scst/dpkg/scst_*.deb ### prefer to install DKMS package for kernel upgrades
+        dpkg -i /tmp/scst/dpkg/scstadmin_*.deb
+        dpkg -i /tmp/scst/dpkg/scst-dev_*.deb
+        dpkg -i /tmp/scst/dpkg/scst-dkms_*.deb
+      changed_when: true
+
+# https://github.com/LINBIT/linstor-gateway/issues/24#issuecomment-1800271696
+- name: Bring up SCST kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    persistent: present # load at boot
+    state: present
+  with_items:
+    - scst
+    - iscsi-scst
+    - scst_vdisk
+
+- name: Create iscsi-scst service
+  ansible.builtin.blockinfile:
+    block: |
+      [Unit]
+      Description=iSCSI SCST Target Daemon
+      Documentation=man:iscsi-scstd(8)
+      After=network.target
+      Before=scst.service
+      Conflicts=shutdown.target
+
+      [Service]
+      EnvironmentFile=-/etc/sysconfig/scst
+      PIDFile=/run/iscsi-scstd.pid
+      ExecStartPre=/sbin/modprobe iscsi-scst
+      ExecStart=/sbin/iscsi-scstd $ISCSID_OPTIONS
+
+      [Install]
+      WantedBy=multi-user.target
+    path: /etc/systemd/system/iscsi-scst.service
+    create: true
+    mode: '644'
+    state: present
+
+- name: Start and enable iscsi-scst service
+  ansible.builtin.systemd_service:
+    name: iscsi-scst.service
+    daemon_reload: true
+    state: restarted
+    enabled: true

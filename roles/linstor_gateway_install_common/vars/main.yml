@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for linstor_gateway_install
+linstor_gateway_portblock_ra_dest: '/lib/ocf/resource.d/heartbeat/portblock'
+
+
+linstor_gateway_ra_packages:
+  - resource-agents

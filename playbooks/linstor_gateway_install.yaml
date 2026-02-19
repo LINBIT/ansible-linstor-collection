@@ -1,0 +1,12 @@
+---
+- name: Install LINSTOR Gateway
+  hosts: all
+  any_errors_fatal: true
+  become: true
+  roles:
+    - role: linbit.linstor.linstor_gateway_install_common
+      when: inventory_hostname in groups['linstor_satellites']
+      tags: linstor_gateway
+    - role: linbit.linstor.linstor_gateway_install_client
+      when: inventory_hostname in groups['linstor_controllers']
+      tags: linstor_gateway

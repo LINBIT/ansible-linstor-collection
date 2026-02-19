@@ -1,0 +1,4 @@
+---
+# defaults file for scst
+# Override to 'master' for nightly builds
+scst_install_version: '3.9.x'

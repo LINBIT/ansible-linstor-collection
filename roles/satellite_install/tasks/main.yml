@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for linstor-satellite
+- name: Load OS-specific variables for satellite_install
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+      paths:
+        - "{{ role_path }}/vars"
+      skip: true
+
+# Prefer "hard" requirement for DRBD role install in meta/main.yml
+# - name: Check for DRBD
+#   ansible.builtin.stat:
+#     path: "{{ satellite_install_drbd_path }}"
+#   register: satellite_install_drbd_check
+
+# - name: Install DRBD
+#   ansible.builtin.include_role:
+#     name: linbit.drbd.drbd_install
+#   when: not satellite_install_drbd_check.stat.exists
+
+- name: Install LINSTOR satellite packages
+  ansible.builtin.package:
+    name: "{{ linstor_satellite_packages + linstor_zfs_packages }}"
+    state: present
+  notify: sat_package_update
+
+- name: Check if firewalld is running
+  ansible.builtin.command: systemctl status firewalld
+  register: satellite_install_firewalld
+  failed_when: satellite_install_firewalld.rc not in [0, 3, 4]
+  changed_when: false
+  when: ansible_os_family | lower in ['redhat', 'suse']
+
+- name: Open firewalld ports LINSTOR satellites
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  with_items:
+    - '3366-3367/tcp'
+    - '7000-8000/tcp'
+  when:
+    - satellite_install_firewalld.rc is defined
+    - satellite_install_firewalld.rc == 0
+
+# https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-storage-pools-creating
+- name: Check for /etc/lvm/lvm.conf
+  ansible.builtin.stat:
+    path: /etc/lvm/lvm.conf
+  register: satellite_install_lvm
+
+- name: Modify lvm.conf global filter for DRBD devices
+  ansible.builtin.lineinfile:
+    path: /etc/lvm/lvm.conf
+    line: 'global_filter = [ "r|^/dev/drbd|", "r|^/dev/mapper/[lL]instor|" ]'
+    regexp: 'global_filter'
+  when: satellite_install_lvm.stat.exists
+
+- name: Flush handlers for satellite_install
+  ansible.builtin.meta: flush_handlers

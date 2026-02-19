@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT-0
+---
+# handlers file for linstor_gateway_install_client
+- name: Restart and enable LINSTOR Gateway service
+  ansible.builtin.systemd_service:
+    name: linstor-gateway.service
+    daemon_reload: true
+    state: restarted
+    enabled: true
+  listen: restart_linstor_gateway

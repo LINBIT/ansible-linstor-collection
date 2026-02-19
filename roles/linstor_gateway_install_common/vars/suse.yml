@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for linstor_gateway_install
+linstor_gateway_supplemental_packages:
+  # - drbd-reactor # installed by role!
+  - iptables # for portblock
+  # - nvmetcli
+  - nfs-kernel-server
+  - nfs-utils
+  - psmisc # Missing from Debian? Might not be included in minimal installs
+  - rpcbind
+  - targetcli-fb-common
+  - python3-targetcli-fb
+
+# SUSE differs from Red Hat and Debian
+linstor_gateway_portblock_ra_dest: '/usr/lib/ocf/resource.d/heartbeat/portblock'

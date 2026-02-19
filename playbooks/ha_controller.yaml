@@ -1,0 +1,264 @@
+
+# https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor_ha-configuring-ha-linstor-database-storage
+
+# Migration use case - What about migrating from a standalone controller node
+# that is no longer used in the cluster? Rsync to new "combined" nodes first?
+# Maybe a "controller_old" group in the inventory?
+
+- name: LINSTOR HA database conversion
+  hosts: linstor_controllers:&linstor_diskful_satellites # Combined controllers
+  any_errors_fatal: true
+  become: true
+  vars:
+    # LINSTOR HA RG place count (2 or 3) based on controller node count
+    linstor_ha_place_count:
+      "{{ (groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) | length ) }}"
+    linstor_ha_pool: "{{ linstor_sp }}" # storage pool to use for HA database
+    linstor_ha_rg: linstor-db-grp       # Matches UG HA database resource group
+    linstor_ha_res: linstor_db          # Matches UG HA dataabase resource name
+
+    # Force short hostnames for certain stacks (Proxmox)
+    linstor_hostname: >-
+      {%- if ((short_hostnames is defined) and (short_hostnames | bool)) -%}
+        "{{ inventory_hostname_short }}"
+      {%- else -%}
+        "{{ inventory_hostname }}"
+      {%- endif -%}
+
+  pre_tasks:
+    - name: Check LINSTOR database to see if HA migration is needed
+      ansible.builtin.shell:
+        cmd: set -o pipefail && linstor c lp -p | grep 'Aux/ClusterIsHA'
+        executable: /bin/bash
+      register: ha_migration_result
+      when:
+        - ansible_play_hosts | length > 1
+        - inventory_hostname in ansible_play_hosts[0]
+      failed_when: ha_migration_result.rc == 2 # grep reports 1 for no results
+      changed_when: false
+
+    # Skip this play for standalone LINSTOR controller clusters
+    - name: Skip LINSTOR HA migration
+      ansible.builtin.meta: end_play
+      when:
+        (ansible_play_hosts | length < 2) or
+        ('True' in ha_migration_result.stdout)
+
+    - name: Verify controller node count is not more than 3
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts | length >= 2
+          - ansible_play_hosts | length <= 3
+        fail_msg: >
+          Please use at least 2, but not more than 3 LINSTOR controller nodes
+          for LINSTOR database high-availability
+      run_once: true
+
+    - name: Verify total cluster size is at least 3 nodes
+      ansible.builtin.assert:
+        that:
+          - groups['linstor_satellites'] | length >= 3
+        fail_msg: >
+          Please use a 3 node or higher LINSTOR cluster to convert to HA.
+      run_once: true
+
+    # All controller nodes must be combined node type
+    - name: Check for standalone LINSTOR controller nodes
+      ansible.builtin.assert:
+        that:
+          - (groups['linstor_controllers'] | difference(groups['linstor_satellites'])) | length == 0
+        fail_msg: >
+          All LINSTOR controller nodes must be combined node types.
+      run_once: true
+  tasks:
+    - name: Check for DRBD Reactor
+      vars:
+        reactor_path: >-
+          {%- if ansible_os_family | lower == 'debian' -%}
+            /usr/sbin/drbd-reactor
+          {%- else -%}
+            /sbin/drbd-reactor
+          {%- endif -%}
+      ansible.builtin.stat:
+        path: "{{ reactor_path }}"
+      register: reactor_check
+
+    - name: Install DRBD Reactor
+      ansible.builtin.include_role:
+        name: linbit.drbd_reactor.reactor_install
+      when: not reactor_check.stat.exists
+
+    # Store auxprop in LINSTOR to convey HA operation
+    # Ideally we can just reference a built-in NodeType property in the future
+    - name: Create LINSTOR aux properties to designate controller nodes
+      ansible.builtin.shell: |
+        linstor node set-property --aux {{ linstor_hostname }} ControllerIsHA True
+      register: aux_prop_result
+      changed_when: aux_prop_result.rc == 0
+      when: inventory_hostname in ansible_play_hosts
+      delegate_to: "{{ ansible_play_hosts[0] }}"
+
+    - name: Create LINSTOR HA resource group
+      ansible.builtin.shell: |
+        linstor rg c --storage-pool {{ linstor_ha_pool }} \
+          --place-count {{ linstor_ha_place_count }} {{ linstor_ha_rg }} \
+          --replicas-on-same ControllerIsHA=True
+      register: rg_create_result
+      failed_when: >
+        rg_create_result.rc != 0 and
+        'already exists' not in rg_create_result.stdout | lower
+      changed_when: rg_create_result.rc == 0
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    - name: Set LINSTOR HA resource group options
+      ansible.builtin.shell: |
+        linstor resource-group drbd-options \
+          --auto-promote=no \
+          --quorum=majority \
+          --on-no-quorum=io-error \
+          --on-no-data-accessible=io-error \
+          --on-suspended-primary-outdated=force-secondary \
+          {{ linstor_ha_rg }}
+      register: rg_modify_result
+      changed_when: rg_modify_result.rc == 0
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # Volume group creation step ommitted here
+    # Not technically needed, easier idempotency 
+
+    - name: Create resource for HA LINSTOR database
+      ansible.builtin.shell: |
+        linstor resource-group spawn-resources {{ linstor_ha_rg }} \
+          {{ linstor_ha_res }} 200M
+      register: rg_spawn_result
+      failed_when: >
+        rg_spawn_result.rc != 0 and
+        'already exists' not in rg_spawn_result.stdout | lower
+      changed_when: rg_spawn_result.rc == 0
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # TieBreaker - pick a random satellite node that is not a controller node
+    - name: Workaround for HA LINSTOR deployments with only 2 storage nodes
+      vars:
+        other_satellite: >-
+          {{
+            (groups['linstor_satellites'] | difference(ansible_play_hosts) | shuffle | first)
+            | default("", true)
+          }}
+        other_satellite_hostname: >-
+          {%- if short_hostnames | default(false) | bool -%}
+            {{ other_satellite.split('.')[0] }}
+          {%- else -%}
+            {{ other_satellite | default("", true) }}
+          {%- endif -%}
+      ansible.builtin.shell: |
+        linstor resource create {{ other_satellite_hostname }} {{ linstor_ha_res }} --drbd-diskless
+      register: resource_create_result
+      changed_when: resource_create_result.rc == 0
+      when:
+        - ansible_play_hosts | length == 2
+        - other_satellite != ""
+        - inventory_hostname == ansible_play_hosts[0]
+
+    - name: Ensure DRBD Reactor is stopped
+      ansible.builtin.systemd:
+        name: drbd-reactor.service
+        state: stopped
+
+    # systemctl disable --now linstansible_play_hostsor-controller
+    - name: Stop the LINSTOR controller service
+      ansible.builtin.systemd:
+        name: linstor-controller
+        state: stopped
+        enabled: false
+
+    # mv /var/lib/linstor{,.orig}
+    - name: Backup original LINSTOR database
+      ansible.builtin.shell: |
+        mv /var/lib/linstor /var/lib/linstor.orig
+      changed_when: true
+
+    # mkdir /var/lib/linstor
+    # chattr +i /var/lib/linstor # only if on LINSTOR >= 1.14.0
+    - name: Create LINSTOR HA mountpoint
+      ansible.builtin.file:
+        path: /var/lib/linstor
+        state: directory
+        owner: root
+        group: root
+        mode: '0750'
+        attributes: '+i'
+
+    # Is this step necessary - why do we set --auto-promote=no??
+    # drbdadm primary linstor_db
+    - name: Promote HA database resource
+      ansible.builtin.shell: |
+        drbdadm primary {{ linstor_ha_res }}
+      register: promote_resource_result
+      changed_when: promote_resource_result.rc == 0
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # mkfs.ext4 /dev/drbd/by-res/linstor_db/0
+    - name: Create new filesystem for HA database
+      community.general.filesystem:
+        fstype: ext4
+        dev: "/dev/drbd/by-res/{{ linstor_ha_res }}/0"
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # systemctl start var-lib-linstor.mount
+    - name: Create the LINSTOR controller mount
+      ansible.builtin.template:
+        src: var-lib-linstor.j2
+        dest: /etc/systemd/system/var-lib-linstor.mount
+        owner: root
+        group: root
+        mode: '644'
+
+    # systemctl start var-lib-linstor.mount
+    - name: Start the LINSTOR controller mount
+      ansible.builtin.systemd:
+        name: var-lib-linstor.mount
+        state: started
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # cp -r /var/lib/linstor.orig/* /var/lib/linstor
+    - name: Copy LINSTOR database to HA storage
+      ansible.builtin.copy:
+        src: /var/lib/linstor.orig/
+        dest: /var/lib/linstor/
+        remote_src: true
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # systemctl start linstor-controller
+    - name: Start the LINSTOR controller service
+      ansible.builtin.systemd:
+        name: linstor-controller
+        state: started
+      when: inventory_hostname in ansible_play_hosts[0]
+
+    # Save DRBD Reactor promoter file
+    # Need to add section for optional VIP to template
+    - name: Create DRBD Reactor config for HA LINSTOR
+      ansible.builtin.template:
+        src: linstor_ha_promoter_config.j2
+        dest: /etc/drbd-reactor.d/linstor_db.toml
+        owner: root
+        group: root
+        mode: '644'
+
+    # systemctl enable drbd-reactor; systemctl restart drbd-reactor
+    - name: Enable and start DRBD Reactor
+      ansible.builtin.systemd:
+        name: drbd-reactor.service
+        daemon_reload: true
+        state: restarted
+        enabled: true
+
+    # "ClusterIsHA" is set at the controller level (cluster-wide)
+    # An easy way to make this playbook idempotent
+    - name: Record aux prop to mark migration as completed
+      ansible.builtin.shell: |
+        linstor controller set-property --aux ClusterIsHA True
+      when: inventory_hostname in ansible_play_hosts[0]
+      changed_when: true
+      retries: 5

@@ -1,0 +1,2 @@
+[global]
+controllers={% for address in linstor_controller_addresses %}{{ address }}{% if not loop.last %},{% endif %}{% endfor %}

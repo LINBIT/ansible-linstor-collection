@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT-0
+---
+# defaults file for linstor_satellite
+# linstor_client role handles client packages
+linstor_satellite_packages:
+  - cryptsetup    # pre-req for luks
+  - socat
+  - lvm2 # For Debian systems
+  - thin-send-recv
+  - zstd
+  - linstor-satellite
+
+# placeholder for Ubuntu
+linstor_zfs_packages: []
+
+# simply override, but internally we'll assume drbd_ip is defined per host
+linstor_controller_addresses:
+  "{{ groups['linstor_controllers'] | map('extract', hostvars, 'drbd_ip') | list | flatten }}"
+
+satellite_install_drbd_path: >-
+  {%- if ansible_os_family | lower == 'debian' -%}
+    /usr/sbin/drbdadm
+  {%- else -%}
+    /sbin/drbdadm
+  {%- endif -%}

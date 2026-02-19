@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT-0
+---
+linstor_zfs_packages:
+  - zfsutils-linux
