@@ -8,7 +8,7 @@ authors:
 - Matt Kereczman <matt@linbit.com>
 - Michael Troutman <michael@linbit.com>
 - Devin Vance <devin@linbit.com>
-description: Full LINSTOR stack: client, controller, satellite, and LINSTOR Gateway for NFS and iSCSI HA
+description: "Full LINSTOR stack: client, controller, satellite, and LINSTOR Gateway for NFS and iSCSI HA"
 license:
 - MIT
 tags:
