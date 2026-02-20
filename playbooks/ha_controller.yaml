@@ -1,4 +1,3 @@
-
 # https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor_ha-configuring-ha-linstor-database-storage
 
 # Migration use case - What about migrating from a standalone controller node
@@ -17,13 +16,9 @@
     linstor_ha_rg: linstor-db-grp       # Matches UG HA database resource group
     linstor_ha_res: linstor_db          # Matches UG HA dataabase resource name
 
-    # Force short hostnames for certain stacks (Proxmox)
-    linstor_hostname: >-
-      {%- if ((short_hostnames is defined) and (short_hostnames | bool)) -%}
-        "{{ inventory_hostname_short }}"
-      {%- else -%}
-        "{{ inventory_hostname }}"
-      {%- endif -%}
+    # Auto-detected from kernel version (true on Proxmox VE). Can be overridden explicitly.
+    short_hostnames: "{{ 'pve' in ansible_kernel }}"
+    linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
 
   pre_tasks:
     - name: Check LINSTOR database to see if HA migration is needed
@@ -31,11 +26,10 @@
         cmd: set -o pipefail && linstor c lp -p | grep 'Aux/ClusterIsHA'
         executable: /bin/bash
       register: ha_migration_result
-      when:
-        - ansible_play_hosts | length > 1
-        - inventory_hostname in ansible_play_hosts[0]
+      when: ansible_play_hosts | length > 1
       failed_when: ha_migration_result.rc == 2 # grep reports 1 for no results
       changed_when: false
+      run_once: true # noqa: run-once[task]
 
     # Skip this play for standalone LINSTOR controller clusters
     - name: Skip LINSTOR HA migration
@@ -52,7 +46,7 @@
         fail_msg: >
           Please use at least 2, but not more than 3 LINSTOR controller nodes
           for LINSTOR database high-availability
-      run_once: true
+      run_once: true # noqa: run-once[task]
 
     - name: Verify total cluster size is at least 3 nodes
       ansible.builtin.assert:
@@ -60,7 +54,7 @@
           - groups['linstor_satellites'] | length >= 3
         fail_msg: >
           Please use a 3 node or higher LINSTOR cluster to convert to HA.
-      run_once: true
+      run_once: true # noqa: run-once[task]
 
     # All controller nodes must be combined node type
     - name: Check for standalone LINSTOR controller nodes
@@ -69,7 +63,7 @@
           - (groups['linstor_controllers'] | difference(groups['linstor_satellites'])) | length == 0
         fail_msg: >
           All LINSTOR controller nodes must be combined node types.
-      run_once: true
+      run_once: true # noqa: run-once[task]
   tasks:
     - name: Check for DRBD Reactor
       vars:
@@ -124,7 +118,7 @@
       when: inventory_hostname in ansible_play_hosts[0]
 
     # Volume group creation step ommitted here
-    # Not technically needed, easier idempotency 
+    # Not technically needed, easier idempotency
 
     - name: Create resource for HA LINSTOR database
       ansible.builtin.shell: |
@@ -227,6 +221,7 @@
         src: /var/lib/linstor.orig/
         dest: /var/lib/linstor/
         remote_src: true
+        mode: preserve
       when: inventory_hostname in ansible_play_hosts[0]
 
     # systemctl start linstor-controller

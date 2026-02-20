@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
 # Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
-# Required for Proxmox hosts where node names are short.
-short_hostnames: false
+# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
+short_hostnames: "{{ 'pve' in ansible_kernel }}"
 linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
