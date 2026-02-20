@@ -29,7 +29,6 @@ The following inventory groups are used to control role targeting:
 
 | Playbook | Description |
 |---|---|
-| `cluster_membership.yaml` | Register controllers and satellites into the LINSTOR cluster |
 | `cluster_storage.yaml` | Create LVM/ZFS storage pools from `physical_devices` |
 | `ha_controller.yaml` | Convert LINSTOR DB to HA mode (2-3 controllers) |
 
