@@ -3,4 +3,4 @@
 - hosts: localhost
   remote_user: root
   roles:
-    - linstor_controller
+    - controller_install

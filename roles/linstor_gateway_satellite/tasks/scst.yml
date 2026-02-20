@@ -27,7 +27,7 @@
     - name: Checkout SCST repo (RHEL)
       ansible.builtin.git: # noqa: latest[git]
         repo: 'https://github.com/SCST-project/scst.git'
-        version: "{{ scst_install_version }}"
+        version: "{{ linstor_gateway_scst_version }}"
         dest: /tmp/scst
 
     # Install SCST - https://github.com/SCST-project/scst/blob/master/INSTALL.md#building-scst
@@ -56,7 +56,7 @@
     - name: Checkout SCST repo (Debian)
       ansible.builtin.git: # noqa: latest[git]
         repo: 'https://github.com/SCST-project/scst.git'
-        version: "{{ scst_install_version }}"
+        version: "{{ linstor_gateway_scst_version }}"
         dest: /tmp/scst
 
     # Install SCST - https://github.com/SCST-project/scst/blob/master/INSTALL.md#building-scst

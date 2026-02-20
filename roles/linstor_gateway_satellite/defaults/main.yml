@@ -15,4 +15,4 @@ linstor_gateway_portblock_fix: true
 
 # SCST iSCSI target - compile and install from source
 linstor_gateway_scst: false
-scst_install_version: '3.9.x'
+linstor_gateway_scst_version: '3.9.x'
