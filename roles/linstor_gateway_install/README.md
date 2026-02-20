@@ -36,12 +36,45 @@ On satellite nodes, conditionally includes `linbit.linstor.linstor_gateway_satel
 Example Playbook
 ----------------
 
+To install LINSTOR Gateway as part of a new LINSTOR cluster
+deployment, set `cluster_init_linstor_gateway: true` when using the `linbit.linstor.cluster_init` role:
+
+```yaml
+- name: Deploy LINSTOR
+  hosts: linstor_cluster
+  become: true
+  tasks:
+    - name: Install and initialize LINSTOR with LINSTOR Gateway
+      vars:
+        cluster_init_linstor_gateway: true
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_init
+```
+
+Standalone LINSTOR Gateway install against an existing LINSTOR cluster:
+
 ```yaml
 - name: Install LINSTOR Gateway
   hosts: all
   become: true
   tasks:
-    - ansible.builtin.import_role:
+    - name: Install LINSTOR Gateway
+      ansible.builtin.import_role:
+        name: linbit.linstor.linstor_gateway_install
+```
+
+To use SCST as the iSCSI target backend, add
+`linstor_gateway_scst: true`:
+
+```yaml
+- name: Install LINSTOR Gateway
+  hosts: all
+  become: true
+  tasks:
+    - name: Install LINSTOR Gateway
+      vars:
+        linstor_gateway_scst: true
+      ansible.builtin.import_role:
         name: linbit.linstor.linstor_gateway_install
 ```
 
