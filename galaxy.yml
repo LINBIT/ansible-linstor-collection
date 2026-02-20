@@ -22,7 +22,7 @@ tags:
 - drbd
 dependencies:
   ansible.posix: '*'
-  community.general: '>=10.4.0' # use <12.0.0 upper bound for RHEL/EL 8 compatibility
+  community.general: '>=10.4.0'
   # linbit.common: '*'       # uncomment when published to Ansible Galaxy
   # linbit.drbd: '*'         # uncomment when published to Ansible Galaxy
   # linbit.drbd_reactor: '*' # uncomment when published to Ansible Galaxy

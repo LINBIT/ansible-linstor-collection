@@ -3,4 +3,4 @@
 # defaults file for linstor_gateway_install
 
 # Only amd64 linstor-gateway builds exist currently
-linstor_gw_github_release: 'https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64'
+linstor_gateway_github_binary: 'https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64'

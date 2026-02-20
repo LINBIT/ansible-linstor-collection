@@ -14,7 +14,7 @@
 # Fix later - GitHub release will not update after initial installation
 - name: Install LINSTOR Gateway from GitHub
   ansible.builtin.get_url:
-    url: "{{ linstor_gw_github_release }}"
+    url: "{{ linstor_gateway_github_binary }}"
     dest: '/usr/sbin/linstor-gateway'
     mode: '755'
   when: "'linstor-gateway' not in ansible_facts.packages"

@@ -27,7 +27,7 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `linstor_gw_github_release` | latest amd64 release | GitHub download URL, used as fallback when package is unavailable |
+| `linstor_gateway_github_binary` | latest amd64 release | GitHub download URL, used as fallback when package is unavailable |
 
 Dependencies
 ------------
