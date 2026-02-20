@@ -19,41 +19,54 @@
     name: linbit.drbd_reactor.reactor_install
   when: "'drbd-reactor.service' not in ansible_facts.services"
 
-- name: Check for portblock resource agent
-  ansible.builtin.stat:
-    path: "{{ linstor_gateway_portblock_ra_dest }}"
-  register: portblock_ra_check
+- name: Install HA dependencies
+  when: inventory_hostname not in groups.get('linstor_diskless_satellites', [])
+  block:
+    - name: Check for portblock resource agent
+      ansible.builtin.stat:
+        path: "{{ linstor_gateway_portblock_ra_dest }}"
+      register: portblock_ra_check
 
-- name: Fix portblock resource agent - remove immutable flag
-  ansible.builtin.file:
-    path: "{{ linstor_gateway_portblock_ra_dest }}"
-    attributes: '-i'
-  when:
-    - linstor_gateway_portblock_fix | bool
-    - portblock_ra_check.stat.exists
+    - name: Fix portblock resource agent - remove immutable flag
+      ansible.builtin.file:
+        path: "{{ linstor_gateway_portblock_ra_dest }}"
+        attributes: '-i'
+      when:
+        - linstor_gateway_portblock_fix | bool
+        - portblock_ra_check.stat.exists
 
-- name: Install LINSTOR Gateway supplemental packages
-  ansible.builtin.package:
-    name: "{{ linstor_gateway_supplemental_packages + linstor_gateway_ra_packages }}"
-    state: present
-  ignore_errors: true # for now, clear up packaging assumptions later
-  notify: disable_and_stop_nfs
+    - name: Install LINSTOR Gateway supplemental packages
+      ansible.builtin.package:
+        name: "{{ linstor_gateway_supplemental_packages + linstor_gateway_ra_packages }}"
+        state: present
+      ignore_errors: true # for now, clear up packaging assumptions later
+      notify: disable_and_stop_nfs
 
-- name: Install SCST
-  ansible.builtin.include_tasks: scst.yml
-  when: linstor_gateway_scst | bool
+    - name: Install SCST
+      ansible.builtin.include_tasks: scst.yml
+      when: linstor_gateway_scst | bool
 
-- name: Open firewalld ports for LINSTOR Gateway satellite services
-  ansible.posix.firewalld:
-    service: "{{ item.name }}"
-    permanent: true
-    immediate: true
-    state: enabled
-  with_items:
-    - "{{ linstor_gateway_firewalld_services }}"
-  when:
-    - ansible_facts.services['firewalld.service'] is defined
-    - ansible_facts.services['firewalld.service'].state == 'running'
+    - name: Open firewalld ports for LINSTOR Gateway satellite services
+      ansible.posix.firewalld:
+        service: "{{ item.name }}"
+        permanent: true
+        immediate: true
+        state: enabled
+      with_items:
+        - "{{ linstor_gateway_firewalld_services }}"
+      when:
+        - ansible_facts.services['firewalld.service'] is defined
+        - ansible_facts.services['firewalld.service'].state == 'running'
+
+    - name: Fix portblock resource agent - overwrite and set immutable flag
+      ansible.builtin.get_url:
+        url: "{{ linstor_gateway_portblock_ra_url }}"
+        dest: "{{ linstor_gateway_portblock_ra_dest }}"
+        mode: '755'
+        attributes: '+i'
+      when:
+        - linstor_gateway_portblock_fix | bool
+        - portblock_ra_check.stat.exists
 
 - name: Patch linstor_satellite.toml for DRBD Reactor
   ansible.builtin.blockinfile:
@@ -67,16 +80,6 @@
   when:
     - "'linstor_satellites' in groups"
     - inventory_hostname in groups['linstor_satellites']
-
-- name: Fix portblock resource agent - overwrite and set immutable flag
-  ansible.builtin.get_url:
-    url: "{{ linstor_gateway_portblock_ra_url }}"
-    dest: "{{ linstor_gateway_portblock_ra_dest }}"
-    mode: '755'
-    attributes: '+i'
-  when:
-    - linstor_gateway_portblock_fix | bool
-    - portblock_ra_check.stat.exists
 
 - name: Flush handlers for linstor_gateway_satellite
   ansible.builtin.meta: flush_handlers
