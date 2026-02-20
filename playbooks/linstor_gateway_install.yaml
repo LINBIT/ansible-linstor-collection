@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Install LINSTOR Gateway
-  hosts: linstor_controllers,linstor_satellites
+  hosts: linstor_cluster
   any_errors_fatal: true
   become: true
   roles:

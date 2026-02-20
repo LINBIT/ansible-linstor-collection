@@ -38,7 +38,7 @@ Example Playbook
 
 ```yaml
 - name: Install LINSTOR Gateway
-  hosts: all
+  hosts: linstor_cluster
   become: true
   tasks:
     - ansible.builtin.import_role:
