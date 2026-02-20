@@ -20,7 +20,9 @@ tags:
 - iscsi
 - ha
 - drbd
-dependencies: {}
+dependencies:
+  ansible.posix: '*'
+  community.general: '>=10.4.0,<12.0.0'
 repository: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor
 documentation: https://linbit.com/user-guides-and-product-documentation/
 homepage: https://linbit.com
