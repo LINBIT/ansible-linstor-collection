@@ -54,11 +54,14 @@
     - ansible_facts.services['firewalld.service'].state == 'running'
 
 # Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
-# needed on satellite nodes, not standalone controllers.
+# needed on satellite nodes. If linstor_gateway_satellites is defined and
+# non-empty, restrict to those nodes; otherwise fall back to all linstor_satellites.
 - name: Install LINSTOR Gateway satellite components
+  vars:
+    _gw_satellite_targets: "{{ groups.get('linstor_gateway_satellites', []) or groups.get('linstor_satellites', []) }}"
   ansible.builtin.include_role:
     name: linbit.linstor.linstor_gateway_satellite
-  when: inventory_hostname in groups.get('linstor_satellites', [])
+  when: inventory_hostname in _gw_satellite_targets
 
 - name: Start and enable LINSTOR Gateway service
   ansible.builtin.systemd_service:

@@ -41,8 +41,7 @@ Example Playbook
         name: linbit.linstor.cluster_init
 ```
 
-To install LINSTOR Gateway as part of a new LINSTOR cluster
-deployment, set `cluster_init_linstor_gateway: true`:
+To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `cluster_init_linstor_gateway: true`:
 
 ```yaml
 - name: Deploy LINSTOR
