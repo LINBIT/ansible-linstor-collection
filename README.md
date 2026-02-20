@@ -34,8 +34,10 @@ The following inventory groups are used to control role targeting:
 
 ## Dependencies
 
-- `linbit.drbd` — DRBD kernel module installation
-- `linbit.drbd_reactor` — DRBD Reactor for HA gateway resources
-- `linbit.common` — LINBIT repo setup
-- `ansible.posix` — firewalld management
-- `community.general` — filesystem, LVM, ZFS, and package management
+| Collection | Purpose |
+|---|---|
+| `linbit.drbd` | DRBD kernel module installation |
+| `linbit.drbd_reactor` | DRBD Reactor for HA gateway resources |
+| `linbit.common` | LINBIT repo setup |
+| `ansible.posix` | firewalld management |
+| `community.general` | filesystem, LVM, ZFS, and package management |
