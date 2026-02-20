@@ -3,7 +3,7 @@ cluster_membership
 
 Register LINSTOR nodes into the cluster.
 Runs `linstor node create` for controller, combined (controller+satellite), and satellite node types.
-Idempotent — nodes already registered are skipped.
+Idempotent: nodes already registered are skipped.
 
 Requirements
 ------------
@@ -21,7 +21,7 @@ Role Variables
 | Variable | Default | Description |
 |---|---|---|
 | `short_hostnames` | auto (true on Proxmox VE) | Use `inventory_hostname_short` instead of FQDN when registering nodes |
-| `replication_ip` | — | Node IP used for DRBD replication traffic (required, set per host in inventory) |
+| `replication_ip` | (required) | Node IP used for DRBD replication traffic; set per host in inventory |
 
 Dependencies
 ------------

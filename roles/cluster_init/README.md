@@ -2,7 +2,7 @@ cluster_init
 ============
 
 Convenience role that installs LINSTOR cluster components and registers cluster membership based on inventory group membership.
-Runs `satellite_install` on nodes in `linstor_satellites`, `controller_install` on nodes in `linstor_controllers`, then `cluster_membership` on all — allowing the full cluster to be installed and registered with a single role against the entire inventory.
+Runs `satellite_install` on nodes in `linstor_satellites`, `controller_install` on nodes in `linstor_controllers`, then `cluster_membership` on all: allowing the full cluster to be installed and registered with a single role against the entire inventory.
 
 Requirements
 ------------
