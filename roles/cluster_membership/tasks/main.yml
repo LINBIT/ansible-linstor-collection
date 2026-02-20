@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Assert host is not in both linstor_diskless_satellites and linstor_diskful_satellites
+  ansible.builtin.assert:
+    that: >-
+      not (inventory_hostname in groups.get('linstor_diskless_satellites', []) and
+           inventory_hostname in groups.get('linstor_diskful_satellites', []))
+    fail_msg: >-
+      {{ inventory_hostname }} is a member of both linstor_diskless_satellites and
+      linstor_diskful_satellites. A node can only belong to one.
+
 # Initialize both pure controllers and combined (controller+satellite) nodes
 - name: Initialize LINSTOR controller membership
   vars:
