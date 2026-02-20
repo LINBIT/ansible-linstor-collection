@@ -66,7 +66,7 @@
     create: true
     mode: '644'
     state: present
-  notify: Restart linstor-satellite.service
+  notify: restart_linstor_satellite
   when:
     - "'linstor_satellites' in groups"
     - inventory_hostname in groups['linstor_satellites']
