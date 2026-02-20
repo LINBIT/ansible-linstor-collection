@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+---
+# defaults file for cluster_init
+
+# Install LINSTOR Gateway (optional)
+cluster_init_linstor_gateway: false

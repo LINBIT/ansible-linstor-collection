@@ -1,15 +1,20 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Install LINSTOR satellite
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: linbit.linstor.satellite_install
   when: inventory_hostname in groups['linstor_satellites']
 
 - name: Install LINSTOR controller
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: linbit.linstor.controller_install
   when: inventory_hostname in groups['linstor_controllers']
 
 - name: Register LINSTOR cluster membership
-  ansible.builtin.import_role:
+  ansible.builtin.include_role:
     name: linbit.linstor.cluster_membership
+
+- name: Install LINSTOR Gateway
+  ansible.builtin.include_role:
+    name: linbit.linstor.linstor_gateway_install
+  when: cluster_init_linstor_gateway | bool

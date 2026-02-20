@@ -17,7 +17,11 @@ The following inventory groups must be defined:
 Role Variables
 --------------
 
-See `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, and `linbit.linstor.cluster_membership` for available variables.
+| Variable | Default | Description |
+|---|---|---|
+| `cluster_init_linstor_gateway` | `false` | Also install LINSTOR Gateway on the cluster |
+
+See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, and `linbit.linstor.cluster_membership` for their available variables.
 
 Dependencies
 ------------
