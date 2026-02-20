@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 - name: LINSTOR Gateway Health Check (check-health)
   hosts: linstor_satellites[0]
   become: true

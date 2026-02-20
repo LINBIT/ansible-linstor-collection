@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 - name: LINSTOR cluster storage
   hosts: linstor_diskful_satellites
   any_errors_fatal: true

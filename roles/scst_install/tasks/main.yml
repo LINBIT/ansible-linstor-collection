@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 ---
 # tasks file for scst
 # Only run when scst=true - 'ansible-playbook <playbook.yaml> -e scst=true'

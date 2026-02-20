@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 ---
 - name: Install LINSTOR Gateway
   hosts: all

@@ -26,7 +26,7 @@ Example Playbook
   hosts: linstor_satellites
   become: true
   tasks:
-    - ansible.builtin.include_role:
+    - ansible.builtin.import_role:
         name: linbit.linstor.scst_install
 ```
 

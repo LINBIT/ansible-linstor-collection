@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor_ha-configuring-ha-linstor-database-storage
 
 # Migration use case - What about migrating from a standalone controller node
