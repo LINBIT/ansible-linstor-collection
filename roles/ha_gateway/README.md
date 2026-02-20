@@ -41,7 +41,9 @@ See `defaults/main.yml`.
 Dependencies
 ------------
 
-`linbit.drbd_reactor.reactor_install`, `linbit.linstor.linstor_gateway_install_common`
+No hard role dependencies. `linbit.linstor.linstor_gateway_install_common` must be run on all
+satellite nodes before this role (see Requirements above). It will install DRBD Reactor
+(`linbit.drbd_reactor.reactor_install`) transitively.
 
 Example Playbook
 ----------------

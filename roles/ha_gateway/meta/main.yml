@@ -51,6 +51,4 @@ galaxy_info:
     - iscsi
     - gateway
 
-dependencies:
-  - role: linbit.drbd_reactor.reactor_install
-  - role: linbit.linstor.linstor_gateway_install_common
+dependencies: []
