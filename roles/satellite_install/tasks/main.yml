@@ -11,17 +11,6 @@
         - "{{ role_path }}/vars"
       skip: true
 
-# Prefer "hard" requirement for DRBD role install in meta/main.yml
-# - name: Check for DRBD
-#   ansible.builtin.stat:
-#     path: "{{ satellite_install_drbd_path }}"
-#   register: satellite_install_drbd_check
-
-# - name: Install DRBD
-#   ansible.builtin.include_role:
-#     name: linbit.drbd.drbd_install
-#   when: not satellite_install_drbd_check.stat.exists
-
 - name: Install LINSTOR satellite packages
   ansible.builtin.package:
     name: "{{ linstor_satellite_packages + linstor_zfs_packages }}"
