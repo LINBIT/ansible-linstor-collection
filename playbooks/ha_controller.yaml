@@ -139,12 +139,7 @@
             (groups['linstor_satellites'] | difference(ansible_play_hosts) | shuffle | first)
             | default("", true)
           }}
-        other_satellite_hostname: >-
-          {%- if short_hostnames | default(false) | bool -%}
-            {{ other_satellite.split('.')[0] }}
-          {%- else -%}
-            {{ other_satellite | default("", true) }}
-          {%- endif -%}
+        other_satellite_hostname: "{{ other_satellite.split('.')[0] if short_hostnames | bool else other_satellite }}"
       ansible.builtin.shell: |
         linstor resource create {{ other_satellite_hostname }} {{ linstor_ha_res }} --drbd-diskless
       register: resource_create_result

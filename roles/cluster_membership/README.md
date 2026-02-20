@@ -18,7 +18,7 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `short_hostnames` | `false` | Use `inventory_hostname_short` instead of FQDN when registering nodes |
+| `short_hostnames` | auto (true on Proxmox VE) | Use `inventory_hostname_short` instead of FQDN when registering nodes |
 | `replication_ip` | — | Node IP used for DRBD replication traffic (required, set per host in inventory) |
 
 Dependencies
