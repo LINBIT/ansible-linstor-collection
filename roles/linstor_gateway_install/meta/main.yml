@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 galaxy_info:
   author: LINBIT
-  description: Install LINSTOR Gateway with NFS and iSCSI HA support
+  description: Install the LINSTOR Gateway binary and service
   company: LINBIT
 
   license: MIT
@@ -51,5 +51,4 @@ galaxy_info:
     - iscsi
     - ha
 
-dependencies:
-  - role: linbit.linstor.linstor_gateway_install_client
+dependencies: []

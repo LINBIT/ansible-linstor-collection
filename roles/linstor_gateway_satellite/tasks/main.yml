@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-# tasks file for linstor_gateway_install
-- name: Load OS-specific variables for LINSTOR Gateway
+- name: Load OS-specific variables for LINSTOR Gateway satellite
   ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
     - files:
@@ -15,19 +14,11 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
-# Assume LINSTOR satellite components exist, install if needed
-- name: Install LINSTOR satellite components
-  ansible.builtin.include_role:
-    name: linbit.drbd_reactor.reactor_install
-  when: "'linstor-satellite.service' not in ansible_facts.services"
-
-# Assume DRBD Reactor components exist, install if needed
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
   when: "'drbd-reactor.service' not in ansible_facts.services"
 
-# Needed if updating new packages
 - name: Check for portblock resource agent
   ansible.builtin.stat:
     path: "{{ linstor_gateway_portblock_ra_dest }}"
@@ -54,7 +45,6 @@
   when:
     - scst is defined
     - scst | bool
-    - inventory_hostname in groups['linstor_satellites']
 
 - name: Check if firewalld is running
   ansible.builtin.shell: systemctl status firewalld
@@ -63,7 +53,7 @@
   changed_when: false
   when: ansible_os_family | lower in ['redhat', 'suse']
 
-- name: Open firewall ports for LINSTOR Gateway (all services)
+- name: Open firewall ports for LINSTOR Gateway satellite services
   ansible.posix.firewalld:
     service: "{{ item.name }}"
     permanent: true
@@ -86,7 +76,6 @@
     state: present
   notify: Restart linstor-satellite.service
 
-# Only overrite when the RA already exists (resource-agents installed)
 - name: Fix portblock resource agent - overwrite and set immutable flag
   ansible.builtin.get_url:
     url: "{{ linstor_gateway_portblock_ra_url }}"
@@ -97,5 +86,5 @@
     - linstor_gateway_portblock_fix | bool
     - portblock_ra_check.stat.exists
 
-- name: Flush handlers for current role
+- name: Flush handlers for linstor_gateway_satellite
   ansible.builtin.meta: flush_handlers

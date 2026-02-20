@@ -1,13 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Install LINSTOR Gateway
-  hosts: all
+  hosts: linstor_controllers,linstor_satellites
   any_errors_fatal: true
   become: true
   roles:
-    - role: linbit.linstor.linstor_gateway_install_common
-      when: inventory_hostname in groups['linstor_satellites']
-      tags: linstor_gateway
-    - role: linbit.linstor.linstor_gateway_install_client
-      when: inventory_hostname in groups['linstor_controllers']
+    - role: linbit.linstor.linstor_gateway_install
       tags: linstor_gateway

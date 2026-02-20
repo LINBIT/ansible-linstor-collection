@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 galaxy_info:
   author: LINBIT
-  description: Install LINSTOR Gateway client components
+  description: Install LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor)
   company: LINBIT
 
   license: MIT
@@ -49,5 +49,6 @@ galaxy_info:
     - gateway
     - nfs
     - iscsi
+    - ha
 
 dependencies: []

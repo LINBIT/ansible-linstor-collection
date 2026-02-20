@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
-# defaults file for linstor_gateway_install
+# defaults file for linstor_gateway_satellite
+
 # RA fix - use v4.16 version
 linstor_gateway_portblock_ra_url: 'https://raw.githubusercontent.com/ClusterLabs/resource-agents/tags/v4.16.0/heartbeat/portblock'
 
@@ -8,7 +9,6 @@ linstor_gateway_firewalld_services:
   - { name: nfs, port: 111/tcp }
   - { name: nfs, port: 2049/tcp }
   - { name: iscsi-target, port: 3260/tcp }
-  - { name: linstor-gateway, port: 8337/tcp }
 
-# Overrite existing portblock RA to fix iptables issues
+# Overwrite existing portblock RA to fix iptables issues
 linstor_gateway_portblock_fix: true

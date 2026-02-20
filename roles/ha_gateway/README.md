@@ -14,7 +14,7 @@ Instead of running `linstor-gateway nfs create` or `linstor-gateway iscsi create
 Requirements
 ------------
 
-Install `linstor_gateway_install_common` on all satellite nodes before using this role to ensure NFS/iSCSI resource agents, supplemental packages, and DRBD Reactor are present.
+Install `linstor_gateway_satellite` on all satellite nodes before using this role to ensure NFS/iSCSI resource agents, supplemental packages, and DRBD Reactor are present.
 
 ```yaml
 - name: Install LINSTOR Gateway components
@@ -22,7 +22,7 @@ Install `linstor_gateway_install_common` on all satellite nodes before using thi
   become: true
   tasks:
     - ansible.builtin.import_role:
-        name: linbit.linstor.linstor_gateway_install_common
+        name: linbit.linstor.linstor_gateway_satellite
 ```
 
 Role Variables
@@ -41,7 +41,7 @@ See `defaults/main.yml`.
 Dependencies
 ------------
 
-No hard role dependencies. `linbit.linstor.linstor_gateway_install_common` must be run on all
+No hard role dependencies. `linbit.linstor.linstor_gateway_satellite` must be run on all
 satellite nodes before this role (see Requirements above). It will install DRBD Reactor
 (`linbit.drbd_reactor.reactor_install`) transitively.
 
@@ -56,7 +56,7 @@ Example Playbook
   tasks:
     - name: Install LINSTOR Gateway components
       ansible.builtin.import_role:
-        name: linbit.linstor.linstor_gateway_install_common
+        name: linbit.linstor.linstor_gateway_satellite
 
     - name: Create HA resources
       vars:

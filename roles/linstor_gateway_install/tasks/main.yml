@@ -11,7 +11,7 @@
   ansible.builtin.package_facts:
     manager: auto
 
-# Fix later - GitHub release will not update after initiallation
+# Fix later - GitHub release will not update after initial installation
 - name: Install LINSTOR Gateway from GitHub
   ansible.builtin.get_url:
     url: "{{ linstor_gw_github_release }}"
@@ -20,7 +20,7 @@
   when: "'linstor-gateway' not in ansible_facts.packages"
   notify: restart_linstor_gateway
 
-# Only needed when installing from github?
+# Only needed when installing from GitHub
 - name: Create linstor-gateway systemd service
   ansible.builtin.copy:
     src: linstor-gateway.service
@@ -47,7 +47,7 @@
   changed_when: false
   when: ansible_os_family | lower in ['redhat', 'suse']
 
-- name: Open firewall ports for LINSTOR Gateway client server
+- name: Open firewall port for LINSTOR Gateway
   ansible.posix.firewalld:
     port: "{{ item.port }}"
     permanent: true
@@ -60,12 +60,18 @@
   with_items:
     - { name: linstor-gateway, port: 8337/tcp }
 
+# Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
+# needed on satellite nodes, not standalone controllers.
+- name: Install LINSTOR Gateway satellite components
+  ansible.builtin.include_role:
+    name: linbit.linstor.linstor_gateway_satellite
+  when: inventory_hostname in groups.get('linstor_satellites', [])
+
 - name: Start and enable LINSTOR Gateway service
   ansible.builtin.systemd_service:
     name: linstor-gateway.service
     state: started
     enabled: true
 
-# Restart the linstor-gateway service if it has been updated
-- name: Flush handlers for linstor_gateway_install_client
+- name: Flush handlers for linstor_gateway_install
   ansible.builtin.meta: flush_handlers

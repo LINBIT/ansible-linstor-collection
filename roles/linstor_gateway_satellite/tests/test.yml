@@ -3,4 +3,4 @@
 - hosts: localhost
   remote_user: root
   roles:
-    - linstor_gateway_install_client
+    - linstor_gateway_satellite
