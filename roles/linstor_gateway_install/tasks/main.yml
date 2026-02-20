@@ -40,25 +40,18 @@
     dest: /etc/linstor-gateway/linstor-gateway.toml
     mode: '644'
 
-- name: Check if firewalld is running
-  ansible.builtin.shell: systemctl status firewalld
-  register: linstor_gateway_firewalld
-  failed_when: (linstor_gateway_firewalld.rc not in [0, 3, 4])
-  changed_when: false
-  when: ansible_os_family | lower in ['redhat', 'suse']
+- name: Gather service facts
+  ansible.builtin.service_facts:
 
-- name: Open firewall port for LINSTOR Gateway
+- name: Open firewalld port for LINSTOR Gateway
   ansible.posix.firewalld:
-    port: "{{ item.port }}"
+    port: 8337/tcp
     permanent: true
     immediate: true
     state: enabled
   when:
-    - ansible_os_family | lower in ['redhat', 'suse']
-    - linstor_gateway_firewalld.rc is defined
-    - linstor_gateway_firewalld.rc == 0
-  with_items:
-    - { name: linstor-gateway, port: 8337/tcp }
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
 
 # Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
 # needed on satellite nodes, not standalone controllers.

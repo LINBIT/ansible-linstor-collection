@@ -17,12 +17,8 @@
     state: present
   notify: sat_package_update
 
-- name: Check if firewalld is running
-  ansible.builtin.command: systemctl status firewalld
-  register: satellite_install_firewalld
-  failed_when: satellite_install_firewalld.rc not in [0, 3, 4]
-  changed_when: false
-  when: ansible_os_family | lower in ['redhat', 'suse']
+- name: Gather service facts
+  ansible.builtin.service_facts:
 
 - name: Open firewalld ports LINSTOR satellites
   ansible.posix.firewalld:
@@ -34,8 +30,8 @@
     - '3366-3367/tcp'
     - '7000-8000/tcp'
   when:
-    - satellite_install_firewalld.rc is defined
-    - satellite_install_firewalld.rc == 0
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
 
 # https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-storage-pools-creating
 - name: Check for /etc/lvm/lvm.conf

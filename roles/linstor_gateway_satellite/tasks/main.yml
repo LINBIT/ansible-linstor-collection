@@ -46,14 +46,7 @@
     - scst is defined
     - scst | bool
 
-- name: Check if firewalld is running
-  ansible.builtin.shell: systemctl status firewalld
-  register: linstor_gateway_firewalld
-  failed_when: (linstor_gateway_firewalld.rc not in [0, 3, 4])
-  changed_when: false
-  when: ansible_os_family | lower in ['redhat', 'suse']
-
-- name: Open firewall ports for LINSTOR Gateway satellite services
+- name: Open firewalld ports for LINSTOR Gateway satellite services
   ansible.posix.firewalld:
     service: "{{ item.name }}"
     permanent: true
@@ -62,9 +55,8 @@
   with_items:
     - "{{ linstor_gateway_firewalld_services }}"
   when:
-    - ansible_os_family | lower in ['redhat', 'suse']
-    - linstor_gateway_firewalld.rc is defined
-    - linstor_gateway_firewalld.rc == 0
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
 
 - name: Patch linstor_satellite.toml for DRBD Reactor
   ansible.builtin.blockinfile:

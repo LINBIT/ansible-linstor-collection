@@ -9,14 +9,7 @@
     state: present
   register: controller_install_packages_result
 
-- name: Check if firewalld is running
-  ansible.builtin.command: systemctl status firewalld
-  register: firewalld
-  failed_when: firewalld.rc not in [0, 3, 4]
-  changed_when: false
-  when:
-    - ansible_os_family | lower == 'redhat' or
-      ansible_os_family | lower == 'suse'
+- ansible.builtin.service_facts:
 
 - name: Open firewalld ports LINSTOR controllers
   ansible.posix.firewalld:
@@ -25,10 +18,8 @@
     immediate: true
     state: enabled
   when:
-    - firewalld.rc is defined
-    - firewalld.rc == 0
-
-- ansible.builtin.service_facts:
+    - ansible_facts.services['firewalld.service'] is defined
+    - ansible_facts.services['firewalld.service'].state == 'running'
 
 - name: Set per-host LINSTOR controller status
   ansible.builtin.set_fact:
