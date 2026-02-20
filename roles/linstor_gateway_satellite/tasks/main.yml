@@ -40,8 +40,7 @@
   notify: disable_and_stop_nfs
 
 - name: Install SCST
-  ansible.builtin.include_role:
-    name: linbit.linstor.scst_install
+  ansible.builtin.include_tasks: scst.yml
   when:
     - scst is defined
     - scst | bool

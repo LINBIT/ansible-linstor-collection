@@ -25,6 +25,7 @@ Role Variables
 | `linstor_gateway_portblock_ra_url` | ClusterLabs v4.16.0 | URL to fetch the portblock resource agent |
 | `linstor_gateway_portblock_fix` | `true` | Overwrite and pin the portblock RA to fix iptables issues |
 | `linstor_gateway_firewalld_services` | NFS + iSCSI ports | firewalld services/ports to open (RedHat/SUSE only) |
+| `scst_install_version` | `3.9.x` | SCST git tag to build from source; only used when `scst=true` |
 
 Dependencies
 ------------

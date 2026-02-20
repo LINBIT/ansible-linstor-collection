@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
-# tasks file for scst
-# Only run when scst=true - 'ansible-playbook <playbook.yaml> -e scst=true'
+# Install SCST iSCSI target from source
+# Triggered when scst=true is passed as an extra var.
 - name: Install SCST (RHEL)
   when:
     - ansible_os_family == 'RedHat'

@@ -12,9 +12,8 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 | `controller_install` | Installs the LINSTOR controller and GUI |
 | `linstor_client` | Installs the LINSTOR CLI client |
 | `linstor_gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
-| `linstor_gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor) |
+| `linstor_gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
 | `ha_gateway` | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |
-| `scst_install` | Compiles and installs SCST iSCSI target (when `scst=true`) |
 
 ## Required Inventory Groups
 

@@ -12,3 +12,6 @@ linstor_gateway_firewalld_services:
 
 # Overwrite existing portblock RA to fix iptables issues
 linstor_gateway_portblock_fix: true
+
+# SCST iSCSI target version to build from source (only used when scst=true)
+scst_install_version: '3.9.x'
