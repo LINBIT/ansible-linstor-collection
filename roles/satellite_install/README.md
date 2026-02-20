@@ -6,7 +6,11 @@ Install and configure LINSTOR satellite nodes.
 Requirements
 ------------
 
-None.
+The following inventory group must be defined:
+
+| Group | Description |
+|---|---|
+| `linstor_satellites` | Nodes to install the LINSTOR satellite on |
 
 Role Variables
 --------------
@@ -26,7 +30,7 @@ Example Playbook
   hosts: linstor_satellites
   become: true
   tasks:
-    - ansible.builtin.include_role:
+    - ansible.builtin.import_role:
         name: linbit.linstor.satellite_install
 ```
 

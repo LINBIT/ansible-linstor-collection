@@ -6,7 +6,11 @@ Install LINSTOR Gateway client components.
 Requirements
 ------------
 
-None.
+The following inventory group must be defined:
+
+| Group | Description |
+|---|---|
+| `linstor_satellites` | Nodes to install LINSTOR Gateway on |
 
 Role Variables
 --------------
@@ -26,7 +30,7 @@ Example Playbook
   hosts: linstor_satellites
   become: true
   tasks:
-    - ansible.builtin.include_role:
+    - ansible.builtin.import_role:
         name: linbit.linstor.linstor_gateway_install_client
 ```
 

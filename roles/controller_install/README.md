@@ -6,7 +6,11 @@ Install and configure the LINSTOR controller.
 Requirements
 ------------
 
-None.
+The following inventory group must be defined:
+
+| Group | Description |
+|---|---|
+| `linstor_controllers` | Nodes to install the LINSTOR controller on |
 
 Role Variables
 --------------
@@ -26,7 +30,7 @@ Example Playbook
   hosts: linstor_controllers
   become: true
   tasks:
-    - ansible.builtin.include_role:
+    - ansible.builtin.import_role:
         name: linbit.linstor.controller_install
 ```
 

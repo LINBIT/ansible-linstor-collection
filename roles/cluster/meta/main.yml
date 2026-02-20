@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: MIT
+galaxy_info:
+  author: LINBIT
+  description: Install LINSTOR cluster components based on inventory group membership
+  company: LINBIT
+
+  license: MIT
+
+  platforms:
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+        - resolute
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+    - name: opensuse
+      versions:
+        - "15.6"
+    - name: SLES
+      versions:
+        - 15SP6
+
+  min_ansible_version: '2.9'
+
+  galaxy_tags:
+    - linbit
+    - linstor
+    - storage
+    - satellite
+    - controller
+    - drbd
+
+dependencies: []
