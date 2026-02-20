@@ -1,5 +1,5 @@
-cluster
-=======
+cluster_init
+============
 
 Convenience role that installs LINSTOR cluster components based on inventory group membership. Runs `satellite_install` on nodes in `linstor_satellites` and `controller_install` on nodes in `linstor_controllers` — allowing the full cluster to be installed with a single role against the entire inventory.
 
@@ -32,7 +32,7 @@ Example Playbook
   become: true
   tasks:
     - ansible.builtin.import_role:
-        name: linbit.linstor.cluster
+        name: linbit.linstor.cluster_init
 ```
 
 License
