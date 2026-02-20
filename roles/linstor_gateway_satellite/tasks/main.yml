@@ -41,9 +41,7 @@
 
 - name: Install SCST
   ansible.builtin.include_tasks: scst.yml
-  when:
-    - scst is defined
-    - scst | bool
+  when: linstor_gateway_scst | bool
 
 - name: Open firewalld ports for LINSTOR Gateway satellite services
   ansible.posix.firewalld:
