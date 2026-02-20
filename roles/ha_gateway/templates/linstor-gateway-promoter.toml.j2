@@ -1,0 +1,61 @@
+# Ansible generated LINSTOR Gateway iSCSI target
+{% set iscsi_target = resource %}
+{% set nfs_export = resource %}
+{% set preferred_nodes = groups['linstor_diskful_satellites'] | intersect(ansible_play_hosts) | sort %}
+[[promoter]]
+
+  [promoter.metadata]
+    linstor-gateway-schema-version = 1
+
+  [promoter.resources]
+
+    [promoter.resources.{{ resource }}]
+{# Prefer nodes with storage pools #}
+{% if (ha_gateway_prefer_diskful | bool | default(true)) and (preferred_nodes | length > 0) %}
+      # Prefer nodes with storage pools (linstor_diskful_satellites)
+      preferred-nodes = [
+{% for node in preferred_nodes %}
+        "{{ node }}",
+{% endfor %}
+      ]
+      preferred-nodes-policy = "always"
+{% endif %}
+      on-drbd-demote-failure = "reboot-immediate"
+      runner = "systemd"
+      start = [
+{% if iscsi | default(false) %}
+        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ iscsi_target }}/0 directory=/srv/ha/internal/{{ iscsi_target }} fstype={{ fstype | default('ext4') }} run_fsck=no",
+        "ocf:heartbeat:portblock pblock0 action=block ip={{ service_ip }} portno={{ target_port | default('3260') }} protocol=tcp",
+        "ocf:heartbeat:IPaddr2 service_ip0 cidr_netmask={{ cidr_netmask | default('24') }} ip={{ service_ip }}",
+        "ocf:heartbeat:iSCSITarget target allowed_initiators='' incoming_password='' incoming_username='' iqn={{ iqn_base | default('iqn.2019-08.com.linbit') }}:{{ iscsi_target }} portals={{ service_ip }}:{{ target_port | default('3260') }}",
+        "ocf:heartbeat:iSCSILogicalUnit lu1 lun=1 path=/dev/drbd/by-res/{{ iscsi_target }}/1 product_id={{ (iscsi_target | hash('sha1'))[0:8] }} scsi_sn={{ (iscsi_target | hash('sha1'))[0:8] }} target_iqn={{ (iqn_base | lower) | default('iqn.2019-08.com.linbit') }}:{{ iscsi_target }}",
+        "ocf:heartbeat:portblock portunblock0 action=unblock ip={{ service_ip }} portno={{ target_port | default('3260') }} protocol=tcp tickle_dir=/srv/ha/internal/{{ iscsi_target }}",
+{% endif %}
+{% for export in ha_gateway_nfs_exports %}
+{% if loop.last and ha_gateway_nfs_exports[loop.index0].name == resource %}
+{% if ha_gateway_nfs_exports | length > 1 %}
+        "ocf:heartbeat:chain-link chainup{{ loop.index0 }} mode=uplink linked_resource={{ ha_gateway_nfs_exports[loop.index0 - 1].name }}",
+{% endif %}
+        "ocf:heartbeat:portblock portblock action=block ip={{ service_ip }} portno=2049 protocol=tcp",
+        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ nfs_export }}/0 directory=/srv/ha/internal/{{ nfs_export }} fstype={{ fstype | default('ext4') }} run_fsck=no",
+        "ocf:heartbeat:Filesystem fs_{{ loop.index0 }} device=/dev/drbd/by-res/{{ nfs_export }}/1 directory=/srv/gateway-exports/{{ nfs_export }} fstype={{ fstype | default('ext4') }} run_fsck=no",
+        "ocf:heartbeat:IPaddr2 vip{{ loop.index0 }} cidr_netmask={{ cidr_netmask | default('24') }} ip={{ service_ip }}",
+        "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ service_ip }} nfs_server_scope={{ service_ip }} nfs_shared_infodir=/srv/ha/internal/{{ nfs_export }}/nfs",
+{% for export_fs in ha_gateway_nfs_exports %}
+        "ocf:heartbeat:exportfs export_{{ loop.index0 }} clientspec=0.0.0.0/0.0.0.0 directory=/srv/gateway-exports/{{ export_fs.name }} options='rw,all_squash,anonuid=0,anongid=0'",
+{% endfor %}
+        "ocf:heartbeat:portblock portunblock action=unblock ip={{ service_ip }} portno=2049 protocol=tcp tickle_dir=/srv/ha/internal/{{ nfs_export }}",
+{% elif ha_gateway_nfs_exports[loop.index0].name == resource %}
+{% if not loop.first %}
+        "ocf:heartbeat:chain-link chainup{{ loop.index0 }} mode=uplink linked_resource={{ ha_gateway_nfs_exports[loop.index0 - 1].name }}",
+{% endif %}
+        "ocf:heartbeat:Filesystem fs_{{ loop.index0 }} device=/dev/drbd/by-res/{{ nfs_export }}/1 directory=/srv/gateway-exports/{{ nfs_export }} fstype={{ fstype | default('ext4') }} run_fsck=no",
+{% if (service_ip is defined) %}
+        "ocf:heartbeat:IPaddr2 vip{{ loop.index0 }} cidr_netmask={{ cidr_netmask | default('24') }} ip={{ service_ip }}",
+{% endif %}
+        "ocf:heartbeat:chain-link chaindown{{ loop.index0 }} mode=downlink linked_resource={{ ha_gateway_nfs_exports[(loop.index0 + 1)].name }}",
+{% endif %}
+{% endfor %}
+      ]
+      stop-services-on-exit = true
+      target-as = "Requires"

@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: MIT
+---
+# Use LINSTOR's DfltRscGrp by default
+- name: Spawn a new resource for iscsi share
+  ansible.builtin.shell: >
+    linstor rg spawn {{ ha_gateway_rg | default('DfltRscGrp') }} {{ item.name }}
+    {{ ha_gateway_tickledir_size | default('64M') }} {{ item.size }}
+  register: ha_gateway_spawn_res
+  failed_when: >
+    ha_gateway_spawn_res.rc != 0 and
+    'already exists' not in ha_gateway_spawn_res.stdout | lower
+  changed_when: ha_gateway_spawn_res.rc == 0
+  with_items: "{{ ha_gateway_all_resources }}"
+  when:
+    - ha_gateway_linstor_spawn | bool
+    - inventory_hostname in ansible_play_hosts[0]
+  throttle: 1
+
+- name: Wait until DRBD devices are enumerated
+  ansible.builtin.wait_for:
+    path: "/dev/drbd/by-res/{{ item.name }}/0"
+  with_items: "{{ ha_gateway_all_resources }}"
+
+# Temporarily use default auto-promote for formatting
+- name: Format partition - portblock tickledir
+  community.general.filesystem:
+    fstype: "{{ item.fstype | default('ext4') }}"
+    dev: "/dev/drbd/by-res/{{ item.name }}/0"
+  with_items: "{{ ha_gateway_all_resources }}"
+  when:
+    - ha_gateway_spawn_res.changed
+    - inventory_hostname in ansible_play_hosts[0]
+
+- name: Format partition - NFS export
+  community.general.filesystem:
+    fstype: "{{ item.fstype | default('ext4') }}"
+    dev: "/dev/drbd/by-res/{{ item.name }}/1"
+  with_items: "{{ ha_gateway_nfs_exports }}"
+  when:
+    - ha_gateway_spawn_res.changed
+    - inventory_hostname in ansible_play_hosts[0]
+
+# This command always returns 0 if there is no error
+# Tie to resource creation for better idempotency
+- name: Set DRBD resource options for DRBD Reactor
+  ansible.builtin.shell: |
+    linstor rd drbd-options {{ item.name }} {{ ha_gateway_drbd_args }}
+  register: ha_gateway_set_drbd_opts
+  changed_when: ha_gateway_set_drbd_opts.rc == 0
+  with_items: "{{ ha_gateway_all_resources }}"
+  when:
+    - inventory_hostname in ansible_play_hosts[0]
+    - ha_gateway_spawn_res.changed
+
+# Reactor TOML files have '600' file permissions
+- name: Load iSCSI template for Reactor
+  vars:
+    iscsi: true # iSCSI HA services in DRBD Reactor
+    resource: "{{ item.name }}"
+    service_ip: "{{ item.vip }}"
+    cidr_netmask: "{{ item.cidr_netmask | default('24') }}"
+    target_port: "{{ item.target_port | default('3260') }}"
+    iqn_base: "{{ item.iqn_base | default('iqn.2019-08.com.linbit') }}"
+    fstype: "{{ item.fstype | default('ext4') }}"
+  ansible.builtin.template:
+    src: linstor-gateway-promoter.toml.j2
+    dest: "/etc/drbd-reactor.d/iscsi-{{ item.name }}.toml"
+    mode: '600'
+    owner: root
+    group: root
+  register: ha_gateway_iscsi_toml
+  with_items: "{{ ha_gateway_iscsi_targets }}"
+
+# Reactor TOML files have '600' file permissions
+- name: Load NFS template for Reactor
+  vars:
+    nfs: true # NFS HA services in DRBD Reactor
+    resource: "{{ item.name }}"
+    service_ip: "{{ item.vip }}"
+    cidr_netmask: "{{ item.cidr_netmask | default('24') }}"
+    fstype: "{{ item.fstype | default('ext4') }}"
+  ansible.builtin.template:
+    src: linstor-gateway-promoter.toml.j2
+    dest: "/etc/drbd-reactor.d/nfs-{{ item.name }}.toml"
+    mode: '600'
+    owner: root
+    group: root
+  register: ha_gateway_nfs_toml
+  with_items: "{{ ha_gateway_nfs_exports }}"
+
+# Check for LINSTOR Gateway "automatic reload"
+- name: Check drbd-reactor-reload.path status
+  ansible.builtin.systemd:
+    name: drbd-reactor-reload.path
+  register: ha_gateway_reactor_reload
+
+- name: Restart DRBD Reactor to load new services
+  ansible.builtin.systemd_service:
+    name: drbd-reactor.service
+    state: restarted
+    daemon_reload: true
+  when:
+    - ha_gateway_reactor_reload.status.LoadState == "loaded"
+    - ha_gateway_reactor_reload.status.ActiveState != "active"
+    - (ha_gateway_iscsi_toml.changed or ha_gateway_nfs_toml.changed)

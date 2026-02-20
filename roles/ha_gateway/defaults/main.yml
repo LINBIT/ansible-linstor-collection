@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+---
+# defaults file for ha_gateway_iscsi
+# defaults/main.yml
+ha_gateway_iscsi_targets: []
+ha_gateway_nfs_exports: []
+ha_gateway_all_resources: "{{ ha_gateway_iscsi_targets + ha_gateway_nfs_exports }}"
+
+ha_gateway_linstor_spawn: true
+ha_gateway_rg: 'DfltRscGrp'
+ha_gateway_fstype: 'ext4' # Used for portblock tickledir partition + NFS exports
+ha_gateway_tickledir_size: '64M' # LINSTOR Gateway default
+
+# Prevent promotion of HA resources on diskless nodes/resources
+ha_gateway_prefer_diskful: true
+
+ha_gateway_drbd_options:
+  auto-promote: 'no'
+  on-suspended-primary-outdated: 'force-secondary'
+  on-no-quorum: 'io-error'
+  # on-no-data-accessible: 'io-error' # LINSTOR default
+
+# Because we love command line arguments
+ha_gateway_drbd_args: >-
+  {{ ha_gateway_drbd_options
+      | dict2items
+      | map(attribute='key')
+      | zip(ha_gateway_drbd_options | dict2items | map(attribute='value'))
+      | map('join', ' ')
+      | map('regex_replace', '^', '--')
+      | join(' ') }}
