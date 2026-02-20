@@ -36,7 +36,23 @@ Example Playbook
   hosts: linstor_cluster
   become: true
   tasks:
-    - ansible.builtin.import_role:
+    - name: Install and initialize LINSTOR
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_init
+```
+
+To install LINSTOR Gateway as part of a new LINSTOR cluster
+deployment, set `cluster_init_linstor_gateway: true`:
+
+```yaml
+- name: Deploy LINSTOR
+  hosts: linstor_cluster
+  become: true
+  tasks:
+    - name: Install and initialize LINSTOR with LINSTOR Gateway
+      vars:
+        cluster_init_linstor_gateway: true
+      ansible.builtin.import_role:
         name: linbit.linstor.cluster_init
 ```
 
