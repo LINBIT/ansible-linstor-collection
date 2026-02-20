@@ -23,7 +23,7 @@ Example Playbook
 
 ```yaml
 - name: Install LINSTOR client
-  hosts: linstor_cluster
+  hosts: all
   become: true
   tasks:
     - ansible.builtin.import_role:
