@@ -6,7 +6,8 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 
 | Role | Description |
 |---|---|
-| `cluster_init` | Convenience role — installs satellite and controller based on inventory group membership |
+| `cluster_init` | Convenience role — installs satellite, controller, and registers cluster membership based on inventory group membership |
+| `cluster_membership` | Registers LINSTOR nodes into the cluster (controller, combined, and satellite node types) |
 | `satellite_install` | Installs the LINSTOR satellite and DRBD |
 | `controller_install` | Installs the LINSTOR controller and GUI |
 | `linstor_client` | Installs the LINSTOR CLI client |

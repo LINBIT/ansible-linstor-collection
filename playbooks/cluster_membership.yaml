@@ -6,40 +6,6 @@
   tags:
     - linstor
     - linstor_cluster_membership
-  vars:
-    # Force short hostnames for certain stacks (Proxmox)
-    short_hostnames: false # default
-    linstor_hostname: >-
-      {%- if short_hostnames | bool -%}
-        "{{ inventory_hostname_short }}"
-      {%- else -%}
-        "{{ inventory_hostname }}"
-      {%- endif -%}
   tasks:
-    # Initialize both pure controllers and combined nodes
-    - name: Initialize LINSTOR controller membership
-      vars:
-        node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
-      ansible.builtin.shell: |
-        linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type {{ node_type }}
-      register: n_c_result
-      failed_when: >
-        n_c_result.rc != 0 and
-        'already exists' not in n_c_result.stdout | lower and
-        'already exists' not in n_c_result.stderr | lower
-      changed_when: >
-        n_c_result.rc == 0
-      when: inventory_hostname in groups['linstor_controllers']
-
-    # Initialize pure satellites only
-    - name: Initialize LINSTOR satellite membership
-      ansible.builtin.shell: |
-        linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type Satellite
-      register: n_c_result
-      failed_when: >
-        n_c_result.rc != 0 and
-        'already exists' not in n_c_result.stdout | lower and
-        'already exists' not in n_c_result.stderr | lower
-      changed_when: >
-        n_c_result.rc == 0
-      when: inventory_hostname not in groups['linstor_controllers']
+    - ansible.builtin.import_role:
+        name: linbit.linstor.cluster_membership

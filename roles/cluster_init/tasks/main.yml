@@ -9,3 +9,7 @@
   ansible.builtin.import_role:
     name: linbit.linstor.controller_install
   when: inventory_hostname in groups['linstor_controllers']
+
+- name: Register LINSTOR cluster membership
+  ansible.builtin.import_role:
+    name: linbit.linstor.cluster_membership
