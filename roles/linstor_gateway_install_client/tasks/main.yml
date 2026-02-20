@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 ---
 - name: Install LINSTOR Gateway from package manager
   ansible.builtin.package:

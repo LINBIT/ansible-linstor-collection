@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 ---
 # tasks file for linstor-satellite
 - name: Load OS-specific variables for satellite_install

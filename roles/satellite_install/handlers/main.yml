@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 ---
 # handlers file for linstor_satellite
 # Should handle "OS updates" use case, restart on package updates only

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 ---
 # defaults file for linstor_satellite
 # linstor_client role handles client packages

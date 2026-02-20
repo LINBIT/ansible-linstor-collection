@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: MIT
 ---
 # handlers file for linstor_gateway_install_common
 - name: Restart linstor-satellite.service
