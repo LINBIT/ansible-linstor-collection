@@ -10,7 +10,7 @@ not already present.
 
 This role is the prerequisite for both `linbit.linstor.linstor_gateway_install`
 (satellite nodes) and `linbit.linstor.ha_gateway`. It does **not** install the
-`linstor-gateway` binary — that is handled by `linstor_gateway_install`.
+`linstor-gateway` binary; that is handled by `linstor_gateway_install`.
 
 Requirements
 ------------
