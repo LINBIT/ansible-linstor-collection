@@ -75,6 +75,9 @@
     mode: '644'
     state: present
   notify: Restart linstor-satellite.service
+  when:
+    - "'linstor_satellites' in groups"
+    - inventory_hostname in groups['linstor_satellites']
 
 - name: Fix portblock resource agent - overwrite and set immutable flag
   ansible.builtin.get_url:
