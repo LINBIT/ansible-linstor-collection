@@ -1,5 +1,17 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Configure LINBIT public repo
+  ansible.builtin.include_role:
+    name: linbit.common.public_repo
+  when: cluster_init_public_repo | bool
+
+- name: Configure LINBIT customer repo
+  ansible.builtin.include_role:
+    name: linbit.common.customer_repo
+  when:
+    - cluster_init_customer_repo | bool
+    - not (cluster_init_public_repo | bool)
+
 - name: Install LINSTOR satellite
   ansible.builtin.include_role:
     name: linbit.linstor.satellite_install

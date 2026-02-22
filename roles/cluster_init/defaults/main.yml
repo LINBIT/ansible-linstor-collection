@@ -2,5 +2,12 @@
 ---
 # defaults file for cluster_init
 
+# Configure LINBIT customer repo (default for most stacks)
+cluster_init_customer_repo: true
+
+# Configure LINBIT public repo (for Proxmox and other public-repo stacks)
+# When true, takes precedence over cluster_init_customer_repo
+cluster_init_public_repo: false
+
 # Install LINSTOR Gateway (optional)
 cluster_init_linstor_gateway: false
