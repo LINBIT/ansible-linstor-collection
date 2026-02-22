@@ -39,7 +39,7 @@
       ansible.builtin.package:
         name: "{{ linstor_gateway_supplemental_packages + linstor_gateway_ra_packages }}"
         state: present
-      ignore_errors: true # for now, clear up packaging assumptions later
+      failed_when: false # for now, clear up packaging assumptions later
       notify: disable_and_stop_nfs
 
     - name: Install SCST
