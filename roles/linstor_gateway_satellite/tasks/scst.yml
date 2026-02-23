@@ -4,7 +4,7 @@
 # Triggered when scst=true is passed as an extra var.
 - name: Install SCST (RHEL)
   when:
-    - ansible_os_family == 'RedHat'
+    - ansible_os_family | lower == 'redhat'
   block:
     - name: Install EPEL repo
       ansible.builtin.package:
@@ -47,7 +47,7 @@
 
 - name: Install SCST (Debian)
   when:
-    - ansible_os_family == 'Debian'
+    - ansible_os_family | lower == 'debian'
   block:
     - name: Install git if needed
       ansible.builtin.package:
