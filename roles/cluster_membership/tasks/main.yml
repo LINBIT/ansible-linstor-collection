@@ -15,24 +15,24 @@
     node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
   ansible.builtin.shell: |
     linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type {{ node_type }}
-  register: n_c_result
+  register: _n_c_result
   failed_when: >
-    n_c_result.rc != 0 and
-    'already exists' not in n_c_result.stdout | lower and
-    'already exists' not in n_c_result.stderr | lower
+    _n_c_result.rc != 0 and
+    'already exists' not in _n_c_result.stdout | lower and
+    'already exists' not in _n_c_result.stderr | lower
   changed_when: >
-    n_c_result.rc == 0
+    _n_c_result.rc == 0
   when: inventory_hostname in groups['linstor_controllers']
 
 # Initialize pure satellites only
 - name: Initialize LINSTOR satellite membership
   ansible.builtin.shell: |
     linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type Satellite
-  register: n_c_result
+  register: _n_c_result
   failed_when: >
-    n_c_result.rc != 0 and
-    'already exists' not in n_c_result.stdout | lower and
-    'already exists' not in n_c_result.stderr | lower
+    _n_c_result.rc != 0 and
+    'already exists' not in _n_c_result.stdout | lower and
+    'already exists' not in _n_c_result.stderr | lower
   changed_when: >
-    n_c_result.rc == 0
+    _n_c_result.rc == 0
   when: inventory_hostname not in groups['linstor_controllers']

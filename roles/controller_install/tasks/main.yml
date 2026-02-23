@@ -7,9 +7,10 @@
       - linstor-controller
       - linstor-gui
     state: present
-  register: controller_install_packages_result
+  register: _packages_result
 
-- ansible.builtin.service_facts:
+- name: Gather service facts
+  ansible.builtin.service_facts:
 
 - name: Open firewalld ports LINSTOR controllers
   ansible.posix.firewalld:
@@ -23,7 +24,7 @@
 
 - name: Set per-host LINSTOR controller status
   ansible.builtin.set_fact:
-    controller_is_active: >-
+    _is_active: >-
       {{
         ansible_facts.services['linstor-controller.service'].state == 'running'
       }}
@@ -31,10 +32,10 @@
 
 - name: Set fact based on LINSTOR controller service instances
   ansible.builtin.set_fact:
-    controller_active_count: >-
+    _active_count: >-
       {{
         groups['linstor_controllers']
-        | map('extract', hostvars, 'controller_is_active')
+        | map('extract', hostvars, '_is_active')
         | select('equalto', true)
         | list
         | length
@@ -64,8 +65,8 @@
     - inventory_hostname in groups['linstor_controllers']
     - ansible_facts.services['linstor-controller.service'] is defined
     - ansible_facts.services['linstor-controller.service'].state == 'running'
-    - controller_active_count | int == 1
-    - controller_install_packages_result.changed
+    - _active_count | int == 1
+    - _packages_result.changed
 
 # Fixes Debian auto-start after initial installation
 - name: Stop LINSTOR controller instances when multiple controllers are active
@@ -74,7 +75,7 @@
     state: stopped
     enabled: false
   when:
-    - controller_active_count | int > 1
+    - _active_count | int > 1
     - inventory_hostname not in groups['linstor_controllers'][0]
 
 # Start LINSTOR controller (non-HA operation)
@@ -86,11 +87,11 @@
     enabled: true
   when:
     - ((groups['linstor_controllers'] | length == 1) or
-      (controller_active_count | int == 0))
+      (_active_count | int == 0))
     - inventory_hostname in groups['linstor_controllers'][0]
 
-# reload service facts
-- ansible.builtin.service_facts:
+- name: Reload service facts
+  ansible.builtin.service_facts:
 
 - name: Wait for LINSTOR controller service to respond
   ansible.builtin.wait_for:

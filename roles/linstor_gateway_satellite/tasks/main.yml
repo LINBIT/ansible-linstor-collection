@@ -25,7 +25,7 @@
     - name: Check for portblock resource agent
       ansible.builtin.stat:
         path: "{{ linstor_gateway_portblock_ra_dest }}"
-      register: portblock_ra_check
+      register: _portblock_ra_check
 
     - name: Fix portblock resource agent - remove immutable flag
       ansible.builtin.file:
@@ -33,7 +33,7 @@
         attributes: '-i'
       when:
         - linstor_gateway_portblock_fix | bool
-        - portblock_ra_check.stat.exists
+        - _portblock_ra_check.stat.exists
 
     - name: Install LINSTOR Gateway supplemental packages
       ansible.builtin.package:
@@ -66,7 +66,7 @@
         attributes: '+i'
       when:
         - linstor_gateway_portblock_fix | bool
-        - portblock_ra_check.stat.exists
+        - _portblock_ra_check.stat.exists
 
 - name: Patch linstor_satellite.toml for DRBD Reactor
   ansible.builtin.blockinfile:
