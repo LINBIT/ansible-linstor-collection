@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Ansible
+.ansible/
+*.retry
+
+# Editors
+*.swp
+*~
+.vscode/
+.idea/
+
+# OS
+.DS_Store
