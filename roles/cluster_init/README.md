@@ -77,6 +77,32 @@ To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `clu
         name: linbit.linstor.cluster_init
 ```
 
+Without `cluster_init`, the equivalent playbook requires separate plays for each component and inventory group:
+
+```yaml
+- name: Deploy LINSTOR
+  hosts: linstor_cluster
+  become: true
+  tasks:
+    - name: Register nodes with LINBIT customer portal
+      ansible.builtin.import_role:
+        name: linbit.common.customer_repo
+
+    - name: Install LINSTOR satellite
+      when: inventory_hostname in groups['linstor_satellites']
+      ansible.builtin.import_role:
+        name: linbit.linstor.satellite_install
+
+    - name: Install LINSTOR controller
+      when: inventory_hostname in groups['linstor_controllers']
+      ansible.builtin.import_role:
+        name: linbit.linstor.controller_install
+
+    - name: Register cluster membership
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_membership
+```
+
 License
 -------
 
