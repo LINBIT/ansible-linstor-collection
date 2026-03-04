@@ -30,6 +30,12 @@ options:
     description:
       - Storage driver type.
       - Required when C(state=present).
+      - The target satellite node must have the backing storage subsystem
+        installed (for example, LVM tools for C(lvm) or C(lvmthin), ZFS
+        utilities for C(zfs) or C(zfsthin)).
+      - Run C(linstor node info) to check which drivers each satellite
+        supports. See L(LINSTOR User's Guide,
+        https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-node-info).
     type: str
     choices: [lvm, lvmthin, zfs, zfsthin, file, filethin, spdk, remote_spdk]
   driver_pool:
@@ -60,39 +66,73 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - Two usage patterns are supported.
+  - Centralized, use C(run_once=true) with a loop over inventory hosts to send
+    all API calls from a single host.
+  - Per-host, let each play host call the module with its own host variables
+    such as C(inventory_hostname).
+  - The C(node) parameter must refer to a LINSTOR satellite that has local
+    storage (for example nodes in the C(linstor_diskful_satellites) inventory group).
+seealso:
+  - name: LINSTOR User's Guide - Storage Pools
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-storage_pools
+    description: Storage pool concepts and configuration in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
 - name: Create LVM storage pool
   linbit.linstor.storage_pool:
     name: lvm-pool
-    node: "{{ inventory_hostname }}"
+    node: node-1
     driver: lvm
     driver_pool: drbdpool
+  run_once: true  # noqa: run-once[task]
 
 - name: Create LVM thin storage pool with striping
   linbit.linstor.storage_pool:
     name: lvm-thin
-    node: "{{ inventory_hostname }}"
+    node: node-1
     driver: lvmthin
     driver_pool: "drbdpool/thinpool"
     properties:
       StorDriver/LvcreateOptions: "-i2 -I64"
+  run_once: true  # noqa: run-once[task]
 
-- name: Create ZFS storage pool
+- name: Create ZFS storage pool on multiple nodes
   linbit.linstor.storage_pool:
     name: zfs-pool
-    node: "{{ inventory_hostname }}"
+    node: "{{ item }}"
     driver: zfs
     driver_pool: drbdpool
+  loop:
+    - node-1
+    - node-2
+    - node-3
+  run_once: true  # noqa: run-once[task]
 
 - name: Remove a storage pool
   linbit.linstor.storage_pool:
     name: lvm-pool
-    node: "{{ inventory_hostname }}"
+    node: node-1
     state: absent
+  run_once: true  # noqa: run-once[task]
+
+- name: Create storage pools on all satellite nodes from one host
+  linbit.linstor.storage_pool:
+    name: lvm-thin
+    node: "{{ item }}"
+    driver: lvmthin
+    driver_pool: "drbdpool/thinpool"
+  loop: "{{ groups['linstor_diskful_satellites'] }}"
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

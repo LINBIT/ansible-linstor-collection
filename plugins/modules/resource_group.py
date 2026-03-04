@@ -27,8 +27,10 @@ options:
     description: Human-readable description of the resource group.
     type: str
   place_count:
-    description: Number of replicas to place.
+    description:
+      - Number of replicas to place.
     type: int
+    default: 2
   storage_pool:
     description: Default storage pool for the resource group.
     type: str
@@ -56,17 +58,20 @@ options:
     elements: str
     default: []
   layer_list:
-    description: Ordered list of layer types (e.g. C([DRBD, CACHE, STORAGE])).
+    description:
+      - Ordered list of layer types (e.g. C([DRBD, CACHE, STORAGE])).
+      - LINSTOR defaults to C([DRBD, STORAGE]) if not specified.
     type: list
     elements: str
-    default: []
   provider_list:
     description: List of storage provider types.
     type: list
     elements: str
     default: []
   peer_slots:
-    description: Maximum number of peer slots for DRBD resources.
+    description:
+      - Maximum number of peer slots for DRBD resources.
+      - LINSTOR defaults to 7 if not specified.
     type: int
   properties:
     description:
@@ -93,8 +98,19 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+seealso:
+  - name: LINSTOR User's Guide - Resource Groups
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
+    description: Resource group concepts and configuration in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
@@ -103,6 +119,7 @@ EXAMPLES = r'''
     name: my-rg
     storage_pool: lvm-thin
     place_count: 2
+  run_once: true  # noqa: run-once[task]
 
 - name: Create resource group with cache layer
   linbit.linstor.resource_group:
@@ -113,6 +130,7 @@ EXAMPLES = r'''
     properties:
       Cache/CachePool: sp_ssd
       Cache/Cachesize: "10%"
+  run_once: true  # noqa: run-once[task]
 
 - name: Create resource group with DRBD options
   linbit.linstor.resource_group:
@@ -124,11 +142,13 @@ EXAMPLES = r'''
         auto-promote: "no"
         quorum: majority
         on-no-quorum: io-error
+  run_once: true  # noqa: run-once[task]
 
 - name: Remove a resource group
   linbit.linstor.resource_group:
     name: my-rg
     state: absent
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
@@ -272,14 +292,14 @@ def main():
         name=dict(type='str', required=True),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         description=dict(type='str'),
-        place_count=dict(type='int'),
+        place_count=dict(type='int', default=2),
         storage_pool=dict(type='str'),
         diskless_on_remaining=dict(type='bool'),
         do_not_place_with=dict(type='list', elements='str', default=[]),
         do_not_place_with_regex=dict(type='str'),
         replicas_on_same=dict(type='list', elements='str', default=[]),
         replicas_on_different=dict(type='list', elements='str', default=[]),
-        layer_list=dict(type='list', elements='str', default=[]),
+        layer_list=dict(type='list', elements='str'),
         provider_list=dict(type='list', elements='str', default=[]),
         peer_slots=dict(type='int'),
         properties=dict(type='dict', default={}),

@@ -11,8 +11,7 @@ short_description: Manage LINSTOR volume groups
 version_added: "0.10.0"
 description:
   - Creates, modifies, or deletes LINSTOR volume groups within a resource group.
-  - Idempotent. If volume number 0 already exists and no C(volume_nr) is specified,
-    the module returns C(changed=false).
+  - Idempotent. If the volume group already exists, only property changes are applied.
 options:
   resource_group:
     description: Name of the parent resource group.
@@ -21,9 +20,8 @@ options:
   volume_nr:
     description:
       - Volume number within the resource group.
-      - Auto-assigned on create if omitted.
-      - Required for C(state=absent).
     type: int
+    default: 0
   state:
     description: Desired state of the volume group.
     type: str
@@ -48,25 +46,39 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+seealso:
+  - name: LINSTOR User's Guide - Resource Groups
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
+    description: Resource group and volume group concepts in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
 - name: Create volume group (auto-assigned volume number)
   linbit.linstor.volume_group:
     resource_group: my-rg
+  run_once: true  # noqa: run-once[task]
 
 - name: Create volume group with specific number
   linbit.linstor.volume_group:
     resource_group: my-rg
     volume_nr: 1
+  run_once: true  # noqa: run-once[task]
 
 - name: Delete a volume group
   linbit.linstor.volume_group:
     resource_group: my-rg
     volume_nr: 1
     state: absent
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
@@ -122,7 +134,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         resource_group=dict(type='str', required=True),
-        volume_nr=dict(type='int'),
+        volume_nr=dict(type='int', default=0),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         gross=dict(type='bool'),
         properties=dict(type='dict', default={}),
@@ -132,9 +144,6 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        required_if=[
-            ('state', 'absent', ['volume_nr']),
-        ],
     )
 
     resource_group = module.params['resource_group']
@@ -169,15 +178,10 @@ def main():
                 volume_nr=volume_nr)
 
         # state == 'present'
-        # If volume_nr is specified, check if it already exists
-        if volume_nr is not None:
-            existing_vg = find_volume_group(volume_groups, volume_nr)
-        else:
-            # If no volume_nr specified, check if volume_nr 0 exists
-            existing_vg = find_volume_group(volume_groups, 0)
+        existing_vg = find_volume_group(volume_groups, volume_nr)
 
         if existing_vg is not None:
-            actual_nr = existing_vg.number if hasattr(existing_vg, 'number') else volume_nr
+            volume_nr = existing_vg.number if hasattr(existing_vg, 'number') else volume_nr
 
             # Volume group exists: compare and update properties
             current_props = get_vg_props(existing_vg)
@@ -187,32 +191,32 @@ def main():
             if not props_to_set and not props_to_delete:
                 module.exit_json(
                     changed=False, resource_group=resource_group,
-                    volume_nr=actual_nr, properties=current_props)
+                    volume_nr=volume_nr, properties=current_props)
 
             if module.check_mode:
                 module.exit_json(
                     changed=True, resource_group=resource_group,
-                    volume_nr=actual_nr,
+                    volume_nr=volume_nr,
                     properties=dict(current_props, **props_to_set))
 
             replies = lin.volume_group_modify(
-                resource_group, actual_nr,
+                resource_group, volume_nr,
                 property_dict=props_to_set,
                 delete_props=props_to_delete or None,
             )
             check_api_response(
                 module, replies,
                 'modify properties on volume group %d in %s' % (
-                    actual_nr, resource_group))
+                    volume_nr, resource_group))
             changed = True
 
             updated_vgs = get_volume_groups(lin, resource_group)
-            updated_vg = find_volume_group(updated_vgs, actual_nr)
+            updated_vg = find_volume_group(updated_vgs, volume_nr)
             final_props = get_vg_props(updated_vg) if updated_vg else current_props
 
             module.exit_json(
                 changed=changed, resource_group=resource_group,
-                volume_nr=actual_nr, properties=final_props)
+                volume_nr=volume_nr, properties=final_props)
 
         # Volume group does not exist: create
         if module.check_mode:
@@ -220,9 +224,10 @@ def main():
                 changed=True, resource_group=resource_group,
                 volume_nr=volume_nr, properties=properties)
 
-        create_kwargs = dict(resource_grp_name=resource_group)
-        if volume_nr is not None:
-            create_kwargs['volume_nr'] = volume_nr
+        create_kwargs = dict(
+            resource_grp_name=resource_group,
+            volume_nr=volume_nr,
+        )
         if gross is not None:
             create_kwargs['gross'] = gross
 
@@ -232,28 +237,20 @@ def main():
             'create volume group in %s' % resource_group)
         changed = True
 
-        # Determine the actual volume number assigned
-        actual_nr = volume_nr
-        if actual_nr is None:
-            new_vgs = get_volume_groups(lin, resource_group)
-            if new_vgs:
-                actual_nr = max(vg.number for vg in new_vgs
-                                if hasattr(vg, 'number'))
-
         # Set properties via modify (some create calls ignore property_dict)
-        if properties and actual_nr is not None:
+        if properties:
             prop_dict = {k: str(v) for k, v in properties.items()}
             replies = lin.volume_group_modify(
-                resource_group, actual_nr,
+                resource_group, volume_nr,
                 property_dict=prop_dict)
             check_api_response(
                 module, replies,
                 'set properties on volume group %d in %s' % (
-                    actual_nr, resource_group))
+                    volume_nr, resource_group))
 
         module.exit_json(
             changed=True, resource_group=resource_group,
-            volume_nr=actual_nr, properties=properties)
+            volume_nr=volume_nr, properties=properties)
 
     except Exception as e:
         module.fail_json(

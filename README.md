@@ -15,6 +15,25 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 | `linstor_gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
 | `ha_gateway` | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |
 
+## Modules
+
+Custom Ansible modules for managing LINSTOR objects declaratively.
+Requires `python-linstor` on the control node (or on the execution target).
+
+| Module | Description |
+|---|---|
+| `node` | Manage cluster nodes (create, properties, auxiliary properties) |
+| `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
+| `resource_group` | Manage resource groups with placement rules, DRBD options, properties |
+| `volume_group` | Manage volume groups within a resource group |
+| `resource_definition` | Manage resource definitions with inline volume definitions and DRBD options |
+| `resource` | Deploy resources via spawn, autoplace, or manual placement |
+
+All modules issue cluster-wide API calls via the LINSTOR controller.
+For `resource_group`, `volume_group`, `resource_definition`, and `resource` in `autoplace` or `spawn` mode, use `run_once: true` or a single-host play (`hosts: linstor_controllers[0]`).
+For `resource` in `manual` mode, `node`, and `storage_pool`, the preferred pattern is `run_once: true` with a loop over inventory hosts.
+Alternatively, let each play host call the module with its own host variables.
+
 ## Required Inventory Groups
 
 The following inventory groups are used to control role targeting:

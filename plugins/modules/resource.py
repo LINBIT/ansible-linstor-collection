@@ -89,8 +89,28 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - "For C(mode=autoplace) and C(mode=spawn), use C(run_once=true) or a
+    single-host play such as C(hosts: linstor_controllers[0])."
+  - For C(mode=manual), two usage patterns are supported.
+  - Centralized, use C(run_once=true) with a loop over inventory hosts to send
+    all API calls from a single host.
+  - Per-host, let each play host call the module with its own host variables
+    such as C(inventory_hostname).
+seealso:
+  - name: LINSTOR User's Guide - Resource Groups
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
+    description: Spawning resources from resource groups in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Manual Placement
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-manual_placement
+    description: Manual resource placement in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
@@ -99,6 +119,7 @@ EXAMPLES = r'''
     name: myresource
     mode: spawn
     size: 1G
+  run_once: true  # noqa: run-once[task]
 
 - name: Spawn from specific resource group
   linbit.linstor.resource:
@@ -106,6 +127,7 @@ EXAMPLES = r'''
     mode: spawn
     resource_group: ha-rg
     size: 1G
+  run_once: true  # noqa: run-once[task]
 
 - name: Autoplace with 3 replicas
   linbit.linstor.resource:
@@ -113,12 +135,14 @@ EXAMPLES = r'''
     mode: autoplace
     place_count: 3
     size: 10G
+  run_once: true  # noqa: run-once[task]
 
 - name: Spawn multi-volume resource
   linbit.linstor.resource:
     name: myresource
     mode: spawn
     sizes: ['64M', '1G']
+  run_once: true  # noqa: run-once[task]
 
 - name: Place resource on a specific node
   linbit.linstor.resource:
@@ -126,6 +150,19 @@ EXAMPLES = r'''
     mode: manual
     node: node-1
     storage_pool: lvm-thin
+  run_once: true  # noqa: run-once[task]
+
+- name: Manually place a 3 replica resource
+  linbit.linstor.resource:
+    name: my-data
+    mode: manual
+    node: "{{ item }}"
+    storage_pool: lvm-thin
+  loop:
+    - node-1
+    - node-2
+    - node-3
+  run_once: true  # noqa: run-once[task]
 
 - name: Create diskless resource on a node
   linbit.linstor.resource:
@@ -133,11 +170,23 @@ EXAMPLES = r'''
     mode: manual
     node: node-3
     diskless: true
+  run_once: true  # noqa: run-once[task]
 
 - name: Remove a resource
   linbit.linstor.resource:
     name: myresource
     state: absent
+  run_once: true  # noqa: run-once[task]
+
+- name: Place resource on all satellite nodes from one host
+  # LINSTOR recommends no more than 3 diskful replicas per resource
+  linbit.linstor.resource:
+    name: my-data
+    mode: manual
+    node: "{{ item }}"
+    storage_pool: lvm-thin
+  loop: "{{ groups['linstor_satellites'] }}"
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

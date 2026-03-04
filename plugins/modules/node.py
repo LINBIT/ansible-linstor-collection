@@ -69,22 +69,39 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - Two usage patterns are supported.
+  - Centralized, use C(run_once=true) with a loop over inventory hosts to send
+    all API calls from a single host.
+  - Per-host, let each play host call the module with its own host variables
+    such as C(inventory_hostname) and C(replication_ip).
+seealso:
+  - name: LINSTOR User's Guide - Initialize Cluster
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-init-cluster
+    description: Node creation and cluster initialization in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
 - name: Register combined node
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
-    ip: "{{ replication_ip }}"
+    name: "{{ inventory_hostname }}"
+    ip: "{{ replication_ip }}"  # Defined in inventory
     node_type: Combined
+  run_once: true  # noqa: run-once[task]
 
 - name: Register satellite node
   linbit.linstor.node:
     name: node-3
     ip: 10.0.0.3
     node_type: Satellite
+  run_once: true  # noqa: run-once[task]
 
 - name: Set auxiliary properties on a node
   linbit.linstor.node:
@@ -93,11 +110,28 @@ EXAMPLES = r'''
     aux_properties:
       datacenter: us-east-1
       rack: rack-3
+  run_once: true  # noqa: run-once[task]
 
 - name: Remove a node from the cluster
   linbit.linstor.node:
     name: node-3
     state: absent
+  run_once: true  # noqa: run-once[task]
+
+- name: Add all cluster nodes from one host
+  vars:
+    is_controller: "{{ 'linstor_controllers' in hostvars[item].group_names }}"
+    is_satellite: "{{ 'linstor_satellites' in hostvars[item].group_names }}"
+    node_type: >-
+      {% if is_controller | bool and is_satellite | bool %}Combined
+      {% elif is_controller | bool %}Controller
+      {% else %}Satellite{% endif %}
+  linbit.linstor.node:
+    name: "{{ hostvars[item].inventory_hostname_short }}"
+    ip: "{{ hostvars[item].replication_ip }}"
+    node_type: "{{ node_type | trim }}"
+  loop: "{{ groups['linstor_cluster'] }}"
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

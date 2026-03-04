@@ -35,12 +35,15 @@ options:
     description: Resource group to assign this definition to.
     type: str
   layer_list:
-    description: Ordered list of layer types.
+    description:
+      - Ordered list of layer types.
+      - LINSTOR defaults to C([DRBD, STORAGE]) if not specified.
     type: list
     elements: str
-    default: []
   peer_slots:
-    description: Maximum number of peer slots for the DRBD resource.
+    description:
+      - Maximum number of peer slots for the DRBD resource.
+      - LINSTOR defaults to 7 if not specified.
     type: int
   volume_definitions:
     description:
@@ -95,8 +98,22 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+seealso:
+  - name: LINSTOR User's Guide - Creating Volumes
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-new-volume
+    description: Resource and volume definition concepts in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Deleting Resource Definitions
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-deleting-resource-definitions
+    description: Deleting resource definitions in the LINSTOR User's Guide.
 author:
-  - LINBIT (@LINBIT)
+  - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
@@ -106,6 +123,7 @@ EXAMPLES = r'''
     volume_definitions:
       - size: 1G
       - size: 500M
+  run_once: true  # noqa: run-once[task]
 
 - name: Set DRBD options on resource definition
   linbit.linstor.resource_definition:
@@ -114,16 +132,20 @@ EXAMPLES = r'''
       resource:
         auto-promote: "no"
         on-no-quorum: io-error
+  run_once: true  # noqa: run-once[task]
 
 - name: Create resource definition in a resource group
   linbit.linstor.resource_definition:
     name: myresource
     resource_group: my-rg
+  run_once: true  # noqa: run-once[task]
 
+# Deleting a resource definition removes all associated resources and volumes
 - name: Remove a resource definition
   linbit.linstor.resource_definition:
     name: myresource
     state: absent
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
@@ -154,11 +176,7 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     check_api_response,
     compute_property_diff,
     parse_size,
-    HAS_LINSTOR,
 )
-
-if HAS_LINSTOR:
-    import linstor
 
 
 DRBD_CATEGORY_MAP = {
@@ -226,7 +244,7 @@ def main():
         port=dict(type='int'),
         external_name=dict(type='str'),
         resource_group=dict(type='str'),
-        layer_list=dict(type='list', elements='str', default=[]),
+        layer_list=dict(type='list', elements='str'),
         peer_slots=dict(type='int'),
         volume_definitions=dict(
             type='list', elements='dict', default=[],
