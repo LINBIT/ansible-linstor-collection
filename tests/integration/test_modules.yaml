@@ -1,0 +1,736 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Test LINSTOR Ansible modules
+  hosts: proxmox-0.testdomain.local
+  become: true
+  gather_facts: false
+  tasks:
+    # =================================================================
+    # Pre-cleanup: ensure no leftover test resources from prior runs
+    # =================================================================
+    - name: "Pre-cleanup: remove leftover test resources"
+      linbit.linstor.resource:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - test-mod-res
+        - test-defonly-res
+        - test-autoplace-res
+        - test-multivol-res
+        - test-manual-res
+        - test-rd-vols
+      ignore_errors: true
+
+    - name: "Pre-cleanup: remove leftover VGs"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: "{{ item }}"
+        state: absent
+      loop: [0, 1]
+      ignore_errors: true
+
+    - name: "Pre-cleanup: remove leftover RGs"
+      linbit.linstor.resource_group:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - test-mod-rg
+        - test-rg-simple
+        - test-rg
+        - test-rg-drbd
+      ignore_errors: true
+
+    # =================================================================
+    # linstor_node
+    # =================================================================
+    - name: "Node: idempotent on existing node"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+      register: node_idem
+      failed_when: node_idem.changed
+
+    - name: "Node: set aux property"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        aux_properties:
+          test_key: test_value
+      register: node_prop
+      failed_when: not node_prop.changed
+
+    - name: "Node: aux property idempotent"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        aux_properties:
+          test_key: test_value
+      register: node_prop_idem
+      failed_when: node_prop_idem.changed
+
+    - name: "Node: check_mode reports change for new property"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        aux_properties:
+          test_key: test_value
+          check_key: check_value
+      check_mode: true
+      register: node_check
+      failed_when: not node_check.changed
+
+    - name: "Node: check_mode did not actually apply"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        aux_properties:
+          test_key: test_value
+      register: node_after_check
+      failed_when: node_after_check.changed
+
+    - name: "Node: delete aux property"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        delete_properties:
+          - Aux/test_key
+      register: node_prop_del
+      failed_when: not node_prop_del.changed
+
+    - name: "Node: delete property idempotent"
+      linbit.linstor.node:
+        name: proxmox-0
+        ip: 192.168.222.130
+        node_type: Combined
+        delete_properties:
+          - Aux/test_key
+      register: node_prop_del_idem
+      failed_when: node_prop_del_idem.changed
+
+    # =================================================================
+    # linstor_storage_pool
+    # =================================================================
+    - name: "SP: idempotent on existing pool"
+      linbit.linstor.storage_pool:
+        name: pve-storage
+        node: proxmox-0
+        driver: lvmthin
+        driver_pool: drbdpool/thinpool
+      register: sp_idem
+      failed_when: sp_idem.changed
+
+    - name: "SP: check_mode on existing pool"
+      linbit.linstor.storage_pool:
+        name: pve-storage
+        node: proxmox-0
+        driver: lvmthin
+        driver_pool: drbdpool/thinpool
+      check_mode: true
+      register: sp_check_idem
+      failed_when: sp_check_idem.changed
+
+    - name: "SP: absent on non-existent pool"
+      linbit.linstor.storage_pool:
+        name: test-nonexistent-pool
+        node: proxmox-0
+        state: absent
+      register: sp_absent_noop
+      failed_when: sp_absent_noop.changed
+
+    - name: "SP: check_mode for create"
+      linbit.linstor.storage_pool:
+        name: test-check-pool
+        node: proxmox-0
+        driver: lvmthin
+        driver_pool: drbdpool/thinpool
+      check_mode: true
+      register: sp_check_create
+      failed_when: not sp_check_create.changed
+
+    - name: "SP: check_mode did not create"
+      linbit.linstor.storage_pool:
+        name: test-check-pool
+        node: proxmox-0
+        state: absent
+      register: sp_check_verify
+      failed_when: sp_check_verify.changed
+
+    # =================================================================
+    # linstor_resource_group
+    # =================================================================
+    - name: "RG: idempotent on existing group"
+      linbit.linstor.resource_group:
+        name: pve-rg
+        storage_pool: pve-storage
+        place_count: 2
+      register: rg_idem
+      failed_when: rg_idem.changed
+
+    - name: "RG: create simple"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+      register: rg_simple
+      failed_when: not rg_simple.changed
+
+    - name: "RG: simple idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+      register: rg_simple_idem
+      failed_when: rg_simple_idem.changed
+
+    - name: "RG: set property on existing"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+        properties:
+          Aux/test_prop: hello
+      register: rg_prop
+      failed_when: not rg_prop.changed
+
+    - name: "RG: property idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+        properties:
+          Aux/test_prop: hello
+      register: rg_prop_idem
+      failed_when: rg_prop_idem.changed
+
+    - name: "RG: delete property"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+        delete_properties:
+          - Aux/test_prop
+      register: rg_prop_del
+      failed_when: not rg_prop_del.changed
+
+    - name: "RG: delete property idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+        delete_properties:
+          - Aux/test_prop
+      register: rg_prop_del_idem
+      failed_when: rg_prop_del_idem.changed
+
+    - name: "RG: check_mode for delete"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        state: absent
+      check_mode: true
+      register: rg_check_del
+      failed_when: not rg_check_del.changed
+
+    - name: "RG: check_mode did not delete"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: pve-storage
+        place_count: 2
+      register: rg_still_exists
+      failed_when: rg_still_exists.changed
+
+    - name: "Cleanup: delete test-rg-simple"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        state: absent
+
+    - name: "RG: create with DRBD options"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        storage_pool: pve-storage
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+      register: rg_create
+      failed_when: not rg_create.changed
+
+    - name: "RG: DRBD options idempotent"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        storage_pool: pve-storage
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+      register: rg_idem2
+      failed_when: rg_idem2.changed
+
+    - name: "RG: check_mode on existing with DRBD options"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        storage_pool: pve-storage
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+      check_mode: true
+      register: rg_check_idem
+      failed_when: rg_check_idem.changed
+
+    # =================================================================
+    # linstor_volume_group
+    # =================================================================
+    - name: "VG: create volume group"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+      register: vg_create
+      failed_when: not vg_create.changed
+
+    - name: "VG: idempotent"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+      register: vg_idem
+      failed_when: vg_idem.changed
+
+    - name: "VG: create second VG with explicit number"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+      register: vg_create2
+      failed_when: not vg_create2.changed
+
+    - name: "VG: second VG idempotent"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+      register: vg_idem2
+      failed_when: vg_idem2.changed
+
+    - name: "VG: check_mode for delete"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+        state: absent
+      check_mode: true
+      register: vg_check_del
+      failed_when: not vg_check_del.changed
+
+    - name: "VG: check_mode did not delete"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+      register: vg_still_exists
+      failed_when: vg_still_exists.changed
+
+    - name: "VG: delete second VG"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+        state: absent
+      register: vg_del2
+      failed_when: not vg_del2.changed
+
+    - name: "VG: delete idempotent"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+        state: absent
+      register: vg_del2_idem
+      failed_when: vg_del2_idem.changed
+
+    # =================================================================
+    # linstor_resource — spawn mode
+    # =================================================================
+    - name: "Resource: spawn from resource group"
+      linbit.linstor.resource:
+        name: test-mod-res
+        mode: spawn
+        resource_group: test-mod-rg
+        size: 64M
+      register: res_spawn
+      failed_when: not res_spawn.changed
+
+    - name: "Resource: spawn idempotent"
+      linbit.linstor.resource:
+        name: test-mod-res
+        mode: spawn
+        resource_group: test-mod-rg
+        size: 64M
+      register: res_spawn_idem
+      failed_when: res_spawn_idem.changed
+
+    - name: "Resource: check_mode on existing"
+      linbit.linstor.resource:
+        name: test-mod-res
+        mode: spawn
+        resource_group: test-mod-rg
+        size: 64M
+      check_mode: true
+      register: res_check_idem
+      failed_when: res_check_idem.changed
+
+    # =================================================================
+    # linstor_resource_definition — DRBD options on spawned resource
+    # =================================================================
+    - name: "RD: set DRBD options on spawned resource"
+      linbit.linstor.resource_definition:
+        name: test-mod-res
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+      register: rd_opts
+      failed_when: not rd_opts.changed
+
+    - name: "RD: DRBD options idempotent"
+      linbit.linstor.resource_definition:
+        name: test-mod-res
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+      register: rd_opts_idem
+      failed_when: rd_opts_idem.changed
+
+    - name: "RD: check_mode for new DRBD option"
+      linbit.linstor.resource_definition:
+        name: test-mod-res
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+          net:
+            protocol: C
+      check_mode: true
+      register: rd_check
+      failed_when: not rd_check.changed
+
+    - name: "RD: check_mode did not apply"
+      linbit.linstor.resource_definition:
+        name: test-mod-res
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+      register: rd_after_check
+      failed_when: rd_after_check.changed
+
+    # =================================================================
+    # Cleanup spawned resource, then test other resource modes
+    # =================================================================
+    - name: "Cleanup: delete spawned resource"
+      linbit.linstor.resource:
+        name: test-mod-res
+        state: absent
+      register: res_del
+      failed_when: not res_del.changed
+
+    - name: "Cleanup: delete resource idempotent"
+      linbit.linstor.resource:
+        name: test-mod-res
+        state: absent
+      register: res_del_idem
+      failed_when: res_del_idem.changed
+
+    # =================================================================
+    # linstor_resource — spawn with definitions_only
+    # =================================================================
+    - name: "Resource: spawn definitions_only"
+      linbit.linstor.resource:
+        name: test-defonly-res
+        mode: spawn
+        resource_group: test-mod-rg
+        size: 32M
+        definitions_only: true
+      register: res_defonly
+      failed_when: not res_defonly.changed
+
+    - name: "Resource: definitions_only has no nodes"
+      ansible.builtin.assert:
+        that: res_defonly.nodes | length == 0
+        fail_msg: "definitions_only should produce no deployed nodes"
+
+    - name: "Resource: definitions_only idempotent"
+      linbit.linstor.resource:
+        name: test-defonly-res
+        mode: spawn
+        resource_group: test-mod-rg
+        size: 32M
+        definitions_only: true
+      register: res_defonly_idem
+      failed_when: res_defonly_idem.changed
+
+    - name: "Cleanup: delete definitions_only resource"
+      linbit.linstor.resource:
+        name: test-defonly-res
+        state: absent
+
+    # =================================================================
+    # linstor_resource — autoplace mode
+    # =================================================================
+    - name: "Resource: autoplace with 2 replicas"
+      linbit.linstor.resource:
+        name: test-autoplace-res
+        mode: autoplace
+        place_count: 2
+        size: 32M
+      register: res_auto
+      failed_when: not res_auto.changed
+
+    - name: "Resource: autoplace has at least 2 nodes"
+      ansible.builtin.assert:
+        that: res_auto.nodes | length >= 2
+        fail_msg: "Expected >= 2 nodes, got {{ res_auto.nodes | length }}"
+
+    - name: "Resource: autoplace idempotent"
+      linbit.linstor.resource:
+        name: test-autoplace-res
+        mode: autoplace
+        place_count: 2
+        size: 32M
+      register: res_auto_idem
+      failed_when: res_auto_idem.changed
+
+    - name: "Cleanup: delete autoplaced resource"
+      linbit.linstor.resource:
+        name: test-autoplace-res
+        state: absent
+      register: res_auto_del
+      failed_when: not res_auto_del.changed
+
+    # =================================================================
+    # linstor_resource — multi-volume spawn
+    # =================================================================
+    - name: "VG: create second VG for multi-volume"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+
+    - name: "Resource: spawn multi-volume"
+      linbit.linstor.resource:
+        name: test-multivol-res
+        mode: spawn
+        resource_group: test-mod-rg
+        sizes:
+          - 32M
+          - 16M
+      register: res_multi
+      failed_when: not res_multi.changed
+
+    - name: "Resource: multi-volume idempotent"
+      linbit.linstor.resource:
+        name: test-multivol-res
+        mode: spawn
+        resource_group: test-mod-rg
+        sizes:
+          - 32M
+          - 16M
+      register: res_multi_idem
+      failed_when: res_multi_idem.changed
+
+    - name: "Cleanup: delete multi-volume resource"
+      linbit.linstor.resource:
+        name: test-multivol-res
+        state: absent
+
+    - name: "Cleanup: delete second VG"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 1
+        state: absent
+
+    # =================================================================
+    # linstor_resource_definition — create with inline volume defs
+    # =================================================================
+    - name: "RD: create with inline volume definitions"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        volume_definitions:
+          - size: 64M
+          - size: 32M
+      register: rd_vols
+      failed_when: not rd_vols.changed
+
+    - name: "RD: verify two volume definitions"
+      ansible.builtin.assert:
+        that: rd_vols.volume_definitions | length == 2
+        fail_msg: "Expected 2 volume definitions, got {{ rd_vols.volume_definitions | length }}"
+
+    - name: "RD: inline volume defs idempotent"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        volume_definitions:
+          - size: 64M
+          - size: 32M
+      register: rd_vols_idem
+      failed_when: rd_vols_idem.changed
+
+    - name: "RD: set property on resource definition"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        properties:
+          Aux/test_rd_prop: hello
+      register: rd_prop
+      failed_when: not rd_prop.changed
+
+    - name: "RD: property idempotent"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        properties:
+          Aux/test_rd_prop: hello
+      register: rd_prop_idem
+      failed_when: rd_prop_idem.changed
+
+    - name: "RD: delete property"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        delete_properties:
+          - Aux/test_rd_prop
+      register: rd_prop_del
+      failed_when: not rd_prop_del.changed
+
+    - name: "RD: check_mode for delete"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        state: absent
+      check_mode: true
+      register: rd_check_del
+      failed_when: not rd_check_del.changed
+
+    - name: "RD: check_mode did not delete"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        volume_definitions:
+          - size: 64M
+          - size: 32M
+      register: rd_still_exists
+      failed_when: rd_still_exists.changed
+
+    - name: "Cleanup: delete RD with volumes"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        state: absent
+      register: rd_del
+      failed_when: not rd_del.changed
+
+    - name: "Cleanup: delete RD idempotent"
+      linbit.linstor.resource_definition:
+        name: test-rd-vols
+        state: absent
+      register: rd_del_idem
+      failed_when: rd_del_idem.changed
+
+    # =================================================================
+    # linstor_resource — manual placement + diskless
+    # =================================================================
+    - name: "RD: create for manual placement test"
+      linbit.linstor.resource_definition:
+        name: test-manual-res
+        volume_definitions:
+          - size: 32M
+
+    - name: "Resource: manual placement on node"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: proxmox-0
+        storage_pool: pve-storage
+      register: res_manual
+      failed_when: not res_manual.changed
+
+    - name: "Resource: manual idempotent"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: proxmox-0
+        storage_pool: pve-storage
+      register: res_manual_idem
+      failed_when: res_manual_idem.changed
+
+    - name: "Resource: add diskless on another node"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: proxmox-1
+        diskless: true
+      register: res_diskless
+      failed_when: not res_diskless.changed
+
+    - name: "Resource: diskless idempotent"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: proxmox-1
+        diskless: true
+      register: res_diskless_idem
+      failed_when: res_diskless_idem.changed
+
+    - name: "Resource: verify nodes"
+      ansible.builtin.assert:
+        that:
+          - "'proxmox-0' in res_diskless.nodes"
+          - "'proxmox-1' in res_diskless.nodes"
+        fail_msg: "Expected both proxmox-0 and proxmox-1 in nodes"
+
+    - name: "Cleanup: delete manual resource"
+      linbit.linstor.resource:
+        name: test-manual-res
+        state: absent
+      register: res_manual_del
+      failed_when: not res_manual_del.changed
+
+    # =================================================================
+    # Explicit controllers parameter
+    # =================================================================
+    - name: "Controllers: explicit multi-controller URI"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        storage_pool: pve-storage
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+        controllers: "linstor://192.168.222.130,linstor://192.168.222.131,linstor://192.168.222.132"
+      register: ctrl_explicit
+      failed_when: ctrl_explicit.changed
+
+    # =================================================================
+    # Final cleanup
+    # =================================================================
+    - name: "Cleanup: delete volume group"
+      linbit.linstor.volume_group:
+        resource_group: test-mod-rg
+        volume_nr: 0
+        state: absent
+
+    - name: "Cleanup: delete test resource group"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        state: absent
+      register: rg_del
+      failed_when: not rg_del.changed
+
+    - name: "Cleanup: delete RG idempotent"
+      linbit.linstor.resource_group:
+        name: test-mod-rg
+        state: absent
+      register: rg_del_idem
+      failed_when: rg_del_idem.changed
+
+    - name: All tests passed
+      ansible.builtin.debug:
+        msg: "All LINSTOR module tests passed successfully!"
