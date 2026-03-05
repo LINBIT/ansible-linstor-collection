@@ -19,7 +19,10 @@ options:
     type: str
     required: true
   state:
-    description: Desired state of the resource.
+    description:
+      - Desired state of the resource.
+      - When C(absent) with C(node) specified, removes the resource from that node only.
+      - When C(absent) without C(node), deletes the entire resource definition and all replicas.
     type: str
     default: present
     choices: [present, absent]
@@ -70,7 +73,9 @@ options:
     default: 2
   diskless:
     description:
-      - Manual mode only. Create a diskless (TieBreaker/client) resource.
+      - Manual mode only. Create a diskless (DRBD client) resource.
+      - If the resource already exists as diskful on the node, toggles it to diskless.
+      - If C(false) and the resource exists as diskless, toggles it back to diskful.
     type: bool
     default: false
   properties:
@@ -102,6 +107,15 @@ notes:
     all API calls from a single host.
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname).
+  - "When C(state=absent) with C(node) specified, LINSTOR may convert a diskful
+    resource to a TieBreaker (diskless quorum voter) instead of fully deleting it.
+    This only happens at the 3-to-2 diskful replica boundary when C(auto-quorum)
+    is enabled. Deleting from 4 or more replicas down to 3 is a clean delete.
+    The module detects the TieBreaker conversion and issues a second delete to
+    fully remove the resource from the node."
+  - "In C(mode=manual), setting C(diskless=true) on an existing diskful resource
+    toggles it to diskless (and vice versa). This uses the LINSTOR C(toggle-disk)
+    API internally."
 seealso:
   - name: LINSTOR User's Guide - Resource Groups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
@@ -109,6 +123,9 @@ seealso:
   - name: LINSTOR User's Guide - Manual Placement
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-manual_placement
     description: Manual resource placement in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Toggling Diskful and Diskless
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-toggling-resources-between-diskful-and-diskless
+    description: Toggling resources between diskful and diskless in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -164,7 +181,9 @@ EXAMPLES = r'''
     - node-3
   run_once: true  # noqa: run-once[task]
 
-- name: Create diskless resource on a node
+# Creates a diskless resource if it does not exist on the node.
+# If the resource exists as diskful, toggles it to diskless.
+- name: Create or toggle resource to diskless on a node
   linbit.linstor.resource:
     name: res-data
     mode: manual
@@ -172,14 +191,29 @@ EXAMPLES = r'''
     diskless: true
   run_once: true  # noqa: run-once[task]
 
-- name: Remove a resource
+- name: Toggle a diskless resource back to diskful
+  linbit.linstor.resource:
+    name: res-data
+    mode: manual
+    node: node-3
+    storage_pool: sp-lvm-thin
+  run_once: true  # noqa: run-once[task]
+
+- name: Remove a resource from a specific node
+  linbit.linstor.resource:
+    name: res-data
+    state: absent
+    node: node-3
+  run_once: true  # noqa: run-once[task]
+
+- name: Remove a resource definition and all replicas
   linbit.linstor.resource:
     name: res-0
     state: absent
   run_once: true  # noqa: run-once[task]
 
+# LINSTOR recommends no more than 3 diskful replicas per resource
 - name: Place resource on all satellite nodes from one host
-  # LINSTOR recommends no more than 3 diskful replicas per resource
   linbit.linstor.resource:
     name: res-data
     mode: manual
@@ -255,6 +289,14 @@ def get_resource_nodes(resources):
     return nodes
 
 
+def is_resource_diskless(resources, node):
+    """Check if the resource on a given node is diskless."""
+    for rsc in resources:
+        if rsc.node_name == node:
+            return 'DRBD_DISKLESS' in getattr(rsc, 'flags', [])
+    return False
+
+
 def get_rd_props(rd):
     """Extract properties from a resource definition."""
     if hasattr(rd, 'properties') and rd.properties:
@@ -322,11 +364,46 @@ def main():
         if state == 'absent':
             if existing_rd is None:
                 module.exit_json(changed=False, name=name)
-            if module.check_mode:
+
+            if node:
+                # Delete resource from a specific node only
+                deployed = get_resources(lin, name)
+                node_list = get_resource_nodes(deployed)
+                if node not in node_list:
+                    module.exit_json(changed=False, name=name, nodes=node_list)
+                if module.check_mode:
+                    module.exit_json(
+                        changed=True, name=name,
+                        nodes=[n for n in node_list if n != node])
+                replies = lin.resource_delete(node, name)
+                check_api_response(
+                    module, replies,
+                    'delete resource %s from node %s' % (name, node))
+                # LINSTOR may convert a diskful resource to a TieBreaker
+                # instead of deleting it (to preserve quorum). If the node
+                # is still present as a TieBreaker, delete again to fully
+                # remove it.
+                deployed = get_resources(lin, name)
+                for rsc in deployed:
+                    if (rsc.node_name == node
+                            and 'TIE_BREAKER' in getattr(rsc, 'flags', [])):
+                        replies = lin.resource_delete(node, name)
+                        check_api_response(
+                            module, replies,
+                            'delete tiebreaker %s from node %s' % (name, node))
+                        deployed = get_resources(lin, name)
+                        break
+                module.exit_json(
+                    changed=True, name=name,
+                    nodes=get_resource_nodes(deployed))
+            else:
+                # Delete entire resource definition and all replicas
+                if module.check_mode:
+                    module.exit_json(changed=True, name=name)
+                replies = lin.resource_dfn_delete(name)
+                check_api_response(
+                    module, replies, 'delete resource definition %s' % name)
                 module.exit_json(changed=True, name=name)
-            replies = lin.resource_dfn_delete(name)
-            check_api_response(module, replies, 'delete resource %s' % name)
-            module.exit_json(changed=True, name=name)
 
         # state == 'present'
         if existing_rd is not None:
@@ -356,6 +433,37 @@ def main():
                 changed = True
                 deployed = get_resources(lin, name)
                 node_list = get_resource_nodes(deployed)
+
+            # For manual mode, toggle disk if diskless state doesn't match
+            elif mode == 'manual' and node and node in node_list:
+                currently_diskless = is_resource_diskless(deployed, node)
+                if diskless and not currently_diskless:
+                    # Toggle diskful -> diskless
+                    if not module.check_mode:
+                        replies = lin.resource_toggle_disk(
+                            node, name, diskless=True)
+                        check_api_response(
+                            module, replies,
+                            'toggle resource %s to diskless on %s' % (
+                                name, node))
+                        deployed = get_resources(lin, name)
+                        node_list = get_resource_nodes(deployed)
+                    changed = True
+                elif not diskless and currently_diskless:
+                    # Toggle diskless -> diskful
+                    if not module.check_mode:
+                        toggle_kwargs = dict(diskless=False)
+                        if storage_pool:
+                            toggle_kwargs['storage_pool'] = storage_pool
+                        replies = lin.resource_toggle_disk(
+                            node, name, **toggle_kwargs)
+                        check_api_response(
+                            module, replies,
+                            'toggle resource %s to diskful on %s' % (
+                                name, node))
+                        deployed = get_resources(lin, name)
+                        node_list = get_resource_nodes(deployed)
+                    changed = True
 
             # Check for property changes
             current_props = get_rd_props(existing_rd)
