@@ -47,13 +47,19 @@ options:
     type: str
   replicas_on_same:
     description:
-      - List of auxiliary property values for same-node placement.
-      - Values should be in C(key=value) format.
+      - List of node property values for same-node placement.
+      - Values should be in C(key=value) format using the full property path.
+      - "User-defined auxiliary properties require the C(Aux/) prefix
+        (for example C(Aux/site=east)), because C(python-linstor) passes
+        values directly to the REST API unlike the CLI which auto-prepends it."
     type: list
     elements: str
     default: []
   replicas_on_different:
-    description: List of auxiliary property keys for different-node placement.
+    description:
+      - List of node property keys for different-node placement.
+      - "User-defined auxiliary properties require the C(Aux/) prefix.
+        See O(replicas_on_same) for details."
     type: list
     elements: str
     default: []
@@ -116,26 +122,26 @@ author:
 EXAMPLES = r'''
 - name: Create a simple resource group
   linbit.linstor.resource_group:
-    name: my-rg
-    storage_pool: lvm-thin
+    name: rg-0
+    storage_pool: sp-lvm-thin
     place_count: 2
   run_once: true  # noqa: run-once[task]
 
 - name: Create resource group with cache layer
   linbit.linstor.resource_group:
-    name: rg_with_cache
-    storage_pool: sp_hdd
+    name: rg-cached
+    storage_pool: sp-hdd
     place_count: 2
     layer_list: [DRBD, CACHE, STORAGE]
     properties:
-      Cache/CachePool: sp_ssd
+      Cache/CachePool: sp-ssd
       Cache/Cachesize: "10%"
   run_once: true  # noqa: run-once[task]
 
 - name: Create resource group with DRBD options
   linbit.linstor.resource_group:
-    name: ha-rg
-    storage_pool: lvm-thin
+    name: rg-ha
+    storage_pool: sp-lvm-thin
     place_count: 3
     drbd_options:
       resource:
@@ -144,9 +150,19 @@ EXAMPLES = r'''
         on-no-quorum: io-error
   run_once: true  # noqa: run-once[task]
 
+- name: Create resource group with availability zone placement
+  linbit.linstor.resource_group:
+    name: rg-multi-az
+    storage_pool: sp-lvm-thin
+    place_count: 3
+    # Aux properties must be prefixed with 'Aux/'
+    replicas_on_different:
+      - "Aux/availability-zone"
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a resource group
   linbit.linstor.resource_group:
-    name: my-rg
+    name: rg-0
     state: absent
   run_once: true  # noqa: run-once[task]
 '''

@@ -90,7 +90,7 @@ author:
 EXAMPLES = r'''
 - name: Create LVM storage pool
   linbit.linstor.storage_pool:
-    name: lvm-pool
+    name: sp-lvm
     node: node-1
     driver: lvm
     driver_pool: drbdpool
@@ -98,7 +98,7 @@ EXAMPLES = r'''
 
 - name: Create LVM thin storage pool with striping
   linbit.linstor.storage_pool:
-    name: lvm-thin
+    name: sp-lvm-thin
     node: node-1
     driver: lvmthin
     driver_pool: "drbdpool/thinpool"
@@ -108,7 +108,7 @@ EXAMPLES = r'''
 
 - name: Create ZFS storage pool on multiple nodes
   linbit.linstor.storage_pool:
-    name: zfs-pool
+    name: sp-zfs
     node: "{{ item }}"
     driver: zfs
     driver_pool: drbdpool
@@ -120,14 +120,14 @@ EXAMPLES = r'''
 
 - name: Remove a storage pool
   linbit.linstor.storage_pool:
-    name: lvm-pool
+    name: sp-lvm
     node: node-1
     state: absent
   run_once: true  # noqa: run-once[task]
 
 - name: Create storage pools on all satellite nodes from one host
   linbit.linstor.storage_pool:
-    name: lvm-thin
+    name: sp-lvm-thin
     node: "{{ item }}"
     driver: lvmthin
     driver_pool: "drbdpool/thinpool"

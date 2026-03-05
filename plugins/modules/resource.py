@@ -116,22 +116,22 @@ author:
 EXAMPLES = r'''
 - name: Spawn resource (uses DfltRscGrp)
   linbit.linstor.resource:
-    name: myresource
+    name: res-0
     mode: spawn
     size: 1G
   run_once: true  # noqa: run-once[task]
 
 - name: Spawn from specific resource group
   linbit.linstor.resource:
-    name: myresource
+    name: res-0
     mode: spawn
-    resource_group: ha-rg
+    resource_group: rg-ha
     size: 1G
   run_once: true  # noqa: run-once[task]
 
 - name: Autoplace with 3 replicas
   linbit.linstor.resource:
-    name: my-data
+    name: res-data
     mode: autoplace
     place_count: 3
     size: 10G
@@ -139,25 +139,25 @@ EXAMPLES = r'''
 
 - name: Spawn multi-volume resource
   linbit.linstor.resource:
-    name: myresource
+    name: res-0
     mode: spawn
     sizes: ['64M', '1G']
   run_once: true  # noqa: run-once[task]
 
 - name: Place resource on a specific node
   linbit.linstor.resource:
-    name: my-data
+    name: res-data
     mode: manual
     node: node-1
-    storage_pool: lvm-thin
+    storage_pool: sp-lvm-thin
   run_once: true  # noqa: run-once[task]
 
 - name: Manually place a 3 replica resource
   linbit.linstor.resource:
-    name: my-data
+    name: res-data
     mode: manual
     node: "{{ item }}"
-    storage_pool: lvm-thin
+    storage_pool: sp-lvm-thin
   loop:
     - node-1
     - node-2
@@ -166,7 +166,7 @@ EXAMPLES = r'''
 
 - name: Create diskless resource on a node
   linbit.linstor.resource:
-    name: my-data
+    name: res-data
     mode: manual
     node: node-3
     diskless: true
@@ -174,17 +174,17 @@ EXAMPLES = r'''
 
 - name: Remove a resource
   linbit.linstor.resource:
-    name: myresource
+    name: res-0
     state: absent
   run_once: true  # noqa: run-once[task]
 
 - name: Place resource on all satellite nodes from one host
   # LINSTOR recommends no more than 3 diskful replicas per resource
   linbit.linstor.resource:
-    name: my-data
+    name: res-data
     mode: manual
     node: "{{ item }}"
-    storage_pool: lvm-thin
+    storage_pool: sp-lvm-thin
   loop: "{{ groups['linstor_satellites'] }}"
   run_once: true  # noqa: run-once[task]
 '''

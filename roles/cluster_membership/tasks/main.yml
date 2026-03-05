@@ -10,29 +10,19 @@
       linstor_diskful_satellites. A node can only belong to one.
 
 # Initialize both pure controllers and combined (controller+satellite) nodes
-- name: Initialize LINSTOR controller membership
+- name: Register LINSTOR controller node
   vars:
     node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
-  ansible.builtin.shell: |
-    linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type {{ node_type }}
-  register: _n_c_result
-  failed_when: >
-    _n_c_result.rc != 0 and
-    'already exists' not in _n_c_result.stdout | lower and
-    'already exists' not in _n_c_result.stderr | lower
-  changed_when: >
-    _n_c_result.rc == 0
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    ip: "{{ replication_ip }}"
+    node_type: "{{ node_type }}"
   when: inventory_hostname in groups['linstor_controllers']
 
 # Initialize pure satellites only
-- name: Initialize LINSTOR satellite membership
-  ansible.builtin.shell: |
-    linstor node create {{ linstor_hostname }} {{ replication_ip }} --node-type Satellite
-  register: _n_c_result
-  failed_when: >
-    _n_c_result.rc != 0 and
-    'already exists' not in _n_c_result.stdout | lower and
-    'already exists' not in _n_c_result.stderr | lower
-  changed_when: >
-    _n_c_result.rc == 0
+- name: Register LINSTOR satellite node
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    ip: "{{ replication_ip }}"
+    node_type: Satellite
   when: inventory_hostname not in groups['linstor_controllers']

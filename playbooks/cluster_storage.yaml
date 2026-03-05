@@ -61,15 +61,11 @@
 
     # Mostly used for demonstration or experiments, hard-coded SP name
     - name: Create LINSTOR storage pool (type filethin)
-      ansible.builtin.shell: |
-        linstor sp create filethin {{ linstor_hostname }} file-thin {{ linstor_filethin_path }}
-      register: sp_c_result
-      failed_when: >
-        sp_c_result.rc != 0 and
-        'already exists' not in sp_c_result.stdout | lower and
-        'already exists' not in sp_c_result.stderr | lower
-      changed_when: >
-        sp_c_result.rc == 0
+      linbit.linstor.storage_pool:
+        name: file-thin
+        node: "{{ linstor_hostname }}"
+        driver: filethin
+        driver_pool: "{{ linstor_filethin_path }}"
       when: sp_use_filethin | bool
 
     # Don't wipe out physical volumes if the volume group is already enumerated
@@ -168,13 +164,9 @@
           {%- else -%}
             {{ linstor_vg }}
           {%- endif -%}
-      ansible.builtin.shell: |
-        linstor sp create {{ sp_type }} {{ linstor_hostname }} {{ linstor_sp }} {{ sp_storage }}
-      register: sp_c_result
-      failed_when: >
-        sp_c_result.rc != 0 and
-        'already exists' not in sp_c_result.stdout | lower and
-        'already exists' not in sp_c_result.stderr | lower
-      changed_when: >
-        sp_c_result.rc == 0
+      linbit.linstor.storage_pool:
+        name: "{{ linstor_sp }}"
+        node: "{{ linstor_hostname }}"
+        driver: "{{ sp_type | trim }}"
+        driver_pool: "{{ sp_storage | trim }}"
       retries: 3

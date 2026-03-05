@@ -19,13 +19,3 @@ ha_gateway_drbd_options:
   on-suspended-primary-outdated: 'force-secondary'
   on-no-quorum: 'io-error'
   # on-no-data-accessible: 'io-error' # LINSTOR default
-
-# Because we love command line arguments
-ha_gateway_drbd_args: >-
-  {{ ha_gateway_drbd_options
-      | dict2items
-      | map(attribute='key')
-      | zip(ha_gateway_drbd_options | dict2items | map(attribute='value'))
-      | map('join', ' ')
-      | map('regex_replace', '^', '--')
-      | join(' ') }}

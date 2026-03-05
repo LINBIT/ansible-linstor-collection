@@ -85,52 +85,39 @@
 
     # Store auxprop in LINSTOR to convey HA operation
     # Ideally we can just reference a built-in NodeType property in the future
-    - name: Create LINSTOR aux properties to designate controller nodes
-      ansible.builtin.shell: |
-        linstor node set-property --aux {{ linstor_hostname }} ControllerIsHA True
-      register: aux_prop_result
-      changed_when: aux_prop_result.rc == 0
-      when: inventory_hostname in ansible_play_hosts
+    - name: Set LINSTOR aux properties to designate controller nodes
+      linbit.linstor.node:
+        name: "{{ linstor_hostname }}"
+        ip: "{{ replication_ip }}"
+        node_type: Combined
+        aux_properties:
+          ControllerIsHA: "True"
       delegate_to: "{{ ansible_play_hosts[0] }}"
+      when: inventory_hostname in ansible_play_hosts
 
     - name: Create LINSTOR HA resource group
-      ansible.builtin.shell: |
-        linstor rg c --storage-pool {{ linstor_ha_pool }} \
-          --place-count {{ linstor_ha_place_count }} {{ linstor_ha_rg }} \
-          --replicas-on-same ControllerIsHA=True
-      register: rg_create_result
-      failed_when: >
-        rg_create_result.rc != 0 and
-        'already exists' not in rg_create_result.stdout | lower
-      changed_when: rg_create_result.rc == 0
-      when: inventory_hostname in ansible_play_hosts[0]
-
-    - name: Set LINSTOR HA resource group options
-      ansible.builtin.shell: |
-        linstor resource-group drbd-options \
-          --auto-promote=no \
-          --quorum=majority \
-          --on-no-quorum=io-error \
-          --on-no-data-accessible=io-error \
-          --on-suspended-primary-outdated=force-secondary \
-          {{ linstor_ha_rg }}
-      register: rg_modify_result
-      changed_when: rg_modify_result.rc == 0
-      when: inventory_hostname in ansible_play_hosts[0]
-
-    # Volume group creation step ommitted here
-    # Not technically needed, easier idempotency
+      linbit.linstor.resource_group:
+        name: "{{ linstor_ha_rg }}"
+        storage_pool: "{{ linstor_ha_pool }}"
+        place_count: "{{ linstor_ha_place_count }}"
+        replicas_on_same:
+          - "Aux/ControllerIsHA=True"
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+            on-no-data-accessible: io-error
+            on-suspended-primary-outdated: force-secondary
+      run_once: true  # noqa: run-once[task]
 
     - name: Create resource for HA LINSTOR database
-      ansible.builtin.shell: |
-        linstor resource-group spawn-resources {{ linstor_ha_rg }} \
-          {{ linstor_ha_res }} 200M
-      register: rg_spawn_result
-      failed_when: >
-        rg_spawn_result.rc != 0 and
-        'already exists' not in rg_spawn_result.stdout | lower
-      changed_when: rg_spawn_result.rc == 0
-      when: inventory_hostname in ansible_play_hosts[0]
+      linbit.linstor.resource:
+        name: "{{ linstor_ha_res }}"
+        mode: spawn
+        resource_group: "{{ linstor_ha_rg }}"
+        size: 200M
+      run_once: true  # noqa: run-once[task]
 
     # TieBreaker - pick a random satellite node that is not a controller node
     - name: Workaround for HA LINSTOR deployments with only 2 storage nodes
@@ -141,14 +128,15 @@
             | default("", true)
           }}
         other_satellite_hostname: "{{ other_satellite.split('.')[0] if short_hostnames | bool else other_satellite }}"
-      ansible.builtin.shell: |
-        linstor resource create {{ other_satellite_hostname }} {{ linstor_ha_res }} --drbd-diskless
-      register: resource_create_result
-      changed_when: resource_create_result.rc == 0
+      linbit.linstor.resource:
+        name: "{{ linstor_ha_res }}"
+        mode: manual
+        node: "{{ other_satellite_hostname }}"
+        diskless: true
+      run_once: true  # noqa: run-once[task]
       when:
         - ansible_play_hosts | length == 2
         - other_satellite != ""
-        - inventory_hostname == ansible_play_hosts[0]
 
     - name: Ensure DRBD Reactor is stopped
       ansible.builtin.systemd:

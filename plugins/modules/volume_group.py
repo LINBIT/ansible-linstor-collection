@@ -64,18 +64,18 @@ author:
 EXAMPLES = r'''
 - name: Create volume group (auto-assigned volume number)
   linbit.linstor.volume_group:
-    resource_group: my-rg
+    resource_group: rg-0
   run_once: true  # noqa: run-once[task]
 
 - name: Create volume group with specific number
   linbit.linstor.volume_group:
-    resource_group: my-rg
+    resource_group: rg-0
     volume_nr: 1
   run_once: true  # noqa: run-once[task]
 
 - name: Delete a volume group
   linbit.linstor.volume_group:
-    resource_group: my-rg
+    resource_group: rg-0
     volume_nr: 1
     state: absent
   run_once: true  # noqa: run-once[task]

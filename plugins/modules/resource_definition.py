@@ -119,7 +119,7 @@ author:
 EXAMPLES = r'''
 - name: Create resource definition with volume definitions
   linbit.linstor.resource_definition:
-    name: myresource
+    name: res-0
     volume_definitions:
       - size: 1G
       - size: 500M
@@ -127,7 +127,7 @@ EXAMPLES = r'''
 
 - name: Set DRBD options on resource definition
   linbit.linstor.resource_definition:
-    name: myresource
+    name: res-0
     drbd_options:
       resource:
         auto-promote: "no"
@@ -136,14 +136,14 @@ EXAMPLES = r'''
 
 - name: Create resource definition in a resource group
   linbit.linstor.resource_definition:
-    name: myresource
-    resource_group: my-rg
+    name: res-0
+    resource_group: rg-0
   run_once: true  # noqa: run-once[task]
 
 # Deleting a resource definition removes all associated resources and volumes
 - name: Remove a resource definition
   linbit.linstor.resource_definition:
-    name: myresource
+    name: res-0
     state: absent
   run_once: true  # noqa: run-once[task]
 '''

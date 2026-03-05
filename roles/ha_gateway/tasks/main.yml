@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
-# Use LINSTOR's DfltRscGrp by default
-- name: Spawn a new resource for iscsi share
-  ansible.builtin.shell: >
-    linstor rg spawn {{ ha_gateway_rg | default('DfltRscGrp') }} {{ item.name }}
-    {{ ha_gateway_tickledir_size | default('64M') }} {{ item.size }}
+- name: Spawn LINSTOR resources for HA gateway services
+  linbit.linstor.resource:
+    name: "{{ item.name }}"
+    mode: spawn
+    resource_group: "{{ ha_gateway_rg }}"
+    sizes:
+      - "{{ ha_gateway_tickledir_size }}"
+      - "{{ item.size }}"
   register: _spawn_res
-  failed_when: >
-    _spawn_res.rc != 0 and
-    'already exists' not in _spawn_res.stdout | lower
-  changed_when: _spawn_res.rc == 0
   with_items: "{{ ha_gateway_all_resources }}"
   when:
     - ha_gateway_linstor_spawn | bool
@@ -40,13 +39,11 @@
     - _spawn_res.changed
     - inventory_hostname in ansible_play_hosts[0]
 
-# This command always returns 0 if there is no error
-# Tie to resource creation for better idempotency
 - name: Set DRBD resource options for DRBD Reactor
-  ansible.builtin.shell: |
-    linstor rd drbd-options {{ item.name }} {{ ha_gateway_drbd_args }}
-  register: _set_drbd_opts
-  changed_when: _set_drbd_opts.rc == 0
+  linbit.linstor.resource_definition:
+    name: "{{ item.name }}"
+    drbd_options:
+      resource: "{{ ha_gateway_drbd_options }}"
   with_items: "{{ ha_gateway_all_resources }}"
   when:
     - inventory_hostname in ansible_play_hosts[0]
