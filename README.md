@@ -22,6 +22,7 @@ Requires `python-linstor` on the control node (or on the execution target).
 
 | Module | Description |
 |---|---|
+| `controller` | Manage controller properties (cluster-wide singleton) |
 | `node` | Manage cluster nodes (create, properties, auxiliary properties) |
 | `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
 | `resource_group` | Manage resource groups with placement rules, DRBD options, properties |
@@ -30,7 +31,7 @@ Requires `python-linstor` on the control node (or on the execution target).
 | `resource` | Deploy resources via spawn, autoplace, or manual placement |
 
 All modules issue cluster-wide API calls via the LINSTOR controller.
-For `resource_group`, `volume_group`, `resource_definition`, and `resource` in `autoplace` or `spawn` mode, use `run_once: true` or a single-host play (`hosts: linstor_controllers[0]`).
+For `controller`, `resource_group`, `volume_group`, `resource_definition`, and `resource` in `autoplace` or `spawn` mode, use `run_once: true` or a single-host play (`hosts: linstor_controllers[0]`).
 For `resource` in `manual` mode, `node`, and `storage_pool`, the preferred pattern is `run_once: true` with a loop over inventory hosts.
 Alternatively, let each play host call the module with its own host variables.
 

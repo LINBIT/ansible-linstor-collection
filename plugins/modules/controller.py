@@ -1,0 +1,204 @@
+#!/usr/bin/python
+# SPDX-License-Identifier: MIT
+
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
+DOCUMENTATION = r'''
+---
+module: controller
+short_description: Manage LINSTOR controller properties
+version_added: "0.10.0"
+description:
+  - Reads, sets, and deletes properties on the LINSTOR controller.
+  - The controller is a cluster-wide singleton, so no C(name) or C(state) parameter is needed.
+  - Idempotent. Only properties that differ from the current state are modified.
+options:
+  properties:
+    description: Dictionary of LINSTOR properties to set on the controller.
+    type: dict
+    default: {}
+  aux_properties:
+    description:
+      - Dictionary of auxiliary properties to set on the controller.
+      - Keys are automatically prefixed with C(Aux/).
+    type: dict
+    default: {}
+  delete_properties:
+    description: List of property keys to remove from the controller.
+    type: list
+    elements: str
+    default: []
+  controllers:
+    description:
+      - Comma-separated list of LINSTOR controller URIs.
+      - If omitted, reads from C(LS_CONTROLLERS) env, then
+        C(/etc/linstor/linstor-client.conf), then falls back to
+        C(linstor://localhost).
+    type: str
+requirements:
+  - python-linstor
+notes:
+  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
+    (C(python-linstor)) on the play host.
+  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+seealso:
+  - name: LINSTOR User's Guide
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/
+    description: >-
+      Search for C(linstor controller set-property) for all controller
+      properties documented in the User's Guide.
+author:
+  - Ryan Ronnander (@rronnander)
+'''
+
+EXAMPLES = r'''
+- name: Read controller properties
+  linbit.linstor.controller:
+  register: ctrl_result
+  changed_when: false
+  run_once: true  # noqa: run-once[task]
+
+# Controller-level properties are analogous to cluster-wide properties
+- name: Set auxiliary property at the controller level
+  linbit.linstor.controller:
+    aux_properties:
+      region: middle-coast
+  run_once: true  # noqa: run-once[task]
+
+- name: Set thin provisioning oversubscription ratio
+  linbit.linstor.controller:
+    properties:
+      MaxOversubscriptionRatio: "5"
+  run_once: true  # noqa: run-once[task]
+
+- name: Unset a controller property (revert to LINSTOR default)
+  linbit.linstor.controller:
+    delete_properties:
+      - MaxOversubscriptionRatio
+  run_once: true  # noqa: run-once[task]
+
+- name: Remove an auxiliary property
+  linbit.linstor.controller:
+    delete_properties:
+      - Aux/region
+  run_once: true  # noqa: run-once[task]
+
+- name: Set multiple properties
+  linbit.linstor.controller:
+    properties:
+      MaxOversubscriptionRatio: "5"
+      TcpPortAutoRange: "14000-16000"
+    aux_properties:
+      region: middle-coast
+  run_once: true  # noqa: run-once[task]
+
+- name: Allow mixing storage pool drivers
+  linbit.linstor.controller:
+    properties:
+      AllowMixingStoragePoolDriver: "true"
+  run_once: true  # noqa: run-once[task]
+
+# Requires DRBD Proxy https://linbit.com/drbd-proxy/
+- name: Enable automatic DRBD Proxy for remote sites
+  linbit.linstor.controller:
+    properties:
+      DrbdProxy/AutoEnable: "true"
+  run_once: true  # noqa: run-once[task]
+'''
+
+RETURN = r'''
+properties:
+  description: Controller properties after the operation.
+  type: dict
+  returned: always
+'''
+
+import traceback
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection import (
+    linstor_argument_spec,
+    get_linstor_connection,
+    check_api_response,
+    compute_property_diff,
+)
+
+
+def get_controller_props(lin):
+    """Get the current controller properties as a dict."""
+    result = lin.controller_props()
+    if isinstance(result, list) and result:
+        item = result[0]
+        if hasattr(item, 'properties') and item.properties:
+            return dict(item.properties)
+    return {}
+
+
+def main():
+    argument_spec = linstor_argument_spec()
+    argument_spec.update(dict(
+        properties=dict(type='dict', default={}),
+        aux_properties=dict(type='dict', default={}),
+        delete_properties=dict(type='list', elements='str', default=[]),
+    ))
+
+    module = AnsibleModule(
+        argument_spec=argument_spec,
+        supports_check_mode=True,
+    )
+
+    properties = module.params['properties'] or {}
+    aux_properties = module.params['aux_properties'] or {}
+    delete_properties = module.params['delete_properties'] or []
+
+    # Merge aux_properties with Aux/ prefix into properties
+    all_properties = dict(properties)
+    for key, value in aux_properties.items():
+        aux_key = key if key.startswith('Aux/') else 'Aux/' + key
+        all_properties[aux_key] = value
+
+    lin = get_linstor_connection(module)
+    changed = False
+
+    try:
+        current_props = get_controller_props(lin)
+
+        props_to_set, props_to_delete = compute_property_diff(
+            current_props, all_properties, delete_properties)
+
+        if not props_to_set and not props_to_delete:
+            module.exit_json(changed=False, properties=current_props)
+
+        if module.check_mode:
+            final_props = dict(current_props, **props_to_set)
+            for key in props_to_delete:
+                final_props.pop(key, None)
+            module.exit_json(changed=True, properties=final_props)
+
+        for key, value in props_to_set.items():
+            replies = lin.controller_set_prop(key, value)
+            check_api_response(module, replies, 'set controller property %s' % key)
+
+        for key in props_to_delete:
+            replies = lin.controller_del_prop(key)
+            check_api_response(module, replies, 'delete controller property %s' % key)
+
+        changed = True
+
+        # Re-read properties after update
+        final_props = get_controller_props(lin)
+
+        module.exit_json(changed=changed, properties=final_props)
+
+    except Exception as e:
+        module.fail_json(
+            msg="Unexpected error managing controller properties: %s" % str(e),
+            exception=traceback.format_exc())
+    finally:
+        lin.disconnect()
+
+
+if __name__ == '__main__':
+    main()

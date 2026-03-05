@@ -23,13 +23,10 @@
 
   pre_tasks:
     - name: Check LINSTOR database to see if HA migration is needed
-      ansible.builtin.shell:
-        cmd: set -o pipefail && linstor c lp -p | grep 'Aux/ClusterIsHA'
-        executable: /bin/bash
+      linbit.linstor.controller:
       register: ha_migration_result
-      when: ansible_play_hosts | length > 1
-      failed_when: ha_migration_result.rc == 2 # grep reports 1 for no results
       changed_when: false
+      when: ansible_play_hosts | length > 1
       run_once: true # noqa: run-once[task]
 
     # Skip this play for standalone LINSTOR controller clusters
@@ -37,7 +34,7 @@
       ansible.builtin.meta: end_play
       when:
         (ansible_play_hosts | length < 2) or
-        ('True' in ha_migration_result.stdout)
+        ((ha_migration_result.properties['Aux/ClusterIsHA'] | default('')) == 'True')
 
     - name: Verify controller node count is not more than 3
       ansible.builtin.assert:
@@ -236,8 +233,8 @@
     # "ClusterIsHA" is set at the controller level (cluster-wide)
     # An easy way to make this playbook idempotent
     - name: Record aux prop to mark migration as completed
-      ansible.builtin.shell: |
-        linstor controller set-property --aux ClusterIsHA True
+      linbit.linstor.controller:
+        aux_properties:
+          ClusterIsHA: "True"
       when: inventory_hostname in ansible_play_hosts[0]
-      changed_when: true
       retries: 5
