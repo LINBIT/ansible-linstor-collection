@@ -46,17 +46,9 @@
       ansible.builtin.include_tasks: scst.yml
       when: linstor_gateway_scst | bool
 
-    - name: Open firewalld ports for LINSTOR Gateway satellite services
-      ansible.posix.firewalld:
-        service: "{{ item.name }}"
-        permanent: true
-        immediate: true
-        state: enabled
-      with_items:
-        - "{{ linstor_gateway_firewalld_services }}"
-      when:
-        - ansible_facts.services['firewalld.service'] is defined
-        - ansible_facts.services['firewalld.service'].state == 'running'
+    - name: Open firewall ports for LINSTOR Gateway satellite services
+      ansible.builtin.include_tasks: firewall.yml
+      when: linstor_gateway_firewall_rules | bool
 
     - name: Fix portblock resource agent - overwrite and set immutable flag
       ansible.builtin.get_url:

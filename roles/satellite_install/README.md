@@ -15,7 +15,12 @@ The following inventory group must be defined:
 Role Variables
 --------------
 
-See `defaults/main.yml` and `vars/`.
+| Variable | Default | Description |
+|---|---|---|
+| `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
+| `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
+
+See `defaults/main.yml` and `vars/` for additional variables.
 
 Dependencies
 ------------

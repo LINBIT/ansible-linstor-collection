@@ -24,7 +24,8 @@ Role Variables
 |---|---|---|
 | `linstor_gateway_portblock_ra_url` | ClusterLabs v4.16.0 | URL to fetch the portblock resource agent |
 | `linstor_gateway_portblock_fix` | `true` | Overwrite and pin the portblock RA to fix iptables issues |
-| `linstor_gateway_firewalld_services` | NFS + iSCSI ports | firewalld services/ports to open (RedHat/SUSE only) |
+| `linstor_gateway_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway satellite ports; set `false` to skip |
+| `linstor_gateway_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `linstor_gateway_scst` | `false` | LIO alternative. Compile and install SCST iSCSI target from source |
 | `linstor_gateway_scst_version` | `3.9.x` | SCST git tag to build from source; only used when `linstor_gateway_scst=true` |
 

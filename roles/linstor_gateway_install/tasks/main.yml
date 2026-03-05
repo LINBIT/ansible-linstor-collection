@@ -40,18 +40,9 @@
     dest: /etc/linstor-gateway/linstor-gateway.toml
     mode: '644'
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
-
-- name: Open firewalld port for LINSTOR Gateway
-  ansible.posix.firewalld:
-    port: 8337/tcp
-    permanent: true
-    immediate: true
-    state: enabled
-  when:
-    - ansible_facts.services['firewalld.service'] is defined
-    - ansible_facts.services['firewalld.service'].state == 'running'
+- name: Open firewall ports for LINSTOR Gateway
+  ansible.builtin.include_tasks: firewall.yml
+  when: linstor_gateway_install_firewall_rules | bool
 
 # Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
 # needed on satellite nodes. If linstor_gateway_satellites is defined and

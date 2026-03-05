@@ -28,6 +28,8 @@ Role Variables
 | Variable | Default | Description |
 |---|---|---|
 | `linstor_gateway_github_binary` | latest amd64 release | GitHub download URL, used as fallback when package is unavailable |
+| `linstor_gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
+| `linstor_gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 
 Dependencies
 ------------

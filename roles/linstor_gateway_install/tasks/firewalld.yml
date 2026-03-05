@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Open firewalld ports for LINSTOR Gateway
+  ansible.posix.firewalld:
+    port: "{{ item.port }}/{{ item.proto }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ linstor_gateway_install_firewall_ports }}"

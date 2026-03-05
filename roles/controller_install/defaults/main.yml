@@ -4,3 +4,8 @@
 node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
 
 controller_port: 3370
+
+controller_install_firewall_rules: true
+
+controller_install_firewall_ports:
+  - { port: '3370', proto: tcp }

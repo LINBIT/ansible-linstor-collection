@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Open UFW ports for LINSTOR controller
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port | regex_replace('-', ':') }}"
+    proto: "{{ item.proto }}"
+  loop: "{{ controller_install_firewall_ports }}"

@@ -17,21 +17,9 @@
     state: present
   notify: sat_package_update
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
-
-- name: Open firewalld ports LINSTOR satellites
-  ansible.posix.firewalld:
-    port: "{{ item }}"
-    permanent: true
-    immediate: true
-    state: enabled
-  with_items:
-    - '3366-3367/tcp'
-    - '7000-8000/tcp'
-  when:
-    - ansible_facts.services['firewalld.service'] is defined
-    - ansible_facts.services['firewalld.service'].state == 'running'
+- name: Open firewall ports for LINSTOR satellite
+  ansible.builtin.include_tasks: firewall.yml
+  when: satellite_install_firewall_rules | bool
 
 # https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-storage-pools-creating
 - name: Check for /etc/lvm/lvm.conf

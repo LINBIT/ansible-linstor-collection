@@ -15,7 +15,12 @@ The following inventory group must be defined:
 Role Variables
 --------------
 
-See `defaults/main.yml`.
+| Variable | Default | Description |
+|---|---|---|
+| `controller_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR controller ports; set `false` to skip |
+| `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
+
+See `defaults/main.yml` for additional variables.
 
 Dependencies
 ------------

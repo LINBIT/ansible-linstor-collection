@@ -9,18 +9,9 @@
     state: present
   register: _packages_result
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
-
-- name: Open firewalld ports LINSTOR controllers
-  ansible.posix.firewalld:
-    port: 3370/tcp
-    permanent: true
-    immediate: true
-    state: enabled
-  when:
-    - ansible_facts.services['firewalld.service'] is defined
-    - ansible_facts.services['firewalld.service'].state == 'running'
+- name: Open firewall ports for LINSTOR controller
+  ansible.builtin.include_tasks: firewall.yml
+  when: controller_install_firewall_rules | bool
 
 - name: Set per-host LINSTOR controller status
   ansible.builtin.set_fact:

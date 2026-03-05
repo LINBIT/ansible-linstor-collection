@@ -13,6 +13,12 @@ linstor_satellite_packages:
 # placeholder for Ubuntu
 linstor_zfs_packages: []
 
+satellite_install_firewall_rules: true
+
+satellite_install_firewall_ports:
+  - { port: '3366-3367', proto: tcp }
+  - { port: '7000-8000', proto: tcp }
+
 satellite_install_drbd_path: >-
   {%- if ansible_facts['os_family'] | lower == 'debian' -%}
     /usr/sbin/drbdadm
