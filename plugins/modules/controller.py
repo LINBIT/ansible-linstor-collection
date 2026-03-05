@@ -10,7 +10,7 @@ module: controller
 short_description: Manage LINSTOR controller properties
 version_added: "0.10.0"
 description:
-  - Reads, sets, and deletes properties on the LINSTOR controller.
+  - Reads, sets, and deletes cluster-wide properties on the LINSTOR controller.
   - The controller is a cluster-wide singleton, so no C(name) or C(state) parameter is needed.
   - Idempotent. Only properties that differ from the current state are modified.
 options:
