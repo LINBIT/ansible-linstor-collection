@@ -21,6 +21,8 @@
       preferred-nodes-policy = "always"
 {% endif %}
       on-drbd-demote-failure = "reboot-immediate"
+      on-disk-detach = "fail-over"
+      adjust-resource-on-start = false
       runner = "systemd"
       start = [
 {% if iscsi | default(false) %}
