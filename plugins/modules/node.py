@@ -132,6 +132,28 @@ EXAMPLES = r'''
     node_type: "{{ node_type | trim }}"
   loop: "{{ groups['linstor_cluster'] }}"
   run_once: true  # noqa: run-once[task]
+
+# Proxmox VE requires LINSTOR to use short hostnames (inventory_hostname_short)
+# Assumes a typical 3-node LINSTOR Combined node cluster configuration
+- name: Register Proxmox nodes with short hostnames
+  linbit.linstor.node:
+    name: "{{ hostvars[item].inventory_hostname_short }}"
+    ip: "{{ hostvars[item].replication_ip }}"
+    node_type: Combined
+  loop: "{{ groups['linstor_cluster'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Register satellite nodes with management IP via DNS lookup
+  vars:
+    # Highly dependent on accurate DNS records;
+    # defining ansible_host or a management_ip variable per host is preferred
+    management_ip: "{{ lookup('community.general.dig', item) }}"
+  linbit.linstor.node:
+    name: "{{ item }}"
+    ip: "{{ management_ip }}"
+    node_type: Satellite
+  loop: "{{ groups['linstor_satellites'] }}"
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
