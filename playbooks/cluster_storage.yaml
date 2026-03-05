@@ -22,7 +22,7 @@
       {%- else -%}
       {%- endif -%}
     # Auto-detected from kernel version (true on Proxmox VE). Can be overridden explicitly.
-    short_hostnames: "{{ 'pve' in ansible_kernel }}"
+    short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
     linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
   pre_tasks:
     - name: Check for ZFS

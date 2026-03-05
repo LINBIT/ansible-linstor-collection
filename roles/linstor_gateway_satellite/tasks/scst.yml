@@ -23,7 +23,7 @@
         dest: /tmp/scst
 
     - name: Build and install SCST (RHEL)
-      when: ansible_os_family | lower == 'redhat'
+      when: ansible_facts['os_family'] | lower == 'redhat'
       block:
         - name: Install EPEL repo
           ansible.builtin.package:
@@ -57,7 +57,7 @@
           changed_when: "'Nothing to do' not in scst_rpm_install.stdout"
 
     - name: Build and install SCST (Debian)
-      when: ansible_os_family | lower == 'debian'
+      when: ansible_facts['os_family'] | lower == 'debian'
       block:
         - name: Install SCST build prerequisites (Debian)
           ansible.builtin.package:
@@ -73,7 +73,7 @@
 
         - name: Install kernel headers
           ansible.builtin.package:
-            name: "{{ 'pve-headers-' if 'pve' in ansible_kernel else 'linux-headers-' }}{{ ansible_kernel }}"
+            name: "{{ 'pve-headers-' if 'pve' in ansible_facts['kernel'] else 'linux-headers-' }}{{ ansible_facts['kernel'] }}"
             state: present
 
         - name: Compile SCST .deb packages

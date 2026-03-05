@@ -14,4 +14,4 @@
     enabled: false
   ignore_errors: true # for now, come back to Debian family nuances
   listen: disable_and_stop_nfs
-  when: ansible_os_family | lower == 'debian'
+  when: ansible_facts['os_family'] | lower == 'debian'
