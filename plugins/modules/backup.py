@@ -230,6 +230,9 @@ notes:
     C(changed=true). It is NOT idempotent.
   - The M(linbit.linstor.remote) module must be used first to configure
     the remote target before creating backups.
+  - "Concurrent shipments can be throttled via
+    C(BackupShipping/MaxConcurrentBackupsPerNode) set on the controller or
+    individual nodes (via M(linbit.linstor.controller) or M(linbit.linstor.node))."
 seealso:
   - module: linbit.linstor.remote
   - module: linbit.linstor.schedule

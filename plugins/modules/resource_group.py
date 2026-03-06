@@ -111,10 +111,28 @@ notes:
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "Auto-quorum override: set C(DrbdOptions/auto-quorum) to C(disabled) on a
+    resource group to manually control C(DrbdOptions/Resource/quorum) and
+    C(DrbdOptions/Resource/on-no-quorum) for resources spawned from it."
+  - "Auto-diskful: C(DrbdOptions/auto-diskful) (integer, minutes) toggles a
+    diskless-but-primary resource to diskful after N minutes.
+    C(DrbdOptions/auto-diskful-allow-cleanup) (boolean, default C(true)) controls
+    whether excess replicas are removed from secondaries to satisfy the place count."
+  - "Auto-evict minimum replicas: C(DrbdOptions/AutoEvictMinReplicaCount) sets
+    the minimum replicas auto-evict must maintain. Defaults to the resource
+    group's place count if unset."
+  - "External DRBD metadata: set C(StorPoolNameDrbdMeta) on a resource group
+    to apply an external metadata storage pool to all spawned resources."
 seealso:
   - name: LINSTOR User's Guide - Resource Groups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
     description: Resource group concepts and configuration in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Auto-Quorum
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-auto-quorum
+    description: Automatic quorum management in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Auto-Evict
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-auto-evict
+    description: Automatic node eviction in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -158,6 +176,38 @@ EXAMPLES = r'''
     # Aux properties must be prefixed with 'Aux/'
     replicas_on_different:
       - "Aux/availability-zone"
+  run_once: true  # noqa: run-once[task]
+
+- name: Disable auto-quorum on a resource group with manual quorum settings
+  linbit.linstor.resource_group:
+    name: rg-manual-quorum
+    storage_pool: sp-lvm-thin
+    place_count: 3
+    properties:
+      DrbdOptions/auto-quorum: disabled
+    drbd_options:
+      resource:
+        quorum: majority
+        on-no-quorum: io-error
+  run_once: true  # noqa: run-once[task]
+
+- name: Set auto-diskful timer on a resource group
+  linbit.linstor.resource_group:
+    name: rg-auto-diskful
+    storage_pool: sp-lvm-thin
+    place_count: 2
+    properties:
+      DrbdOptions/auto-diskful: "15"
+      DrbdOptions/auto-diskful-allow-cleanup: "true"
+  run_once: true  # noqa: run-once[task]
+
+- name: Set external DRBD metadata pool on a resource group
+  linbit.linstor.resource_group:
+    name: rg-ext-meta
+    storage_pool: sp-lvm-thin
+    place_count: 2
+    properties:
+      StorPoolNameDrbdMeta: sp-meta-ssd
   run_once: true  # noqa: run-once[task]
 
 - name: Remove a resource group

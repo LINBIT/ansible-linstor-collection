@@ -112,6 +112,14 @@ notes:
     all API calls from a single host.
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname) and C(replication_ip).
+  - "Auto-evict per-node overrides: C(DrbdOptions/AutoEvictAfterTime) and
+    C(DrbdOptions/AutoEvictAllowEviction) can be set on individual nodes
+    to override controller-level defaults set via M(linbit.linstor.controller)."
+  - "DRBD Proxy site assignment: set the C(Site) property on nodes to enable
+    automatic DRBD Proxy insertion between sites. Requires C(DrbdProxy/AutoEnable)
+    on the controller."
+  - "External DRBD metadata: set C(StorPoolNameDrbdMeta) to select a storage pool
+    for external DRBD metadata on new resources created on this node."
 seealso:
   - name: LINSTOR User's Guide - Initialize Cluster
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-init-cluster
@@ -119,41 +127,29 @@ seealso:
   - name: LINSTOR User's Guide - Node Evacuate
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-node-evacuate
     description: Node evacuation for maintenance in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - DRBD Proxy
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-drbd-proxy
+    description: DRBD Proxy integration with LINSTOR in the User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
-- name: Register combined node
+- name: Create a combined node
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
     ip: "{{ replication_ip }}"  # Defined in inventory
     node_type: Combined
   run_once: true  # noqa: run-once[task]
 
-- name: Register satellite node
+- name: Create a satellite node
   linbit.linstor.node:
     name: node-3
     ip: 10.0.0.3
     node_type: Satellite
   run_once: true  # noqa: run-once[task]
 
-- name: Set auxiliary properties on a node
-  linbit.linstor.node:
-    name: node-1
-    ip: 10.0.0.1
-    aux_properties:
-      datacenter: us-east-1
-      rack: rack-3
-  run_once: true  # noqa: run-once[task]
-
-- name: Remove a node from the cluster
-  linbit.linstor.node:
-    name: node-3
-    state: absent
-  run_once: true  # noqa: run-once[task]
-
-- name: Add all cluster nodes from one host
+- name: Create all cluster nodes from one host
   vars:
     is_controller: "{{ 'linstor_controllers' in hostvars[item].group_names }}"
     is_satellite: "{{ 'linstor_satellites' in hostvars[item].group_names }}"
@@ -170,12 +166,55 @@ EXAMPLES = r'''
 
 # Proxmox VE requires LINSTOR to use short hostnames (inventory_hostname_short)
 # Assumes a typical 3-node LINSTOR Combined node cluster configuration
-- name: Register Proxmox nodes with short hostnames
+- name: Create Proxmox nodes with short hostnames
   linbit.linstor.node:
     name: "{{ hostvars[item].inventory_hostname_short }}"
     ip: "{{ hostvars[item].replication_ip }}"
     node_type: Combined
   loop: "{{ groups['linstor_cluster'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Create satellite nodes with management IP via DNS lookup
+  vars:
+    # Highly dependent on accurate DNS records;
+    # defining ansible_host or a management_ip variable per host is preferred
+    management_ip: "{{ lookup('community.general.dig', item) }}"
+  linbit.linstor.node:
+    name: "{{ item }}"
+    ip: "{{ management_ip }}"
+    node_type: Satellite
+  loop: "{{ groups['linstor_satellites'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Set auxiliary properties on a node
+  linbit.linstor.node:
+    name: node-1
+    ip: 10.0.0.1
+    aux_properties:
+      datacenter: us-east-1
+      rack: rack-3
+  run_once: true  # noqa: run-once[task]
+
+- name: Disable auto-eviction on a specific node
+  linbit.linstor.node:
+    name: node-1
+    properties:
+      DrbdOptions/AutoEvictAllowEviction: "false"
+  run_once: true  # noqa: run-once[task]
+
+# Requires DrbdProxy/AutoEnable set on the controller
+- name: Set site property for DRBD Proxy auto-enable
+  linbit.linstor.node:
+    name: node-1
+    properties:
+      Site: site-a
+  run_once: true  # noqa: run-once[task]
+
+- name: Set external DRBD metadata storage pool
+  linbit.linstor.node:
+    name: node-1
+    properties:
+      StorPoolNameDrbdMeta: sp-meta-ssd
   run_once: true  # noqa: run-once[task]
 
 - name: Evacuate a node for maintenance
@@ -207,16 +246,10 @@ EXAMPLES = r'''
     restore_delete_snapshots: true
   run_once: true  # noqa: run-once[task]
 
-- name: Register satellite nodes with management IP via DNS lookup
-  vars:
-    # Highly dependent on accurate DNS records;
-    # defining ansible_host or a management_ip variable per host is preferred
-    management_ip: "{{ lookup('community.general.dig', item) }}"
+- name: Remove a node from the cluster
   linbit.linstor.node:
-    name: "{{ item }}"
-    ip: "{{ management_ip }}"
-    node_type: Satellite
-  loop: "{{ groups['linstor_satellites'] }}"
+    name: node-3
+    state: absent
   run_once: true  # noqa: run-once[task]
 '''
 

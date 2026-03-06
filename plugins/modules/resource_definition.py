@@ -105,6 +105,16 @@ notes:
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "LUKS encryption: include C(LUKS) in O(layer_list) (for example C([DRBD, LUKS, STORAGE]))
+    to encrypt volumes. Also requires C(encrypt: true) on individual volume definitions
+    or a cluster-wide passphrase via M(linbit.linstor.encryption). C(cryptsetup) must
+    be installed on satellite nodes before the satellite service starts."
+  - "Auto-quorum and auto-diskful can be set at the resource-definition level
+    (highest priority, overrides resource group and controller defaults).
+    Use O(properties) with keys like C(DrbdOptions/auto-quorum) or
+    C(DrbdOptions/auto-diskful)."
+  - "External DRBD metadata: set C(StorPoolNameDrbdMeta) on a resource definition
+    to override the resource group setting."
 seealso:
   - name: LINSTOR User's Guide - Creating Volumes
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-new-volume
@@ -112,6 +122,9 @@ seealso:
   - name: LINSTOR User's Guide - Deleting Resource Definitions
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-deleting-resource-definitions
     description: Deleting resource definitions in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Encrypted Volumes
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-encrypted-volumes
+    description: Volume encryption concepts and configuration in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -125,6 +138,23 @@ EXAMPLES = r'''
       - size: 500M
   run_once: true  # noqa: run-once[task]
 
+- name: Create resource definition in a resource group
+  linbit.linstor.resource_definition:
+    name: res-0
+    resource_group: rg-0
+  run_once: true  # noqa: run-once[task]
+
+# Requires a cluster-wide passphrase via linbit.linstor.encryption
+# and cryptsetup installed on all satellite nodes
+- name: Create an encrypted resource definition with LUKS layer
+  linbit.linstor.resource_definition:
+    name: res-encrypted
+    layer_list: [DRBD, LUKS, STORAGE]
+    volume_definitions:
+      - size: 10G
+        encrypt: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Set DRBD options on resource definition
   linbit.linstor.resource_definition:
     name: res-0
@@ -134,10 +164,15 @@ EXAMPLES = r'''
         on-no-quorum: io-error
   run_once: true  # noqa: run-once[task]
 
-- name: Create resource definition in a resource group
+- name: Disable auto-quorum on a specific resource definition
   linbit.linstor.resource_definition:
     name: res-0
-    resource_group: rg-0
+    properties:
+      DrbdOptions/auto-quorum: disabled
+    drbd_options:
+      resource:
+        quorum: majority
+        on-no-quorum: io-error
   run_once: true  # noqa: run-once[task]
 
 # Deleting a resource definition removes all associated resources and volumes

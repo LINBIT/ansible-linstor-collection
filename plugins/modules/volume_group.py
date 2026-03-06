@@ -53,10 +53,18 @@ notes:
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "QoS throttling: C(sys/fs/blkio_throttle_read), C(sys/fs/blkio_throttle_write),
+    C(sys/fs/blkio_throttle_read_iops), and C(sys/fs/blkio_throttle_write_iops) can be
+    set on volume groups to limit I/O bandwidth (bytes per second) and IOPS. Resources
+    spawned from the parent resource group inherit these QoS settings. Changes also
+    apply to existing resources."
 seealso:
   - name: LINSTOR User's Guide - Resource Groups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-resource-groups
     description: Resource group and volume group concepts in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - QoS Settings
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-qos
+    description: QoS throttling via sysfs properties in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -71,6 +79,28 @@ EXAMPLES = r'''
   linbit.linstor.volume_group:
     resource_group: rg-0
     volume_nr: 1
+  run_once: true  # noqa: run-once[task]
+
+# QoS: limit write bandwidth to 1 MB/s on volume group 0
+# Resources spawned from rg-qos inherit this setting
+- name: Set QoS write throttle on a volume group
+  linbit.linstor.volume_group:
+    resource_group: rg-qos
+    volume_nr: 0
+    properties:
+      sys/fs/blkio_throttle_write: "1048576"
+  run_once: true  # noqa: run-once[task]
+
+# QoS: limit both read and write bandwidth and IOPS
+- name: Set QoS read and write throttles on a volume group
+  linbit.linstor.volume_group:
+    resource_group: rg-qos
+    volume_nr: 0
+    properties:
+      sys/fs/blkio_throttle_read: "10485760"
+      sys/fs/blkio_throttle_write: "5242880"
+      sys/fs/blkio_throttle_read_iops: "1000"
+      sys/fs/blkio_throttle_write_iops: "500"
   run_once: true  # noqa: run-once[task]
 
 - name: Delete a volume group

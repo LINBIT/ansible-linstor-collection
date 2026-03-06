@@ -79,10 +79,21 @@ notes:
     such as C(inventory_hostname).
   - The C(node) parameter must refer to a LINSTOR satellite that has local
     storage (for example nodes in the C(linstor_diskful_satellites) inventory group).
+  - "Over-provisioning: C(MaxFreeCapacityOversubscriptionRatio),
+    C(MaxTotalCapacityOversubscriptionRatio), and C(MaxOversubscriptionRatio)
+    (all default to 20). LINSTOR uses the lower of the free and total ratios.
+    Set on the storage pool for per-pool limits, or on the controller via
+    M(linbit.linstor.controller) for cluster-wide defaults."
+  - "QoS throttling: C(sys/fs/blkio_throttle_read), C(sys/fs/blkio_throttle_write),
+    C(sys/fs/blkio_throttle_read_iops), and C(sys/fs/blkio_throttle_write_iops)
+    can be set on storage pools to limit I/O bandwidth and IOPS."
 seealso:
   - name: LINSTOR User's Guide - Storage Pools
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-storage_pools
     description: Storage pool concepts and configuration in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Over-Provisioning
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-over-provisioning
+    description: Thin provisioning and over-subscription ratios in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -118,13 +129,6 @@ EXAMPLES = r'''
     - node-3
   run_once: true  # noqa: run-once[task]
 
-- name: Remove a storage pool
-  linbit.linstor.storage_pool:
-    name: sp-lvm
-    node: node-1
-    state: absent
-  run_once: true  # noqa: run-once[task]
-
 - name: Create storage pools on all satellite nodes from one host
   linbit.linstor.storage_pool:
     name: sp-lvm-thin
@@ -132,6 +136,24 @@ EXAMPLES = r'''
     driver: lvmthin
     driver_pool: "drbdpool/thinpool"
   loop: "{{ groups['linstor_diskful_satellites'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Set thin provisioning over-subscription ratios on a storage pool
+  linbit.linstor.storage_pool:
+    name: sp-lvm-thin
+    node: node-1
+    driver: lvmthin
+    driver_pool: "drbdpool/thinpool"
+    properties:
+      MaxFreeCapacityOversubscriptionRatio: "3"
+      MaxTotalCapacityOversubscriptionRatio: "3"
+  run_once: true  # noqa: run-once[task]
+
+- name: Remove a storage pool
+  linbit.linstor.storage_pool:
+    name: sp-lvm
+    node: node-1
+    state: absent
   run_once: true  # noqa: run-once[task]
 '''
 

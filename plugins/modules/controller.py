@@ -43,53 +43,52 @@ notes:
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "Auto-quorum: set C(DrbdOptions/auto-quorum) to C(disabled), C(suspend-io), or
+    C(io-error) (default C(io-error)). When enabled, LINSTOR auto-manages
+    C(DrbdOptions/Resource/quorum) and C(DrbdOptions/Resource/on-no-quorum).
+    Set to C(disabled) to control those options manually."
+  - "Auto-evict: C(DrbdOptions/AutoEvictAfterTime) (default 60 minutes),
+    C(DrbdOptions/AutoEvictMaxDisconnectedNodes) (default 34%),
+    C(DrbdOptions/AutoEvictAllowEviction) (default C(true)).
+    Controller-level defaults that can be overridden per node via
+    M(linbit.linstor.node)."
+  - "Concurrent backup shipments: C(BackupShipping/MaxConcurrentBackupsPerNode).
+    Negative value means unlimited, C(0) disables, positive value sets the limit.
+    Controller-level default that can be overridden per node via
+    M(linbit.linstor.node)."
 seealso:
   - name: LINSTOR User's Guide
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/
     description: >-
       Search for C(linstor controller set-property) for all controller
       properties documented in the User's Guide.
+  - name: LINSTOR User's Guide - Auto-Quorum
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-auto-quorum
+    description: Automatic quorum management in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Auto-Evict
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-auto-evict
+    description: Automatic node eviction in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
+# Controller-level properties are analogous to cluster-wide properties
 - name: Read controller properties
   linbit.linstor.controller:
   register: ctrl_result
   changed_when: false
   run_once: true  # noqa: run-once[task]
 
-# Controller-level properties are analogous to cluster-wide properties
-- name: Set auxiliary property at the controller level
-  linbit.linstor.controller:
-    aux_properties:
-      region: middle-coast
-  run_once: true  # noqa: run-once[task]
-
-- name: Set thin provisioning oversubscription ratio
-  linbit.linstor.controller:
-    properties:
-      MaxOversubscriptionRatio: "5"
-  run_once: true  # noqa: run-once[task]
-
-- name: Unset a controller property (revert to LINSTOR default)
-  linbit.linstor.controller:
-    delete_properties:
-      - MaxOversubscriptionRatio
-  run_once: true  # noqa: run-once[task]
-
-- name: Remove an auxiliary property
-  linbit.linstor.controller:
-    delete_properties:
-      - Aux/region
-  run_once: true  # noqa: run-once[task]
-
-- name: Set multiple properties
+- name: Set multiple controller properties
   linbit.linstor.controller:
     properties:
       MaxOversubscriptionRatio: "5"
       TcpPortAutoRange: "14000-16000"
+  run_once: true  # noqa: run-once[task]
+
+- name: Set auxiliary property at the controller level
+  linbit.linstor.controller:
     aux_properties:
       region: middle-coast
   run_once: true  # noqa: run-once[task]
@@ -105,6 +104,38 @@ EXAMPLES = r'''
   linbit.linstor.controller:
     properties:
       DrbdProxy/AutoEnable: "true"
+  run_once: true  # noqa: run-once[task]
+
+- name: Set cluster-wide auto-quorum policy to suspend-io
+  linbit.linstor.controller:
+    properties:
+      DrbdOptions/auto-quorum: suspend-io
+  run_once: true  # noqa: run-once[task]
+
+- name: Configure auto-evict timing and thresholds
+  linbit.linstor.controller:
+    properties:
+      DrbdOptions/AutoEvictAfterTime: "120"
+      DrbdOptions/AutoEvictMaxDisconnectedNodes: "50"
+      DrbdOptions/AutoEvictAllowEviction: "true"
+  run_once: true  # noqa: run-once[task]
+
+- name: Limit concurrent backup shipments per node
+  linbit.linstor.controller:
+    properties:
+      BackupShipping/MaxConcurrentBackupsPerNode: "2"
+  run_once: true  # noqa: run-once[task]
+
+- name: Unset a controller property (revert to LINSTOR default)
+  linbit.linstor.controller:
+    delete_properties:
+      - MaxOversubscriptionRatio
+  run_once: true  # noqa: run-once[task]
+
+- name: Remove an auxiliary property
+  linbit.linstor.controller:
+    delete_properties:
+      - Aux/region
   run_once: true  # noqa: run-once[task]
 '''
 

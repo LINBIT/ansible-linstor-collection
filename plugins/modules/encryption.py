@@ -58,6 +58,14 @@ notes:
     (passphrase entered and active).
   - C(state=modified) is NOT idempotent. The module cannot detect whether
     the passphrase value has changed, so it always attempts modification.
+  - "Automation: the LINSTOR controller can auto-enter the passphrase on restart
+    via the C(MASTER_PASSPHRASE) environment variable or C([encrypt] passphrase=)
+    in C(/etc/linstor/linstor.toml) (TOML takes precedence over the environment
+    variable)."
+  - "Creating encrypted volumes also requires adding C(LUKS) to the resource
+    definition's C(layer_list) via M(linbit.linstor.resource_definition)."
+  - C(cryptsetup) must be installed on all satellite nodes before the satellite
+    service starts.
 seealso:
   - name: LINSTOR User's Guide - Encrypted Volumes
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-encrypted-volumes

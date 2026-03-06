@@ -158,7 +158,9 @@ EXAMPLES = r'''
   linbit.linstor.resource:
     name: res-0
     mode: spawn
-    sizes: ['64M', '1G']
+    sizes:
+      - 64M
+      - 1G
   run_once: true  # noqa: run-once[task]
 
 - name: Place resource on a specific node
