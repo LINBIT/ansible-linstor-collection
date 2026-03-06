@@ -10,11 +10,16 @@ module: backup
 short_description: Manage LINSTOR backups to remotes
 version_added: "0.10.0"
 description:
-  - Creates, deletes, restores, ships, or aborts LINSTOR backups.
+  - Creates, lists, deletes, restores, ships, or aborts LINSTOR backups.
   - Backups are always associated with a remote defined via the
     M(linbit.linstor.remote) module.
   - C(state=present) creates a new backup and is NOT idempotent. Each
     invocation creates a new backup (full or incremental).
+  - C(state=list) lists backups on a remote. Always C(changed=false).
+  - C(state=info) returns details about a specific backup on a remote.
+    Always C(changed=false).
+  - C(state=queued) lists pending backup operations in the queue.
+    Always C(changed=false).
   - C(state=absent) deletes backups matching the specified criteria.
     Idempotent when using O(backup_id).
   - C(state=restored) restores a backup to a new resource. Idempotent
@@ -34,12 +39,12 @@ options:
       - See the module description for idempotency details per state.
     type: str
     default: present
-    choices: [present, absent, restored, shipped, aborted]
+    choices: [present, list, info, queued, absent, restored, shipped, aborted]
   resource:
     description:
       - Resource name.
       - Required when C(state=present) or C(state=aborted).
-      - Optional filter for C(state=absent).
+      - Optional filter for C(state=absent), C(state=list), and C(state=queued).
     type: str
   incremental:
     description:
@@ -51,16 +56,18 @@ options:
     description:
       - Preferred node for the backup operation.
       - Only used when C(state=present).
+      - Optional filter for C(state=queued).
     type: str
   snap_name:
     description:
       - Snapshot name override.
       - Used when C(state=present) to name the underlying snapshot.
-      - Used when C(state=restored) to filter which backup to restore.
+      - Used when C(state=restored) or C(state=list) to filter by snapshot name.
+      - Optional filter for C(state=queued).
     type: str
   backup_id:
     description:
-      - Specific backup ID for C(state=absent) or C(state=restored).
+      - Specific backup ID for C(state=absent), C(state=restored), or C(state=info).
     type: str
   backup_id_prefix:
     description:
@@ -108,6 +115,7 @@ options:
     description:
       - Node to restore the backup onto.
       - Required when C(state=restored).
+      - Optional for C(state=info) to check storage pool space on a specific node.
     type: str
   target_resource:
     description:
@@ -209,6 +217,12 @@ options:
       - Snapshot name for aborting a specific operation.
       - Only used when C(state=aborted).
     type: str
+  snap_to_node:
+    description:
+      - Group queue results by snapshot instead of by node.
+      - Only used when C(state=queued).
+    type: bool
+    default: false
   controllers:
     description:
       - Comma-separated list of LINSTOR controller URIs.
@@ -226,6 +240,8 @@ notes:
   - C(state=present) always creates a new backup and reports C(changed=true).
     It is NOT idempotent by design, since each invocation produces a new
     point-in-time backup.
+  - C(state=list), C(state=info), and C(state=queued) are read-only and always
+    report C(changed=false).
   - C(state=shipped) always initiates a new shipping operation and reports
     C(changed=true). It is NOT idempotent.
   - The M(linbit.linstor.remote) module must be used first to configure
@@ -255,6 +271,37 @@ EXAMPLES = r'''
   linbit.linstor.backup:
     remote: remote-s3-backup
     resource: res-data
+  run_once: true  # noqa: run-once[task]
+
+- name: List all backups on a remote
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: list
+  register: backup_list
+  run_once: true  # noqa: run-once[task]
+
+- name: List backups for a specific resource
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: list
+    resource: res-data
+  register: backup_list
+  run_once: true  # noqa: run-once[task]
+
+- name: Get info about a specific backup
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: info
+    resource: res-data
+    backup_id: res-data_20240101_120000
+  register: backup_info
+  run_once: true  # noqa: run-once[task]
+
+- name: List queued backup operations
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: queued
+  register: backup_queue
   run_once: true  # noqa: run-once[task]
 
 - name: Restore a backup to a new resource
@@ -305,6 +352,18 @@ resource:
   description: Resource name associated with the operation.
   type: str
   returned: when applicable
+backups:
+  description: List of backup entries from the remote.
+  type: list
+  returned: when state=list
+backup_info:
+  description: Backup detail information including sizes and storage pools.
+  type: dict
+  returned: when state=info
+queue:
+  description: Backup queue entries grouped by node or snapshot.
+  type: dict
+  returned: when state=queued
 '''
 
 import traceback
@@ -329,7 +388,8 @@ def main():
     argument_spec.update(dict(
         remote=dict(type='str', required=True),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'restored', 'shipped', 'aborted']),
+                   choices=['present', 'list', 'info', 'queued',
+                            'absent', 'restored', 'shipped', 'aborted']),
         resource=dict(type='str'),
         incremental=dict(type='bool', default=True),
         node=dict(type='str'),
@@ -363,6 +423,7 @@ def main():
         abort_restore=dict(type='bool'),
         abort_create=dict(type='bool'),
         abort_snapshot=dict(type='str'),
+        snap_to_node=dict(type='bool', default=False),
     ))
 
     module = AnsibleModule(
@@ -403,6 +464,59 @@ def main():
             check_api_response(module, replies,
                                'create backup of %s to %s' % (resource, remote))
             module.exit_json(changed=True, remote=remote, resource=resource)
+
+        elif state == 'list':
+            kwargs = dict(remote_name=remote)
+            if resource:
+                kwargs['resource_name'] = resource
+            if module.params.get('snap_name'):
+                kwargs['snap_name'] = module.params['snap_name']
+
+            result = lin.backup_list(**kwargs)
+            backups = []
+            if result and hasattr(result[0], 'data_v0'):
+                backups = result[0].data_v0.get('linstor', [])
+            module.exit_json(changed=False, remote=remote,
+                             resource=resource, backups=backups)
+
+        elif state == 'info':
+            kwargs = dict(remote_name=remote)
+            if resource:
+                kwargs['resource_name'] = resource
+            if module.params.get('backup_id'):
+                kwargs['bak_id'] = module.params['backup_id']
+            if module.params.get('target_node'):
+                kwargs['target_node'] = module.params['target_node']
+            if module.params.get('storage_pool_map'):
+                kwargs['stor_pool_map'] = module.params['storage_pool_map']
+            if module.params.get('snap_name'):
+                kwargs['snap_name'] = module.params['snap_name']
+
+            result = lin.backup_info(**kwargs)
+            info = {}
+            if result and hasattr(result[0], 'data_v0'):
+                info = result[0].data_v0
+            module.exit_json(changed=False, remote=remote,
+                             resource=resource, backup_info=info)
+
+        elif state == 'queued':
+            kwargs = dict(
+                remotes=[remote],
+                snap_to_node=module.params['snap_to_node'],
+            )
+            if module.params.get('node'):
+                kwargs['nodes'] = [module.params['node']]
+            if module.params.get('snap_name'):
+                kwargs['snaps'] = [module.params['snap_name']]
+            if resource:
+                kwargs['rscs'] = [resource]
+
+            result = lin.backup_queue_list(**kwargs)
+            queue = {}
+            if result and hasattr(result[0], 'data_v0'):
+                queue = result[0].data_v0
+            module.exit_json(changed=False, remote=remote,
+                             resource=resource, queue=queue)
 
         elif state == 'absent':
             if module.check_mode:
