@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+---
+ha_database_pool: "{{ linstor_sp }}"
+ha_database_rg: linstor-db-grp
+ha_database_res: linstor_db
+ha_database_res_size: 200M
+
+ha_database_max_controllers: 3
+
+# TieBreaker node for 2-node combined configurations. Only used when exactly 2 combined
+# controller and satellite nodes exist. When empty, a satellite is chosen at random.
+# Set to an inventory hostname to pin the TieBreaker to a specific node.
+ha_database_tiebreaker_node: ""
+
+# Combined controller and satellite nodes (intersection of inventory groups)
+_ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) }}"
+
+# Primary controller node: first controller in inventory, hosts the populated database
+_ha_db_primary_node: "{{ groups['linstor_controllers'][0] }}"
+
+ha_database_drbd_options:
+  resource:
+    auto-promote: "no"
+    quorum: majority
+    on-no-quorum: io-error
+    on-no-data-accessible: io-error
+    on-suspended-primary-outdated: force-secondary
+
+# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
+# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
+short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
+linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"

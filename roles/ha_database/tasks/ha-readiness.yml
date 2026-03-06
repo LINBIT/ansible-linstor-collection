@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+---
+# Validate inventory topology before HA database conversion
+- name: Verify controller node count
+  ansible.builtin.assert:
+    that:
+      - _ha_db_combined_nodes | length >= 2
+      - _ha_db_combined_nodes | length <= ha_database_max_controllers | int
+    fail_msg: >
+      Please use at least 2, but not more than {{ ha_database_max_controllers }}
+      LINSTOR controller nodes for LINSTOR database high-availability
+  run_once: true # noqa: run-once[task]
+
+- name: Check for standalone LINSTOR controller nodes
+  ansible.builtin.assert:
+    that:
+      - (groups['linstor_controllers'] | difference(groups['linstor_satellites'])) | length == 0
+    fail_msg: >
+      All LINSTOR controller nodes must be combined node types.
+  run_once: true # noqa: run-once[task]
+
+- name: Check that diskful clusters with 3+ nodes use 3 combined nodes
+  ansible.builtin.assert:
+    that:
+      - _ha_db_combined_nodes | length >= 3
+    fail_msg: >
+      Clusters with 3 or more diskful satellites should use 3 combined nodes.
+      Found {{ groups['linstor_diskful_satellites'] | length }} diskful satellites
+      but only {{ _ha_db_combined_nodes | length }} combined nodes.
+  run_once: true # noqa: run-once[task]
+  when: groups['linstor_diskful_satellites'] | length >= 3

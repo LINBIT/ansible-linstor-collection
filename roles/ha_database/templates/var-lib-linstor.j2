@@ -3,5 +3,5 @@ Description=Filesystem for the LINSTOR controller
 
 [Mount]
 # you can use the minor like /dev/drbdX or the udev symlink
-What=/dev/drbd/by-res/{{linstor_ha_res}}/0
+What=/dev/drbd/by-res/{{ ha_database_res }}/0
 Where=/var/lib/linstor

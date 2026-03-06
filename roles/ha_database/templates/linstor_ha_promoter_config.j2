@@ -1,5 +1,5 @@
 [[promoter]]
-[promoter.resources.{{ linstor_ha_res }}]
+[promoter.resources.{{ ha_database_res }}]
 start = ["var-lib-linstor.mount", "linstor-controller.service"]
 on-disk-detach = "fail-over"
 adjust-resource-on-start = false
