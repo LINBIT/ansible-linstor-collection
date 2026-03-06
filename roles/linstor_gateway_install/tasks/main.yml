@@ -16,7 +16,7 @@
   ansible.builtin.get_url:
     url: "{{ linstor_gateway_github_binary }}"
     dest: '/usr/sbin/linstor-gateway'
-    mode: '755'
+    mode: '0755'
   when: "'linstor-gateway' not in ansible_facts.packages"
   notify: restart_linstor_gateway
 
@@ -25,7 +25,7 @@
   ansible.builtin.copy:
     src: linstor-gateway.service
     dest: /etc/systemd/system/linstor-gateway.service
-    mode: '644'
+    mode: '0644'
   when: "'linstor-gateway' not in ansible_facts.packages"
 
 - name: Create /etc/linstor-gateway if it does not exist
@@ -38,7 +38,7 @@
   ansible.builtin.template:
     src: linstor-gateway.j2
     dest: /etc/linstor-gateway/linstor-gateway.toml
-    mode: '644'
+    mode: '0644'
 
 - name: Open firewall ports for LINSTOR Gateway
   ansible.builtin.include_tasks: firewall.yml
