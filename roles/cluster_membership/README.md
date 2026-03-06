@@ -20,7 +20,8 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `short_hostnames` | auto (true on Proxmox VE) | Use `inventory_hostname_short` instead of FQDN when registering nodes |
+| `short_hostnames` | auto-detected | Use short hostnames (true on Proxmox VE) |
+| `linstor_hostname` | auto-detected | LINSTOR node name: `inventory_hostname_short` on Proxmox VE, `inventory_hostname` otherwise |
 | `replication_ip` | (required) | Node IP used for DRBD replication traffic; set per host in inventory |
 
 Dependencies

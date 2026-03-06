@@ -32,7 +32,7 @@ options:
   ip:
     description:
       - IP address for the node's default network interface.
-      - Required when C(state=present).
+      - Only needed to create a new node; omit when modifying an existing node.
     type: str
   com_type:
     description: Communication type for the default network interface.
@@ -244,9 +244,6 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        required_if=[
-            ('state', 'present', ['ip']),
-        ],
     )
 
     name = module.params['name']
@@ -283,6 +280,8 @@ def main():
 
         # state == 'present'
         if existing_node is None:
+            if not ip:
+                module.fail_json(msg="'ip' is required when creating a new node")
             if module.check_mode:
                 module.exit_json(
                     changed=True, name=name, node_type=node_type,
