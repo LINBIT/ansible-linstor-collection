@@ -20,10 +20,15 @@ options:
     type: str
     required: true
   state:
-    description: Desired state of the node.
+    description:
+      - Desired state of the node.
+      - C(evacuated) migrates all resources off the node for maintenance.
+        Idempotent, skips if the node already has the C(EVACUATE) flag.
+      - C(restored) reverses an evacuation, allowing resources to return.
+        Idempotent, skips if the node does not have the C(EVACUATE) flag.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, evacuated, restored]
   node_type:
     description: LINSTOR node type.
     type: str
@@ -62,6 +67,33 @@ options:
     type: list
     elements: str
     default: []
+  evacuate_target:
+    description:
+      - List of preferred target node names for evacuation.
+      - LINSTOR will prefer placing evacuated resources on these nodes.
+      - Only used when C(state=evacuated).
+      - Mutually exclusive with O(evacuate_do_not_target).
+    type: list
+    elements: str
+  evacuate_do_not_target:
+    description:
+      - List of node names to exclude as evacuation targets.
+      - Only used when C(state=evacuated).
+      - Mutually exclusive with O(evacuate_target).
+    type: list
+    elements: str
+  restore_delete_resources:
+    description:
+      - Delete resources on the node before restoring it.
+      - Only used when C(state=restored).
+    type: bool
+    default: false
+  restore_delete_snapshots:
+    description:
+      - Delete snapshots on the node before restoring it.
+      - Only used when C(state=restored).
+    type: bool
+    default: false
   controllers:
     description:
       - Comma-separated list of LINSTOR controller URIs.
@@ -84,6 +116,9 @@ seealso:
   - name: LINSTOR User's Guide - Initialize Cluster
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-init-cluster
     description: Node creation and cluster initialization in the LINSTOR User's Guide.
+  - name: LINSTOR User's Guide - Node Evacuate
+    link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-node-evacuate
+    description: Node evacuation for maintenance in the LINSTOR User's Guide.
 author:
   - Ryan Ronnander (@rronnander)
 '''
@@ -141,6 +176,35 @@ EXAMPLES = r'''
     ip: "{{ hostvars[item].replication_ip }}"
     node_type: Combined
   loop: "{{ groups['linstor_cluster'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Evacuate a node for maintenance
+  linbit.linstor.node:
+    name: node-3
+    state: evacuated
+  run_once: true  # noqa: run-once[task]
+
+- name: Evacuate with preferred target nodes
+  linbit.linstor.node:
+    name: node-3
+    state: evacuated
+    evacuate_target:
+      - node-1
+      - node-2
+  run_once: true  # noqa: run-once[task]
+
+- name: Restore a node after maintenance
+  linbit.linstor.node:
+    name: node-3
+    state: restored
+  run_once: true  # noqa: run-once[task]
+
+- name: Restore and clean up stale resources
+  linbit.linstor.node:
+    name: node-3
+    state: restored
+    restore_delete_resources: true
+    restore_delete_snapshots: true
   run_once: true  # noqa: run-once[task]
 
 - name: Register satellite nodes with management IP via DNS lookup
@@ -229,7 +293,8 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present',
+                   choices=['present', 'absent', 'evacuated', 'restored']),
         node_type=dict(type='str', default='Satellite',
                        choices=['Controller', 'Satellite', 'Combined', 'Auxiliary']),
         ip=dict(type='str'),
@@ -239,11 +304,18 @@ def main():
         properties=dict(type='dict', default={}),
         aux_properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
+        evacuate_target=dict(type='list', elements='str'),
+        evacuate_do_not_target=dict(type='list', elements='str'),
+        restore_delete_resources=dict(type='bool', default=False),
+        restore_delete_snapshots=dict(type='bool', default=False),
     ))
 
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
+        mutually_exclusive=[
+            ('evacuate_target', 'evacuate_do_not_target'),
+        ],
     )
 
     name = module.params['name']
@@ -277,6 +349,62 @@ def main():
             replies = lin.node_delete(name)
             check_api_response(module, replies, 'delete node %s' % name)
             module.exit_json(changed=True, name=name)
+
+        if state == 'evacuated':
+            if existing_node is None:
+                module.fail_json(
+                    msg="Node '%s' does not exist, cannot evacuate" % name)
+            node_flags = getattr(existing_node, 'flags', [])
+            if 'EVACUATE' in node_flags:
+                module.exit_json(changed=False, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            if module.check_mode:
+                module.exit_json(changed=True, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            kwargs = dict(node_name=name)
+            evacuate_target = module.params.get('evacuate_target')
+            evacuate_do_not_target = module.params.get('evacuate_do_not_target')
+            if evacuate_target:
+                kwargs['target'] = evacuate_target
+            if evacuate_do_not_target:
+                kwargs['do_not_target'] = evacuate_do_not_target
+            replies = lin.node_evacuate(**kwargs)
+            check_api_response(module, replies, 'evacuate node %s' % name)
+            module.exit_json(changed=True, name=name,
+                             node_type=get_node_type_str(existing_node),
+                             ip=get_node_ip(existing_node, netif_name),
+                             properties=get_node_props(existing_node))
+
+        if state == 'restored':
+            if existing_node is None:
+                module.fail_json(
+                    msg="Node '%s' does not exist, cannot restore" % name)
+            node_flags = getattr(existing_node, 'flags', [])
+            if 'EVACUATE' not in node_flags:
+                module.exit_json(changed=False, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            if module.check_mode:
+                module.exit_json(changed=True, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            kwargs = dict(node_name=name)
+            if module.params['restore_delete_resources']:
+                kwargs['delete_resources'] = True
+            if module.params['restore_delete_snapshots']:
+                kwargs['delete_snapshots'] = True
+            replies = lin.node_restore(**kwargs)
+            check_api_response(module, replies, 'restore node %s' % name)
+            module.exit_json(changed=True, name=name,
+                             node_type=get_node_type_str(existing_node),
+                             ip=get_node_ip(existing_node, netif_name),
+                             properties=get_node_props(existing_node))
 
         # state == 'present'
         if existing_node is None:
