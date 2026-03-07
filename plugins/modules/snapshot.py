@@ -291,7 +291,10 @@ def main():
                     changed=True, resource=resource, name=name,
                     nodes=existing_snap.nodes,
                     properties=get_snap_props(existing_snap))
-            # Restore volume definitions first, then resource placement
+            # Create target resource definition, restore volume defs, then place
+            replies = lin.resource_dfn_create(restore_to)
+            check_api_response(module, replies,
+                               'create resource definition %s for restore' % restore_to)
             replies = lin.snapshot_volume_definition_restore(
                 resource, name, restore_to)
             check_api_response(module, replies,
