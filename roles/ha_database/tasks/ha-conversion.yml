@@ -1,0 +1,180 @@
+# Validation
+- name: Validate inventory topology for HA database
+  ansible.builtin.include_tasks: ha-readiness.yml
+
+# Only valid for 2 combined nodes + TieBreaker satellite topology
+- name: Select TieBreaker satellite for HA database quorum
+  vars:
+    _ha_db_random_satellite: >-
+      {{ (groups['linstor_satellites'] | difference(groups['linstor_controllers']) | shuffle | first) | default('', true) }}
+  ansible.builtin.set_fact:
+    _ha_db_tiebreaker: >-
+      {{ ha_database_tiebreaker_node | default(_ha_db_random_satellite, true) }}
+  run_once: true # noqa: run-once[task]
+  when: _ha_db_combined_nodes | length == 2
+
+- name: Build HA database placement node list
+  ansible.builtin.set_fact:
+    _ha_db_placement_nodes: >-
+      {{ _ha_db_combined_nodes + ([_ha_db_tiebreaker] if _ha_db_tiebreaker | default('') != '' else []) }}
+  run_once: true # noqa: run-once[task]
+
+# DRBD Reactor install (soft dependency)
+- name: Check for DRBD Reactor
+  vars:
+    reactor_path: >-
+      {%- if ansible_facts['os_family'] | lower == 'debian' -%}
+        /usr/sbin/drbd-reactor
+      {%- else -%}
+        /sbin/drbd-reactor
+      {%- endif -%}
+  ansible.builtin.stat:
+    path: "{{ reactor_path }}"
+  register: _ha_db_conversion_reactor_check
+  when: inventory_hostname in _ha_db_placement_nodes
+
+- name: Install DRBD Reactor
+  ansible.builtin.include_role:
+    name: linbit.drbd_reactor.reactor_install
+  when:
+    - inventory_hostname in _ha_db_placement_nodes
+    - not _ha_db_conversion_reactor_check.stat.exists
+
+# LINSTOR node properties (informational aux prop on combined nodes)
+- name: Set ControllerIsHA on combined controller nodes
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    ip: "{{ replication_ip }}"
+    node_type: Combined
+    aux_properties:
+      ControllerIsHA: "True"
+  delegate_to: "{{ _ha_db_primary_node }}"
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Tag nodes for HA database placement
+  linbit.linstor.node:
+    name: "{{ item.split('.')[0] if short_hostnames | bool else item }}"
+    aux_properties:
+      ha-database-node: "True"
+  delegate_to: "{{ _ha_db_primary_node }}"
+  loop: "{{ _ha_db_placement_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  run_once: true # noqa: run-once[task]
+
+# LINSTOR resource setup
+- name: Create LINSTOR HA resource group
+  linbit.linstor.resource_group:
+    name: "{{ ha_database_rg }}"
+    storage_pool: "{{ ha_database_pool }}"
+    place_count: "{{ _ha_db_combined_nodes | length }}"
+    replicas_on_same:
+      - "Aux/ha-database-node=True"
+    drbd_options: "{{ ha_database_drbd_options }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Create resource for HA LINSTOR database
+  linbit.linstor.resource:
+    name: "{{ ha_database_res }}"
+    mode: spawn
+    resource_group: "{{ ha_database_rg }}"
+    size: "{{ ha_database_res_size }}"
+  run_once: true  # noqa: run-once[task]
+
+# Database migration
+- name: Ensure DRBD Reactor is stopped
+  ansible.builtin.systemd:
+    name: drbd-reactor.service
+    state: stopped
+  when: inventory_hostname in _ha_db_placement_nodes
+
+- name: Stop the LINSTOR controller service
+  ansible.builtin.systemd:
+    name: linstor-controller
+    state: stopped
+    enabled: false
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Backup original LINSTOR database
+  ansible.builtin.shell: |
+    mv /var/lib/linstor /var/lib/linstor.orig
+  changed_when: true
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Create LINSTOR HA mountpoint
+  ansible.builtin.file:
+    path: /var/lib/linstor
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+    attributes: '+i'
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Promote HA database resource
+  ansible.builtin.shell: |
+    drbdadm primary {{ ha_database_res }}
+  register: _ha_db_conversion_promote_result
+  changed_when: _ha_db_conversion_promote_result.rc == 0
+  when: inventory_hostname == _ha_db_primary_node
+
+- name: Create new filesystem for HA database
+  community.general.filesystem:
+    fstype: ext4
+    dev: "/dev/drbd/by-res/{{ ha_database_res }}/0"
+  when: inventory_hostname == _ha_db_primary_node
+
+- name: Create the LINSTOR controller mount
+  ansible.builtin.template:
+    src: var-lib-linstor.j2
+    dest: /etc/systemd/system/var-lib-linstor.mount
+    owner: root
+    group: root
+    mode: '0644'
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Start the LINSTOR controller mount
+  ansible.builtin.systemd:
+    name: var-lib-linstor.mount
+    state: started
+  when: inventory_hostname == _ha_db_primary_node
+
+- name: Copy LINSTOR database to HA storage
+  ansible.builtin.copy:
+    src: /var/lib/linstor.orig/
+    dest: /var/lib/linstor/
+    remote_src: true
+    mode: preserve
+  when: inventory_hostname == _ha_db_primary_node
+
+- name: Start the LINSTOR controller service
+  ansible.builtin.systemd:
+    name: linstor-controller
+    state: started
+  when: inventory_hostname == _ha_db_primary_node
+
+# Reactor config
+- name: Create DRBD Reactor config for HA LINSTOR
+  ansible.builtin.template:
+    src: linstor_ha_promoter_config.j2
+    dest: /etc/drbd-reactor.d/linstor_db.toml
+    owner: root
+    group: root
+    mode: '0644'
+  when: inventory_hostname in _ha_db_placement_nodes
+
+- name: Enable and start DRBD Reactor
+  ansible.builtin.systemd:
+    name: drbd-reactor.service
+    daemon_reload: true
+    state: restarted
+    enabled: true
+  when: inventory_hostname in _ha_db_placement_nodes
+
+# Mark migration as completed (cluster-wide property)
+- name: Record aux prop to mark migration as completed
+  linbit.linstor.controller:
+    aux_properties:
+      ClusterIsHA: "True"
+  when: inventory_hostname == _ha_db_primary_node
+  retries: 5
