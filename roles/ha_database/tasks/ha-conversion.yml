@@ -1,4 +1,3 @@
-# Validation
 - name: Validate inventory topology for HA database
   ansible.builtin.include_tasks: ha-readiness.yml
 
@@ -16,7 +15,11 @@
 - name: Build HA database placement node list
   ansible.builtin.set_fact:
     _ha_db_placement_nodes: >-
-      {{ _ha_db_combined_nodes + ([_ha_db_tiebreaker] if _ha_db_tiebreaker | default('') != '' else []) }}
+      {%- if _ha_db_tiebreaker | default('') != '' -%}
+        {{ _ha_db_combined_nodes + [_ha_db_tiebreaker] }}
+      {%- else -%}
+        {{ _ha_db_combined_nodes }}
+      {%- endif -%}
   run_once: true # noqa: run-once[task]
 
 # DRBD Reactor install (soft dependency)
@@ -58,8 +61,8 @@
   loop: "{{ _ha_db_placement_nodes }}"
   run_once: true # noqa: run-once[task]
 
-# LINSTOR resource setup
-- name: Create LINSTOR HA resource group
+# If storage_pool is omitted, LINSTOR auto-selects from available pools
+- name: Create HA database resource group
   linbit.linstor.resource_group:
     name: "{{ ha_database_rg }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
@@ -69,7 +72,7 @@
     drbd_options: "{{ ha_database_drbd_options }}"
   run_once: true  # noqa: run-once[task]
 
-- name: Create resource for HA LINSTOR database
+- name: Create resource for HA database
   linbit.linstor.resource:
     name: "{{ ha_database_res }}"
     mode: spawn
@@ -97,7 +100,7 @@
   changed_when: true
   when: inventory_hostname in _ha_db_combined_nodes
 
-- name: Create LINSTOR HA mountpoint
+- name: Create HA database mountpoint
   ansible.builtin.file:
     path: /var/lib/linstor
     state: directory
@@ -120,7 +123,7 @@
     dev: "/dev/drbd/by-res/{{ ha_database_res }}/0"
   when: inventory_hostname == _ha_db_primary_node
 
-- name: Create the LINSTOR controller mount
+- name: Create HA database mount unit
   ansible.builtin.template:
     src: var-lib-linstor.j2
     dest: /etc/systemd/system/var-lib-linstor.mount
@@ -129,7 +132,7 @@
     mode: '0644'
   when: inventory_hostname in _ha_db_combined_nodes
 
-- name: Start the LINSTOR controller mount
+- name: Start the HA database mount
   ansible.builtin.systemd:
     name: var-lib-linstor.mount
     state: started
@@ -149,8 +152,7 @@
     state: started
   when: inventory_hostname == _ha_db_primary_node
 
-# Reactor config
-- name: Create DRBD Reactor config for HA LINSTOR
+- name: Create DRBD Reactor config for HA database
   ansible.builtin.template:
     src: linstor_ha_promoter_config.j2
     dest: /etc/drbd-reactor.d/linstor_db.toml

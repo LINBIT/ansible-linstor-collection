@@ -50,18 +50,6 @@ No hard role dependencies.
 Example Playbook
 ----------------
 
-Using the collection playbook wrapper (recommended for stack playbooks):
-
-```yaml
-- name: LINSTOR HA database conversion
-  import_playbook: linbit.linstor.ha_controller.yaml
-  tags:
-    - linstor
-    - linstor_ha_controller
-```
-
-Using the role directly in a play:
-
 ```yaml
 - name: LINSTOR HA database conversion
   hosts: linstor_cluster
@@ -69,6 +57,9 @@ Using the role directly in a play:
   become: true
   tasks:
     - name: Convert LINSTOR database to HA
+      vars:
+        # If ha_database_pool is omitted, LINSTOR auto-selects from available pools
+        ha_database_pool: my-pool
       ansible.builtin.import_role:
         name: linbit.linstor.ha_database
 ```
