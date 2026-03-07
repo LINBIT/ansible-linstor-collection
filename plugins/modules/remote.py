@@ -221,9 +221,18 @@ def s3_needs_modify(existing, module):
 
 
 def linstor_needs_modify(existing, module):
-    """Check if LINSTOR remote parameters differ from existing state."""
-    if module.params.get('url') and existing.url != module.params['url']:
-        return True
+    """Check if LINSTOR remote parameters differ from existing state.
+
+    The LINSTOR controller normalizes URLs internally (for example
+    ``linstor://192.168.1.10`` becomes ``http://linstor:3370``), so
+    the stored URL cannot be compared to the user-supplied value.
+    URL changes are skipped: to change the URL, delete and recreate
+    the remote.
+
+    Passphrase and cluster_id are write-only: the API does not return
+    them, so they cannot be compared.  They are always sent during
+    modify when provided, but do not on their own trigger a modify.
+    """
     # Passphrase is write-only; always send if provided
     if module.params.get('passphrase'):
         return True
