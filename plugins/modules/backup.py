@@ -239,11 +239,14 @@ notes:
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
   - C(state=present) always creates a new backup and reports C(changed=true).
     It is NOT idempotent by design, since each invocation produces a new
-    point-in-time backup.
+    point-in-time backup. Only works with S3-compatible remotes. For
+    LINSTOR-to-LINSTOR remotes, use C(state=shipped) instead.
   - C(state=list), C(state=info), and C(state=queued) are read-only and always
-    report C(changed=false).
+    report C(changed=false). C(state=list) and C(state=info) are S3-oriented
+    and return empty results for LINSTOR-to-LINSTOR remotes.
   - C(state=shipped) always initiates a new shipping operation and reports
-    C(changed=true). It is NOT idempotent.
+    C(changed=true). It is NOT idempotent. Use O(dst_storage_pool) when the
+    target cluster uses a different storage pool name than the source.
   - The M(linbit.linstor.remote) module must be used first to configure
     the remote target before creating backups.
   - "Concurrent shipments can be throttled via
@@ -333,6 +336,15 @@ EXAMPLES = r'''
     state: shipped
     src_resource: res-data
     dst_resource: res-data-dr
+  run_once: true  # noqa: run-once[task]
+
+- name: Ship with a different storage pool on the target cluster
+  linbit.linstor.backup:
+    remote: remote-dr-site
+    state: shipped
+    src_resource: res-data
+    dst_resource: res-data-dr
+    dst_storage_pool: dr-storage
   run_once: true  # noqa: run-once[task]
 
 - name: Abort an in-progress backup

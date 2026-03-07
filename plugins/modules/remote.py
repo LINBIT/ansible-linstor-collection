@@ -73,6 +73,11 @@ options:
     description:
       - LINSTOR controller URL for LINSTOR-to-LINSTOR remotes.
       - Required for C(type=linstor).
+      - The LINSTOR controller normalizes URLs internally, so the stored
+        value may differ from the value provided (for example
+        C(linstor://10.0.0.1) may become C(http://linstor:3370)). URL
+        changes are not detected by the module. To change the URL, delete
+        and recreate the remote.
     type: str
   passphrase:
     description:
@@ -81,8 +86,12 @@ options:
     type: str
   cluster_id:
     description:
-      - Remote LINSTOR cluster ID.
+      - Cluster ID of the remote LINSTOR cluster.
       - Only applicable for C(type=linstor).
+      - Required for LINSTOR-to-LINSTOR backup shipping. Each cluster must
+        have a remote configured with the peer cluster's ID. Retrieve the
+        local cluster ID from the C(Cluster/LocalID) controller property.
+      - Write-only. The API does not return this value.
     type: str
   availability_zone:
     description:
@@ -103,9 +112,12 @@ notes:
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
   - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
-  - Credentials (O(access_key), O(secret_key), O(passphrase)) are write-only.
-    The LINSTOR API does not return them, so the module cannot detect changes
-    to these values. They are always sent during modify operations when provided.
+  - Credentials (O(access_key), O(secret_key), O(passphrase)) and O(cluster_id)
+    are write-only. The LINSTOR API does not return them, so the module cannot
+    detect changes to these values.
+  - "LINSTOR-to-LINSTOR backup shipping requires bidirectional remotes: each
+    cluster must have a remote pointing at the other with the peer's
+    O(cluster_id) set. Without this, shipping fails with 'Unknown Cluster'."
 seealso:
   - name: LINSTOR User's Guide - Backups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-backups
@@ -138,11 +150,21 @@ EXAMPLES = r'''
     use_path_style: true
   run_once: true  # noqa: run-once[task]
 
-- name: Create a LINSTOR-to-LINSTOR remote
+- name: Create a LINSTOR-to-LINSTOR remote with cluster ID
   linbit.linstor.remote:
     name: remote-dr-site
     type: linstor
     url: linstor://dr-controller.example.com
+    cluster_id: "{{ dr_cluster_id }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Create the reverse remote on the DR cluster for bidirectional shipping
+  linbit.linstor.remote:
+    name: remote-primary-site
+    type: linstor
+    url: linstor://primary-controller.example.com
+    cluster_id: "{{ primary_cluster_id }}"
+    controllers: linstor://dr-controller.example.com
   run_once: true  # noqa: run-once[task]
 
 - name: Create an EBS remote
