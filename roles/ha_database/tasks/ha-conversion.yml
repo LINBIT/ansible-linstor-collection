@@ -44,8 +44,6 @@
 - name: Set ControllerIsHA on combined controller nodes
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
-    ip: "{{ replication_ip }}"
-    node_type: Combined
     aux_properties:
       ControllerIsHA: "True"
   delegate_to: "{{ _ha_db_primary_node }}"
@@ -58,15 +56,13 @@
       ha-database-node: "True"
   delegate_to: "{{ _ha_db_primary_node }}"
   loop: "{{ _ha_db_placement_nodes }}"
-  loop_control:
-    label: "{{ item }}"
   run_once: true # noqa: run-once[task]
 
 # LINSTOR resource setup
 - name: Create LINSTOR HA resource group
   linbit.linstor.resource_group:
     name: "{{ ha_database_rg }}"
-    storage_pool: "{{ ha_database_pool }}"
+    storage_pool: "{{ ha_database_pool | default(omit, true) }}"
     place_count: "{{ _ha_db_combined_nodes | length }}"
     replicas_on_same:
       - "Aux/ha-database-node=True"

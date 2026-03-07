@@ -6,5 +6,7 @@
   become: true
   tasks:
     - name: Convert LINSTOR database to HA
+      vars:
+        ha_database_pool: "{{ linstor_sp | default('', true) }}"
       ansible.builtin.import_role:
         name: linbit.linstor.ha_database

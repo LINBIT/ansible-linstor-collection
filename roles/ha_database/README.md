@@ -31,7 +31,7 @@ See `defaults/main.yml`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `ha_database_pool` | `{{ linstor_sp }}` | Storage pool for the HA database resource |
+| `ha_database_pool` | `""` | Storage pool for the HA database resource. When empty, LINSTOR auto-selects from available pools. Set explicitly when nodes have multiple storage pools. |
 | `ha_database_rg` | `linstor-db-grp` | LINSTOR resource group name |
 | `ha_database_res` | `linstor_db` | LINSTOR resource name |
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
