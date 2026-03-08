@@ -153,12 +153,6 @@
     mode: preserve
   when: inventory_hostname == _ha_db_primary_node
 
-- name: Start the LINSTOR controller service
-  ansible.builtin.systemd:
-    name: linstor-controller
-    state: started
-  when: inventory_hostname == _ha_db_primary_node
-
 - name: Create DRBD Reactor config for HA database
   ansible.builtin.template:
     src: linstor_ha_promoter_config.j2
@@ -168,19 +162,40 @@
     mode: '0644'
   when: inventory_hostname in _ha_db_placement_nodes
 
+# Start linstor-controller.service via DRBD Reactor
+- name: Enable and start DRBD Reactor on primary node
+  ansible.builtin.systemd:
+    name: drbd-reactor.service
+    daemon_reload: true
+    state: restarted
+    enabled: true
+  when: inventory_hostname == _ha_db_primary_node
+
+- name: Verify linstor_db resource has promoted successfuly
+  ansible.builtin.command:
+    cmd: drbd-reactorctl status {{ ha_database_res }}
+  register: _ha_db_reactor_status
+  until: "'currently active on this node' in _ha_db_reactor_status.stdout"
+  retries: 10
+  delay: 3
+  changed_when: false
+  when: inventory_hostname == _ha_db_primary_node
+
 - name: Wait for LINSTOR controller to be ready
   ansible.builtin.wait_for:
     port: 3370
     timeout: 30
   when: inventory_hostname == _ha_db_primary_node
 
-- name: Enable and start DRBD Reactor
+- name: Enable and start DRBD Reactor on remaining nodes
   ansible.builtin.systemd:
     name: drbd-reactor.service
     daemon_reload: true
     state: restarted
     enabled: true
-  when: inventory_hostname in _ha_db_placement_nodes
+  when:
+    - inventory_hostname in _ha_db_placement_nodes
+    - inventory_hostname != _ha_db_primary_node
 
 # Mark migration as completed (cluster-wide property)
 - name: Record aux prop to mark migration as completed
@@ -191,8 +206,8 @@
       {%- else -%}
         {{ {'ClusterIsHA': 'True'} }}
       {%- endif -%}
-  when: inventory_hostname == _ha_db_primary_node
-  retries: 5
+  when: inventory_hostname in _ha_db_placement_nodes
+  run_once: true # noqa: run-once[task]
 
 # Update linstor-client.conf to use VIP on all cluster nodes
 - name: Update linstor-client.conf to use HA VIP

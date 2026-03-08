@@ -479,6 +479,10 @@ def main():
         existing_ip = get_node_ip(existing_node, netif_name)
 
         if existing_type and node_type and node_type.upper() != existing_type.upper():
+            module.warn(
+                "Node '%s' exists with type '%s' but '%s' was requested. "
+                "Node type cannot be changed after creation." % (
+                    name, existing_type, node_type))
 
         if existing_ip and ip and existing_ip != ip:
             module.warn(
