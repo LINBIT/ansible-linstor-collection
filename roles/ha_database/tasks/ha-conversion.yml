@@ -161,6 +161,12 @@
     mode: '0644'
   when: inventory_hostname in _ha_db_placement_nodes
 
+- name: Wait for LINSTOR controller to be ready
+  ansible.builtin.wait_for:
+    port: 3370
+    timeout: 30
+  when: inventory_hostname == _ha_db_primary_node
+
 - name: Enable and start DRBD Reactor
   ansible.builtin.systemd:
     name: drbd-reactor.service
@@ -169,16 +175,26 @@
     enabled: true
   when: inventory_hostname in _ha_db_placement_nodes
 
-- name: Wait for LINSTOR controller to be ready
-  ansible.builtin.wait_for:
-    port: 3370
-    timeout: 30
-  when: inventory_hostname == _ha_db_primary_node
-
 # Mark migration as completed (cluster-wide property)
 - name: Record aux prop to mark migration as completed
   linbit.linstor.controller:
-    aux_properties:
-      ClusterIsHA: "True"
+    aux_properties: >-
+      {%- if ha_database_vip | default('') != '' -%}
+        {{ {'ClusterIsHA': 'True', 'ha_database_vip': _ha_db_vip_address} }}
+      {%- else -%}
+        {{ {'ClusterIsHA': 'True'} }}
+      {%- endif -%}
   when: inventory_hostname == _ha_db_primary_node
   retries: 5
+
+# Update linstor-client.conf to use VIP on all cluster nodes
+- name: Update linstor-client.conf to use HA VIP
+  ansible.builtin.copy:
+    content: |
+      [global]
+      controllers={{ _ha_db_vip_address }}
+    dest: /etc/linstor/linstor-client.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: ha_database_vip | default('') != ''

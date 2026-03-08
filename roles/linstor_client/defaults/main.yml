@@ -3,3 +3,7 @@
 # defaults file for linstor_client
 linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
+
+# Automatically discover HA VIP from controller aux properties on subsequent runs.
+# Set to false to skip VIP discovery and always use linstor_controller_addresses.
+linstor_client_vip_discovery: true

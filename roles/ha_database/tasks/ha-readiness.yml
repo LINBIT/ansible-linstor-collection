@@ -29,3 +29,29 @@
       but only {{ _ha_db_combined_nodes | length }} combined nodes.
   run_once: true # noqa: run-once[task]
   when: groups['linstor_diskful_satellites'] | length >= 3
+
+- name: Validate ha_database_vip format
+  ansible.builtin.assert:
+    that:
+      - _ha_db_vip_address is regex('^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$')
+    fail_msg: "ha_database_vip must be a valid IP address: {{ ha_database_vip }}"
+  run_once: true # noqa: run-once[task]
+  when: ha_database_vip | default('') != ''
+
+- name: Check for IPaddr2 resource agent
+  ansible.builtin.stat:
+    path: "{{ _ha_db_ocf_path }}/IPaddr2"
+  register: _ha_db_ipaddr2_check
+  when:
+    - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_combined_nodes
+
+- name: Fail if IPaddr2 resource agent is missing
+  ansible.builtin.fail:
+    msg: >-
+      ha_database_vip is set but IPaddr2 resource agent is not installed.
+      Install the resource-agents package or use linstor_gateway_satellite role.
+  when:
+    - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_combined_nodes
+    - not _ha_db_ipaddr2_check.stat.exists

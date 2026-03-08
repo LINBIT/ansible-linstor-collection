@@ -37,6 +37,7 @@ See `defaults/main.yml`.
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_tiebreaker_node` | `""` | Pin the TieBreaker to a specific satellite (inventory hostname); only used with 2 combined nodes, random if empty |
+| `ha_database_vip` | `""` | Virtual IP for the HA controller (for example `10.0.0.100/24`). DRBD Reactor floats an IPaddr2 resource with the active controller. The IP is stored as `Aux/ha_database_vip` so `linstor_client` discovers it on subsequent runs. Defaults to `/24` if no CIDR is given. Requires the `resource-agents` package (IPaddr2 RA). |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
 | `short_hostnames` | auto-detected | Use short hostnames (true on Proxmox VE) |
 | `linstor_hostname` | auto-detected | LINSTOR node name: `inventory_hostname_short` on Proxmox VE, `inventory_hostname` otherwise |
@@ -60,6 +61,22 @@ Example Playbook
       vars:
         # If ha_database_pool is omitted, LINSTOR auto-selects from available pools
         ha_database_pool: my-pool
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_database
+```
+
+With a floating VIP for the controller:
+
+```yaml
+- name: LINSTOR HA database conversion
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Convert LINSTOR database to HA
+      vars:
+        ha_database_pool: my-pool
+        ha_database_vip: "10.0.0.100/24"
       ansible.builtin.import_role:
         name: linbit.linstor.ha_database
 ```

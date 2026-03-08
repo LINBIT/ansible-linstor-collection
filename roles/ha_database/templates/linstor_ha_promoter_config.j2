@@ -1,5 +1,11 @@
 [[promoter]]
 [promoter.resources.{{ ha_database_res }}]
-start = ["var-lib-linstor.mount", "linstor-controller.service"]
+start = [
+{% if ha_database_vip | default('') != '' %}
+  "ocf:heartbeat:IPaddr2 ha_db_vip cidr_netmask={{ _ha_db_vip_cidr }} ip={{ _ha_db_vip_address }}",
+{% endif %}
+  "var-lib-linstor.mount",
+  "linstor-controller.service",
+]
 on-disk-detach = "fail-over"
 adjust-resource-on-start = false

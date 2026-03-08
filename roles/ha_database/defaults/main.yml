@@ -12,6 +12,22 @@ ha_database_max_controllers: 3
 # Set to an inventory hostname to pin the TieBreaker to a specific node.
 ha_database_tiebreaker_node: ""
 
+# Virtual IP address for the HA controller (for example "10.0.0.100/24").
+# When set, DRBD Reactor manages an IPaddr2 resource that floats with the
+# active controller. The VIP is stored as an Aux/ha_database_vip controller
+# property so linstor_client can discover it. Defaults to /24 if no CIDR given.
+ha_database_vip: ""
+_ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
+_ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"
+
+# OCF resource agent base path (SUSE uses /usr/lib, others use /lib)
+_ha_db_ocf_path: >-
+  {%- if ansible_facts['os_family'] | lower == 'suse' -%}
+    /usr/lib/ocf/resource.d/heartbeat
+  {%- else -%}
+    /lib/ocf/resource.d/heartbeat
+  {%- endif -%}
+
 # Combined controller and satellite nodes (intersection of inventory groups)
 _ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) }}"
 
