@@ -30,9 +30,11 @@ options:
     default: present
     choices: [present, absent, evacuated, restored]
   node_type:
-    description: LINSTOR node type.
+    description: >-
+      LINSTOR node type.
+      Defaults to C(Satellite) when creating a new node.
+      Omit when managing properties on existing nodes to avoid type mismatch warnings.
     type: str
-    default: Satellite
     choices: [Controller, Satellite, Combined, Auxiliary]
   ip:
     description:
@@ -328,7 +330,7 @@ def main():
         name=dict(type='str', required=True),
         state=dict(type='str', default='present',
                    choices=['present', 'absent', 'evacuated', 'restored']),
-        node_type=dict(type='str', default='Satellite',
+        node_type=dict(type='str', default=None,
                        choices=['Controller', 'Satellite', 'Combined', 'Auxiliary']),
         ip=dict(type='str'),
         com_type=dict(type='str', default='Plain', choices=['Plain', 'SSL']),
@@ -440,15 +442,16 @@ def main():
                              properties=get_node_props(existing_node))
 
         # state == 'present'
+        create_type = node_type or 'Satellite'
         if existing_node is None:
             if not ip:
                 module.fail_json(msg="'ip' is required when creating a new node")
             if module.check_mode:
                 module.exit_json(
-                    changed=True, name=name, node_type=node_type,
+                    changed=True, name=name, node_type=create_type,
                     ip=ip, properties=all_properties)
 
-            node_type_const = NODE_TYPE_MAP.get(node_type, 'SATELLITE')
+            node_type_const = NODE_TYPE_MAP.get(create_type, 'SATELLITE')
             replies = lin.node_create(
                 node_name=name,
                 node_type=node_type_const,
@@ -468,18 +471,14 @@ def main():
                 check_api_response(module, replies, 'set properties on node %s' % name)
 
             module.exit_json(
-                changed=True, name=name, node_type=node_type,
+                changed=True, name=name, node_type=create_type,
                 ip=ip, properties=all_properties)
 
         # Node exists: check for immutable attribute differences
         existing_type = get_node_type_str(existing_node)
         existing_ip = get_node_ip(existing_node, netif_name)
 
-        if existing_type and node_type.upper() != existing_type.upper():
-            module.warn(
-                "Node '%s' exists with type '%s' but '%s' was requested. "
-                "Node type cannot be changed after creation." % (
-                    name, existing_type, node_type))
+        if existing_type and node_type and node_type.upper() != existing_type.upper():
 
         if existing_ip and ip and existing_ip != ip:
             module.warn(
