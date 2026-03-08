@@ -63,14 +63,12 @@ Example Playbook
         ha_gateway_nfs_exports:
           - name: example-export
             size: 1G
-            vip: 192.168.222.250
-            # cidr_netmask: 24
+            service_ip: 192.168.222.250/24
             # fstype: ext4
         ha_gateway_iscsi_targets:
           - name: example-target
             size: 2G
-            vip: 192.168.222.251
-            # cidr_netmask: 24
+            service_ip: 192.168.222.251/24
             # target_port: 3260
             # iqn_base: 'iqn.2026-02.com.linbit'
             # fstype: ext4
