@@ -22,6 +22,13 @@
       {%- endif -%}
   run_once: true # noqa: run-once[task]
 
+# IPaddr2 resource agent (required for VIP)
+- name: Fetch IPaddr2 resource agent if missing
+  ansible.builtin.include_tasks: fetch-ipaddr2.yml
+  when:
+    - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_placement_nodes
+
 # DRBD Reactor install (soft dependency)
 - name: Check for DRBD Reactor
   vars:
