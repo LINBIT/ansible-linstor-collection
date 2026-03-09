@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Restart linstor-satellite.service for new storage
+  ansible.builtin.systemd_service:
+    service: linstor-satellite.service
+    state: restarted
+  listen: storage_pool_restart_satellite
+
+- name: Wait for LINSTOR satellite service after restart
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 3366
+    delay: 1
+    timeout: 20
+  listen: storage_pool_restart_satellite

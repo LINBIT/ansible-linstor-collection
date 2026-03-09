@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: MIT
+---
+# The role reads linstor_storage_pools from inventory (list of pool dicts).
+# Default: empty list (skips if undefined).
+storage_pool_defaults:
+  type: lvmthin
+  vg_thinpool: thinpool
+  file_path: '/var/lib/linstor-filethin/'
+  thinpool_size: '95%VG'
+  pv_create_options: ""
+  lv_create_options: ""
+  zfs_create_options: ""
+  zpool_vdev_type: stripe
+  zpool_properties: {}
+  wipefs_force: false
+
+# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
+# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
+short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
+linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+
+# Computed (private)
+_storage_pool_is_diskful: "{{ inventory_hostname in groups.get('linstor_diskful_satellites', []) }}"

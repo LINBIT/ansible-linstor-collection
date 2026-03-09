@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Check if ZFS zpool already exists
+  ansible.builtin.command: zpool list {{ _pool.zpool }}
+  register: _storage_pool_zpool_check
+  failed_when: false
+  changed_when: false
+
+- name: Run wipefs on storage pool backing disks
+  ansible.builtin.command: wipefs -afq {{ item }}
+  changed_when: true
+  loop: "{{ _pool.physical_devices }}"
+  when: _storage_pool_zpool_check.rc != 0
+
+- name: Create ZFS zpool for LINSTOR
+  community.general.zpool:
+    name: "{{ _pool.zpool }}"
+    vdevs:
+      - disks: "{{ _pool.physical_devices }}"
+        type: "{{ _pool.zpool_vdev_type | default(storage_pool_defaults.zpool_vdev_type) }}"
+    pool_properties: "{{ _pool.zpool_properties | default(storage_pool_defaults.zpool_properties) }}"
+    state: present
+    force: true
+  notify: storage_pool_restart_satellite
+  when: _storage_pool_zpool_check.rc != 0

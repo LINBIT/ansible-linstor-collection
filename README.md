@@ -13,6 +13,7 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 | `linstor_client` | Installs the LINSTOR CLI client |
 | `linstor_gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
 | `linstor_gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
+| `storage_pool` | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
 | `ha_database` | Configure highly available LINSTOR database storage; works for new deployments and existing production clusters |
 | `ha_gateway` | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |
 
@@ -50,7 +51,6 @@ The following inventory groups are used to control role targeting:
 
 | Playbook | Description |
 |---|---|
-| `cluster_storage.yaml` | Create LVM/ZFS storage pools from `physical_devices` |
 | `ha_controller.yaml` | Wrapper playbook for the `ha_database` role (HA LINSTOR database conversion) |
 
 ## Dependencies

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+---
+# Don't wipe out physical volumes if the volume group is already enumerated
+- name: Run wipefs on storage pool backing disks
+  ansible.builtin.command: wipefs -afq {{ item }}
+  changed_when: true
+  loop: "{{ _pool.physical_devices }}"
+  notify: storage_pool_restart_satellite
+  when:
+    (_pool.vg not in ansible_facts['lvm']['vgs']) or
+    (_pool.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
+
+- name: Create LVM volume group for LINSTOR
+  community.general.lvg:
+    vg: "{{ _pool.vg }}"
+    pvs: "{{ _pool.physical_devices }}"
+    pv_options: "{{ _pool.pv_create_options | default(storage_pool_defaults.pv_create_options) }}"
+    remove_extra_pvs: false
+    state: present
+  notify: storage_pool_restart_satellite
+
+# Stripe volumes by default when more than 1 device exists
+- name: Create LVM thin pool for LINSTOR
+  community.general.lvol:
+    vg: "{{ _pool.vg }}"
+    thinpool: "{{ _pool.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
+    size: "{{ _pool.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
+    opts: "{{ _lv_opts }}"
+    shrink: false
+  notify: storage_pool_restart_satellite
+  when: _type == 'lvmthin'

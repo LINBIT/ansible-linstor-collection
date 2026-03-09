@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Create LINSTOR file storage pool directory
+  ansible.builtin.file:
+    path: "{{ _pool.file_path | default(storage_pool_defaults.file_path) }}"
+    state: directory
+    mode: '0755'

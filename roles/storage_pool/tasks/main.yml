@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Create storage pools
+  ansible.builtin.include_tasks: pool.yml
+  loop: "{{ linstor_storage_pools | default([]) }}"
+  loop_control:
+    loop_var: _pool
+    label: "{{ _pool.name }}"
+  when: _storage_pool_is_diskful | bool
