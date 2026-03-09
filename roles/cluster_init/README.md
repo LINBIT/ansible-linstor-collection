@@ -1,9 +1,18 @@
 cluster_init
 ============
 
-Convenience role that installs LINSTOR cluster components and registers cluster membership based on inventory group membership.
-Optionally configures LINBIT package repositories before installation.
-Runs `satellite_install` on nodes in `linstor_satellites`, `controller_install` on nodes in `linstor_controllers`, then `cluster_membership` on all: allowing the full cluster to be installed and registered with a single role against the entire inventory.
+Convenience role that deploys a complete LINSTOR cluster with a single role call.
+Includes the following roles in order:
+
+1. `linbit.common.customer_repo` or `linbit.common.public_repo` (repo configuration)
+2. `linbit.linstor.satellite_install` (on `linstor_satellites` nodes)
+3. `linbit.linstor.controller_install` (on `linstor_controllers` nodes)
+4. `linbit.linstor.cluster_membership` (register all nodes)
+5. `linbit.linstor.linstor_gateway_install` (when `cluster_init_linstor_gateway: true`)
+6. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
+7. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
+
+Steps 1 and 5-7 are optional and controlled by role variables.
 
 Requirements
 ------------
@@ -21,8 +30,17 @@ Role Variables
 | Variable | Default | Description |
 |---|---|---|
 | `cluster_init_customer_repo` | `true` | Configure LINBIT customer repo before installation |
-| `cluster_init_public_repo` | `false` | Configure LINBIT public repo before installation (when true, disables `cluster_init_customer_repo`) |
+| `cluster_init_public_repo` | `false` | Configure LINBIT public repo (when true, disables `cluster_init_customer_repo`) |
 | `cluster_init_linstor_gateway` | `false` | Also install LINSTOR Gateway on the cluster |
+| `cluster_init_deploy_storage` | `false` | Create storage pools from `linstor_storage_pools` inventory variable |
+| `cluster_init_ha_database` | `false` | Convert LINSTOR database to HA (requires 2+ combined nodes) |
+
+When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor.storage_pool` which reads the `linstor_storage_pools` inventory variable.
+See the `storage_pool` role README for the full variable reference.
+
+When `cluster_init_ha_database` is enabled, the role includes `linbit.linstor.ha_database`.
+Set `ha_database_pool` in the playbook vars to specify which storage pool to use.
+See the `ha_database` role README for additional variables.
 
 See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, and `linbit.linstor.cluster_membership` for their available variables.
 
@@ -31,10 +49,12 @@ Dependencies
 
 `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, `linbit.linstor.cluster_membership`
 
-Optional: `linbit.common.customer_repo`, `linbit.common.public_repo` (included dynamically based on variables)
+Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database`, `linbit.linstor.linstor_gateway_install` (included dynamically based on variables)
 
 Example Playbook
 ----------------
+
+Full deployment with LINSTOR Gateway, storage pools, and HA database:
 
 ```yaml
 - name: Deploy LINSTOR
@@ -43,7 +63,22 @@ Example Playbook
   tasks:
     - name: Install and initialize LINSTOR
       vars:
-        cluster_init_customer_repo: true # Set by default in defaults/main.yml
+        cluster_init_linstor_gateway: true
+        cluster_init_deploy_storage: true
+        cluster_init_ha_database: true
+        ha_database_pool: "{{ linstor_sp }}"
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_init
+```
+
+Minimal deployment (install and register only):
+
+```yaml
+- name: Deploy LINSTOR
+  hosts: linstor_cluster
+  become: true
+  tasks:
+    - name: Install and initialize LINSTOR
       ansible.builtin.import_role:
         name: linbit.linstor.cluster_init
 ```
@@ -59,20 +94,10 @@ Setting `cluster_init_public_repo: true` automatically disables `cluster_init_cu
     - name: Install and initialize LINSTOR
       vars:
         cluster_init_public_repo: true
-      ansible.builtin.import_role:
-        name: linbit.linstor.cluster_init
-```
-
-To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `cluster_init_linstor_gateway: true`:
-
-```yaml
-- name: Deploy LINSTOR
-  hosts: linstor_cluster
-  become: true
-  tasks:
-    - name: Install and initialize LINSTOR with LINSTOR Gateway
-      vars:
         cluster_init_linstor_gateway: true
+        cluster_init_deploy_storage: true
+        cluster_init_ha_database: true
+        ha_database_pool: "{{ linstor_sp }}"
       ansible.builtin.import_role:
         name: linbit.linstor.cluster_init
 ```

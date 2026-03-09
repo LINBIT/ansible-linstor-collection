@@ -68,7 +68,35 @@
       tags:
         - linstor
         - linstor_installation
+        - linstor_gateway
   when: cluster_init_linstor_gateway | bool
   tags:
     - linstor
     - linstor_installation
+    - linstor_gateway
+
+- name: Create LINSTOR storage pools
+  ansible.builtin.include_role:
+    name: linbit.linstor.storage_pool
+    apply:
+      tags:
+        - linstor
+        - linstor_storage_pool
+  when:
+    - cluster_init_deploy_storage | bool
+    - inventory_hostname in groups['linstor_diskful_satellites']
+  tags:
+    - linstor
+    - linstor_storage_pool
+
+- name: Convert LINSTOR database to HA
+  ansible.builtin.include_role:
+    name: linbit.linstor.ha_database
+    apply:
+      tags:
+        - linstor
+        - linstor_ha_database
+  when: cluster_init_ha_database | bool
+  tags:
+    - linstor
+    - linstor_ha_database

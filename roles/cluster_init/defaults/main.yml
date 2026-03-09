@@ -11,3 +11,9 @@ cluster_init_public_repo: false
 
 # Install LINSTOR Gateway (optional)
 cluster_init_linstor_gateway: false
+
+# Create storage pools from linstor_storage_pools inventory variable (optional)
+cluster_init_deploy_storage: false
+
+# Convert LINSTOR database to HA (optional, requires 2+ combined nodes)
+cluster_init_ha_database: false
