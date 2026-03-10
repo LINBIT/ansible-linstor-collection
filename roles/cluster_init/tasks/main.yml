@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Configure LINBIT public repo
+  tags:
+    - linstor
+    - linstor_registration
   ansible.builtin.include_role:
     name: linbit.common.public_repo
     apply:
@@ -8,11 +11,11 @@
         - linstor
         - linstor_registration
   when: cluster_init_public_repo | bool
+
+- name: Configure LINBIT customer repo
   tags:
     - linstor
     - linstor_registration
-
-- name: Configure LINBIT customer repo
   ansible.builtin.include_role:
     name: linbit.common.customer_repo
     apply:
@@ -22,11 +25,11 @@
   when:
     - cluster_init_customer_repo | bool
     - not (cluster_init_public_repo | bool)
-  tags:
-    - linstor
-    - linstor_registration
 
 - name: Install LINSTOR satellite
+  tags:
+    - linstor
+    - linstor_installation
   ansible.builtin.include_role:
     name: linbit.linstor.satellite_install
     apply:
@@ -34,11 +37,11 @@
         - linstor
         - linstor_installation
   when: inventory_hostname in groups['linstor_satellites']
+
+- name: Install LINSTOR controller
   tags:
     - linstor
     - linstor_installation
-
-- name: Install LINSTOR controller
   ansible.builtin.include_role:
     name: linbit.linstor.controller_install
     apply:
@@ -46,22 +49,23 @@
         - linstor
         - linstor_installation
   when: inventory_hostname in groups['linstor_controllers']
-  tags:
-    - linstor
-    - linstor_installation
 
 - name: Register LINSTOR cluster membership
+  tags:
+    - linstor
+    - linstor_cluster_membership
   ansible.builtin.include_role:
     name: linbit.linstor.cluster_membership
     apply:
       tags:
         - linstor
         - linstor_cluster_membership
-  tags:
-    - linstor
-    - linstor_cluster_membership
 
 - name: Install LINSTOR Gateway
+  tags:
+    - linstor
+    - linstor_installation
+    - linstor_gateway
   ansible.builtin.include_role:
     name: linbit.linstor.gateway_install
     apply:
@@ -70,12 +74,11 @@
         - linstor_installation
         - linstor_gateway
   when: cluster_init_linstor_gateway | bool
-  tags:
-    - linstor
-    - linstor_installation
-    - linstor_gateway
 
 - name: Create LINSTOR storage pools
+  tags:
+    - linstor
+    - linstor_storage_pool
   ansible.builtin.include_role:
     name: linbit.linstor.storage_pool
     apply:
@@ -85,12 +88,12 @@
   when:
     - cluster_init_deploy_storage | bool
     - inventory_hostname in groups['linstor_diskful_satellites']
-  tags:
-    - linstor
-    - linstor_storage_pool
 
 # Requires a configured storage pool
 - name: Convert LINSTOR database to HA
+  tags:
+    - linstor
+    - linstor_ha_database
   ansible.builtin.include_role:
     name: linbit.linstor.ha_database
     apply:
@@ -100,6 +103,3 @@
   when:
     - cluster_init_deploy_storage | bool
     - cluster_init_ha_database | bool
-  tags:
-    - linstor
-    - linstor_ha_database
