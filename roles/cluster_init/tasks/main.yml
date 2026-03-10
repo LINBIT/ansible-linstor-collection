@@ -89,6 +89,7 @@
     - linstor
     - linstor_storage_pool
 
+# Requires a configured storage pool
 - name: Convert LINSTOR database to HA
   ansible.builtin.include_role:
     name: linbit.linstor.ha_database
@@ -96,7 +97,9 @@
       tags:
         - linstor
         - linstor_ha_database
-  when: cluster_init_ha_database | bool
+  when:
+    - cluster_init_deploy_storage | bool
+    - cluster_init_ha_database | bool
   tags:
     - linstor
     - linstor_ha_database
