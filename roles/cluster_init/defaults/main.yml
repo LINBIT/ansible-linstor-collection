@@ -2,18 +2,15 @@
 ---
 # defaults file for cluster_init
 
-# Configure LINBIT customer repo (default for most stacks)
-cluster_init_customer_repo: true
+# Create storage pools from linstor_storage_pools inventory variable (optional)
+cluster_init_deploy_storage: false
 
-# Configure LINBIT public repo (for Proxmox and other public-repo stacks)
-# When true, takes precedence over cluster_init_customer_repo
-cluster_init_public_repo: false
+# Convert LINSTOR database to HA (requires deploy_storage and 2+ combined nodes)
+cluster_init_ha_database: true
 
 # Install LINSTOR Gateway (optional)
 cluster_init_linstor_gateway: false
 
-# Create storage pools from linstor_storage_pools inventory variable (optional)
-cluster_init_deploy_storage: false
-
-# Convert LINSTOR database to HA (optional, requires 2+ combined nodes)
-cluster_init_ha_database: false
+# Repo access type: 'customer' (LINBIT portal), 'public' (Proxmox/open-source),
+# or 'none' (self-managed repos)
+cluster_init_repo_access: customer

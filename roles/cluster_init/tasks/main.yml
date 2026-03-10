@@ -10,7 +10,7 @@
       tags:
         - linstor
         - linstor_registration
-  when: cluster_init_public_repo | bool
+  when: cluster_init_repo_access == 'public'
 
 - name: Configure LINBIT customer repo
   tags:
@@ -22,9 +22,7 @@
       tags:
         - linstor
         - linstor_registration
-  when:
-    - cluster_init_customer_repo | bool
-    - not (cluster_init_public_repo | bool)
+  when: cluster_init_repo_access == 'customer'
 
 - name: Install LINSTOR satellite
   tags:
