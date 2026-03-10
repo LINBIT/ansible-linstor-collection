@@ -59,6 +59,8 @@ Example Playbook
         name: linbit.linstor.gateway_satellite
 
     - name: Create HA resources
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
       vars:
         ha_gateway_nfs_exports:
           - name: example-export
@@ -72,8 +74,6 @@ Example Playbook
             # target_port: 3260
             # iqn_base: 'iqn.2026-02.com.linbit'
             # fstype: ext4
-      ansible.builtin.import_role:
-        name: linbit.linstor.ha_gateway
 ```
 
 License

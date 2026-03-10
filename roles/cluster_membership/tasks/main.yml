@@ -11,12 +11,12 @@
 
 # Initialize both pure controllers and combined (controller+satellite) nodes
 - name: Register LINSTOR controller node
-  vars:
-    node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
     ip: "{{ replication_ip }}"
     node_type: "{{ node_type }}"
+  vars:
+    node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
   when: inventory_hostname in groups['linstor_controllers']
 
 # Initialize pure satellites only

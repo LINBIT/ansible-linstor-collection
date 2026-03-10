@@ -48,10 +48,10 @@ To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `clu
   become: true
   tasks:
     - name: Install and initialize LINSTOR with LINSTOR Gateway
-      vars:
-        cluster_init_linstor_gateway: true
       ansible.builtin.import_role:
         name: linbit.linstor.cluster_init
+      vars:
+        cluster_init_linstor_gateway: true
 ```
 
 Standalone LINSTOR Gateway install against an existing LINSTOR cluster:
@@ -74,10 +74,10 @@ To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
   become: true
   tasks:
     - name: Install LINSTOR Gateway
-      vars:
-        linstor_gateway_scst: true
       ansible.builtin.import_role:
         name: linbit.linstor.gateway_install
+      vars:
+        linstor_gateway_scst: true
 ```
 
 License

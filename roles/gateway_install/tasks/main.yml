@@ -48,10 +48,10 @@
 # needed on satellite nodes. If linstor_gateway_satellites is defined and
 # non-empty, restrict to those nodes; otherwise fall back to all linstor_satellites.
 - name: Install LINSTOR Gateway satellite components
-  vars:
-    _gw_satellite_targets: "{{ groups.get('linstor_gateway_satellites', []) or groups.get('linstor_satellites', []) }}"
   ansible.builtin.include_role:
     name: linbit.linstor.gateway_satellite
+  vars:
+    _gw_satellite_targets: "{{ groups.get('linstor_gateway_satellites', []) or groups.get('linstor_satellites', []) }}"
   when: inventory_hostname in _gw_satellite_targets
 
 - name: Start and enable LINSTOR Gateway service

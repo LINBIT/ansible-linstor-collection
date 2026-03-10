@@ -3,14 +3,14 @@
 
 # Only valid for 2 combined nodes + TieBreaker satellite topology
 - name: Select TieBreaker satellite for HA database quorum
-  vars:
-    _ha_db_random_satellite: >-
-      {{ (groups['linstor_satellites'] | difference(groups['linstor_controllers']) | shuffle | first) | default('', true) }}
   ansible.builtin.set_fact:
     _ha_db_tiebreaker: >-
       {{ ha_database_tiebreaker_node | default(_ha_db_random_satellite, true) }}
-  run_once: true # noqa: run-once[task]
+  vars:
+    _ha_db_random_satellite: >-
+      {{ (groups['linstor_satellites'] | difference(groups['linstor_controllers']) | shuffle | first) | default('', true) }}
   when: _ha_db_combined_nodes | length == 2
+  run_once: true # noqa: run-once[task]
 
 - name: Build HA database placement node list
   ansible.builtin.set_fact:
@@ -31,6 +31,8 @@
 
 # DRBD Reactor install (soft dependency)
 - name: Check for DRBD Reactor
+  ansible.builtin.stat:
+    path: "{{ reactor_path }}"
   vars:
     reactor_path: >-
       {%- if ansible_facts['os_family'] | lower == 'debian' -%}
@@ -38,10 +40,8 @@
       {%- else -%}
         /sbin/drbd-reactor
       {%- endif -%}
-  ansible.builtin.stat:
-    path: "{{ reactor_path }}"
-  register: _ha_db_conversion_reactor_check
   when: inventory_hostname in _ha_db_placement_nodes
+  register: _ha_db_conversion_reactor_check
 
 - name: Install DRBD Reactor
   ansible.builtin.include_role:

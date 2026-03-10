@@ -58,11 +58,11 @@ Example Playbook
   become: true
   tasks:
     - name: Convert LINSTOR database to HA
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_database
       vars:
         # If ha_database_pool is omitted, LINSTOR auto-selects from available pools
         ha_database_pool: my-pool
-      ansible.builtin.import_role:
-        name: linbit.linstor.ha_database
 ```
 
 With a floating VIP for the controller:
@@ -74,11 +74,11 @@ With a floating VIP for the controller:
   become: true
   tasks:
     - name: Convert LINSTOR database to HA
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_database
       vars:
         ha_database_pool: my-pool
         ha_database_vip: "10.0.0.100/24"
-      ansible.builtin.import_role:
-        name: linbit.linstor.ha_database
 ```
 
 License
