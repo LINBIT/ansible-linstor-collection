@@ -25,7 +25,7 @@ See `defaults/main.yml` and `vars/` for additional variables.
 Dependencies
 ------------
 
-`linbit.drbd.drbd_install`, `linbit.linstor.linstor_client`
+`linbit.drbd.drbd_install`, `linbit.linstor.client_install`
 
 Example Playbook
 ----------------

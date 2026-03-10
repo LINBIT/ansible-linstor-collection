@@ -52,4 +52,4 @@ galaxy_info:
 
 dependencies:
   - role: linbit.drbd.drbd_install
-  - role: linbit.linstor.linstor_client
+  - role: linbit.linstor.client_install

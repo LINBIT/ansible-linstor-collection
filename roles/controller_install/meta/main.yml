@@ -50,4 +50,4 @@ galaxy_info:
     - controller
 
 dependencies:
-  - role: linbit.linstor.linstor_client
+  - role: linbit.linstor.client_install

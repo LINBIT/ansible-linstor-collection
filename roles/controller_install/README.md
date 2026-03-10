@@ -25,7 +25,7 @@ See `defaults/main.yml` for additional variables.
 Dependencies
 ------------
 
-`linbit.linstor.linstor_client`
+`linbit.linstor.client_install`
 
 Example Playbook
 ----------------

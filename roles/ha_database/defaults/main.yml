@@ -15,7 +15,7 @@ ha_database_tiebreaker_node: ""
 # Virtual IP address for the HA controller (for example "10.0.0.100/24").
 # When set, DRBD Reactor manages an IPaddr2 resource that floats with the
 # active controller. The VIP is stored as an Aux/ha_database_vip controller
-# property so linstor_client can discover it. Defaults to /24 if no CIDR given.
+# property so client_install can discover it. Defaults to /24 if no CIDR given.
 ha_database_vip: ""
 _ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
 _ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"

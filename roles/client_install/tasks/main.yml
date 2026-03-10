@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-# tasks file for linstor_client
+# tasks file for client_install
 - name: Install linstor-client
   ansible.builtin.package:
     name: linstor-client
@@ -21,28 +21,28 @@
 - name: Check for existing linstor-client.conf
   ansible.builtin.stat:
     path: /etc/linstor/linstor-client.conf
-  register: _linstor_client_conf
-  when: linstor_client_vip_discovery | bool
+  register: _client_install_conf
+  when: client_install_vip_discovery | bool
 
 - name: Query controller for HA VIP property
   linbit.linstor.controller:
-  register: _linstor_client_controller_props
+  register: _client_install_controller_props
   changed_when: false
   ignore_errors: true
   when:
-    - linstor_client_vip_discovery | bool
-    - _linstor_client_conf.stat.exists
+    - client_install_vip_discovery | bool
+    - _client_install_conf.stat.exists
 
 - name: Set controller addresses from HA VIP if available
   ansible.builtin.set_fact:
     linstor_controller_addresses:
-      - "{{ _linstor_client_controller_props.properties['Aux/ha_database_vip'] }}"
+      - "{{ _client_install_controller_props.properties['Aux/ha_database_vip'] }}"
   when:
-    - linstor_client_vip_discovery | bool
-    - _linstor_client_controller_props is not skipped
-    - _linstor_client_controller_props is not failed
-    - "'Aux/ha_database_vip' in _linstor_client_controller_props.properties"
-    - _linstor_client_controller_props.properties['Aux/ha_database_vip'] != ''
+    - client_install_vip_discovery | bool
+    - _client_install_controller_props is not skipped
+    - _client_install_controller_props is not failed
+    - "'Aux/ha_database_vip' in _client_install_controller_props.properties"
+    - _client_install_controller_props.properties['Aux/ha_database_vip'] != ''
 
 - name: Setup linstor-client.conf
   ansible.builtin.template:
