@@ -5,5 +5,5 @@
   any_errors_fatal: true
   become: true
   roles:
-    - role: linbit.linstor.linstor_gateway_install
+    - role: linbit.linstor.gateway_install
       tags: linstor_gateway

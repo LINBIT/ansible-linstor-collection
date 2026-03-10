@@ -8,7 +8,7 @@ Includes the following roles in order:
 2. `linbit.linstor.satellite_install` (on `linstor_satellites` nodes)
 3. `linbit.linstor.controller_install` (on `linstor_controllers` nodes)
 4. `linbit.linstor.cluster_membership` (register all nodes)
-5. `linbit.linstor.linstor_gateway_install` (when `cluster_init_linstor_gateway: true`)
+5. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
 6. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
 7. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
 
@@ -49,7 +49,7 @@ Dependencies
 
 `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, `linbit.linstor.cluster_membership`
 
-Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database`, `linbit.linstor.linstor_gateway_install` (included dynamically based on variables)
+Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database`, `linbit.linstor.gateway_install` (included dynamically based on variables)
 
 Example Playbook
 ----------------

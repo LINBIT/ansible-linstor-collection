@@ -63,7 +63,7 @@
 
 - name: Install LINSTOR Gateway
   ansible.builtin.include_role:
-    name: linbit.linstor.linstor_gateway_install
+    name: linbit.linstor.gateway_install
     apply:
       tags:
         - linstor

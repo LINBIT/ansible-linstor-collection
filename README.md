@@ -11,8 +11,8 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 | `satellite_install` | Installs the LINSTOR satellite and DRBD |
 | `controller_install` | Installs the LINSTOR controller and GUI |
 | `client_install` | Installs the LINSTOR CLI client |
-| `linstor_gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
-| `linstor_gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
+| `gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
+| `gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
 | `storage_pool` | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
 | `ha_database` | Configure highly available LINSTOR database storage; works for new deployments and existing production clusters |
 | `ha_gateway` | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |

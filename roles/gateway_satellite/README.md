@@ -1,20 +1,20 @@
-linstor_gateway_satellite
-=========================
+gateway_satellite
+=================
 
 Install LINSTOR Gateway satellite-side components on LINSTOR satellite nodes.
 
 Installs NFS/iSCSI resource agents, supplemental packages, and patches `linstor_satellite.toml` to allow DRBD Reactor to manage systemd drop-in files.
 Dynamically includes `linbit.drbd_reactor.reactor_install` if DRBD Reactor is not already present.
 
-This role is the prerequisite for both `linbit.linstor.linstor_gateway_install` (satellite nodes) and `linbit.linstor.ha_gateway`.
-It does **not** install the `linstor-gateway` binary; that is handled by `linstor_gateway_install`.
+This role is the prerequisite for both `linbit.linstor.gateway_install` (satellite nodes) and `linbit.linstor.ha_gateway`.
+It does **not** install the `linstor-gateway` binary; that is handled by `gateway_install`.
 
 Requirements
 ------------
 
 Target nodes must be LINSTOR satellites with `linstor-satellite` already installed.
 
-In larger clusters where only a subset of satellites serve LINSTOR Gateway resources, define a `linstor_gateway_satellites` inventory group (as a child of `linstor_satellites`) and `linstor_gateway_install` will automatically restrict satellite-side installation to those nodes.
+In larger clusters where only a subset of satellites serve LINSTOR Gateway resources, define a `linstor_gateway_satellites` inventory group (as a child of `linstor_satellites`) and `gateway_install` will automatically restrict satellite-side installation to those nodes.
 No group definition is needed for smaller clusters.
 
 Role Variables
@@ -44,7 +44,7 @@ Example Playbook
   become: true
   tasks:
     - ansible.builtin.import_role:
-        name: linbit.linstor.linstor_gateway_satellite
+        name: linbit.linstor.gateway_satellite
 ```
 
 License

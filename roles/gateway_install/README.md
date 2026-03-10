@@ -1,11 +1,11 @@
-linstor_gateway_install
-=======================
+gateway_install
+===============
 
 Install the `linstor-gateway` binary and service.
 
 Installs the `linstor-gateway` daemon (via package manager or GitHub release), deploys its configuration, opens firewall port `8337/tcp`, and starts the service.
 
-On satellite nodes, also installs satellite-side components via `linbit.linstor.linstor_gateway_satellite` (NFS/iSCSI resource agents, DRBD Reactor, supplemental packages).
+On satellite nodes, also installs satellite-side components via `linbit.linstor.gateway_satellite` (NFS/iSCSI resource agents, DRBD Reactor, supplemental packages).
 Standalone controllers receive the `linstor-gateway` binary only.
 
 By default, satellite related components are installed on all `linstor_satellites`.
@@ -28,14 +28,14 @@ Role Variables
 | Variable | Default | Description |
 |---|---|---|
 | `linstor_gateway_github_binary` | latest amd64 release | GitHub download URL, used as fallback when package is unavailable |
-| `linstor_gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
-| `linstor_gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
+| `gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
+| `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 
 Dependencies
 ------------
 
 No formal role dependencies.
-On satellite nodes, conditionally includes `linbit.linstor.linstor_gateway_satellite`.
+On satellite nodes, conditionally includes `linbit.linstor.gateway_satellite`.
 
 Example Playbook
 ----------------
@@ -63,7 +63,7 @@ Standalone LINSTOR Gateway install against an existing LINSTOR cluster:
   tasks:
     - name: Install LINSTOR Gateway
       ansible.builtin.import_role:
-        name: linbit.linstor.linstor_gateway_install
+        name: linbit.linstor.gateway_install
 ```
 
 To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
@@ -77,7 +77,7 @@ To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
       vars:
         linstor_gateway_scst: true
       ansible.builtin.import_role:
-        name: linbit.linstor.linstor_gateway_install
+        name: linbit.linstor.gateway_install
 ```
 
 License

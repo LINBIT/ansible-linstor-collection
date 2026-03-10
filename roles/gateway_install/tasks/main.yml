@@ -42,7 +42,7 @@
 
 - name: Open firewall ports for LINSTOR Gateway
   ansible.builtin.include_tasks: firewall.yml
-  when: linstor_gateway_install_firewall_rules | bool
+  when: gateway_install_firewall_rules | bool
 
 # Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
 # needed on satellite nodes. If linstor_gateway_satellites is defined and
@@ -51,7 +51,7 @@
   vars:
     _gw_satellite_targets: "{{ groups.get('linstor_gateway_satellites', []) or groups.get('linstor_satellites', []) }}"
   ansible.builtin.include_role:
-    name: linbit.linstor.linstor_gateway_satellite
+    name: linbit.linstor.gateway_satellite
   when: inventory_hostname in _gw_satellite_targets
 
 - name: Start and enable LINSTOR Gateway service
@@ -60,5 +60,5 @@
     state: started
     enabled: true
 
-- name: Flush handlers for linstor_gateway_install
+- name: Flush handlers for gateway_install
   ansible.builtin.meta: flush_handlers

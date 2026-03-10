@@ -73,5 +73,5 @@
     - "'linstor_satellites' in groups"
     - inventory_hostname in groups['linstor_satellites']
 
-- name: Flush handlers for linstor_gateway_satellite
+- name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers
