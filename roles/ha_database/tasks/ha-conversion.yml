@@ -46,6 +46,8 @@
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
+  vars:
+    reactor_install_drbd: false # skip DRBD install, already present
   when:
     - inventory_hostname in _ha_db_placement_nodes
     - not _ha_db_conversion_reactor_check.stat.exists
