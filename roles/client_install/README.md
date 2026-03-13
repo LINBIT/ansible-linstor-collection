@@ -33,6 +33,7 @@ Example Playbook
 ```yaml
 - name: Install LINSTOR client
   hosts: all
+  any_errors_fatal: true
   become: true
   tasks:
     - ansible.builtin.import_role:

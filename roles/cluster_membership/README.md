@@ -35,6 +35,7 @@ Example Playbook
 ```yaml
 - name: Register LINSTOR cluster membership
   hosts: linstor_controllers,linstor_satellites
+  any_errors_fatal: true
   become: true
   tasks:
     - ansible.builtin.import_role:
