@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Open firewall ports for LINSTOR satellite
+  ansible.builtin.include_tasks: open-firewall.yml
+  when: satellite_install_firewall_rules | bool
+
+# https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-storage-pools-creating
+- name: Check for /etc/lvm/lvm.conf
+  ansible.builtin.stat:
+    path: /etc/lvm/lvm.conf
+  register: _lvm_check
+
+- name: Modify lvm.conf global filter for DRBD devices
+  ansible.builtin.lineinfile:
+    path: /etc/lvm/lvm.conf
+    line: 'global_filter = [ "r|^/dev/drbd|", "r|^/dev/mapper/[lL]instor|" ]'
+    regexp: 'global_filter'
+  when: _lvm_check.stat.exists
+
+- name: Flush handlers for satellite_install
+  ansible.builtin.meta: flush_handlers

@@ -4,65 +4,6 @@
   ansible.builtin.set_fact:
     _type: "{{ _pool.type | default(storage_pool_defaults.type) }}"
 
-- name: Assert pool name is set
-  ansible.builtin.assert:
-    that: _pool.name is defined and _pool.name | length > 0
-    fail_msg: "Each storage pool must have a 'name' key"
-
-- name: Assert pool type is valid
-  ansible.builtin.assert:
-    that: _type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk']
-    fail_msg: "storage pool type '{{ _type }}' is not a valid LINSTOR storage pool driver"
-
-- name: Assert physical_devices is set
-  ansible.builtin.assert:
-    that: _pool.physical_devices is defined and _pool.physical_devices | length > 0
-    fail_msg: "physical_devices must be set for type '{{ _type }}'"
-  when: _type not in ['file', 'filethin']
-
-- name: Assert vg is set
-  ansible.builtin.assert:
-    that: _pool.vg is defined and _pool.vg | length > 0
-    fail_msg: "vg must be set for type '{{ _type }}'"
-  when: _type in ['lvm', 'lvmthin']
-
-- name: Assert zpool is set
-  ansible.builtin.assert:
-    that: _pool.zpool is defined and _pool.zpool | length > 0
-    fail_msg: "zpool must be set for type '{{ _type }}'"
-  when: _type in ['zfs', 'zfsthin']
-
-- name: Assert vg_thinpool is set
-  ansible.builtin.assert:
-    that: (_pool.vg_thinpool | default(storage_pool_defaults.vg_thinpool)) | length > 0
-    fail_msg: "vg_thinpool must be set for type 'lvmthin'"
-  when: _type == 'lvmthin'
-
-- name: Check for ZFS
-  ansible.builtin.stat:
-    path: /usr/sbin/zfs
-  register: _storage_pool_zfs_check
-  when: _type in ['zfs', 'zfsthin']
-
-- name: Halt if ZFS is not installed
-  ansible.builtin.fail:
-    msg: "ZFS is not installed (/usr/sbin/zfs not found)"
-  when:
-    - _type in ['zfs', 'zfsthin']
-    - not _storage_pool_zfs_check.stat.exists
-
-- name: Compute LVM create options
-  ansible.builtin.set_fact:
-    _lv_opts: >-
-      {%- set opts = _pool.lv_create_options | default(storage_pool_defaults.lv_create_options) -%}
-      {%- if opts != '' -%}
-        {{ opts }}
-      {%- elif _pool.physical_devices | length > 1 -%}
-        -i {{ _pool.physical_devices | length }} -I 64
-      {%- else -%}
-      {%- endif -%}
-  when: _type in ['lvm', 'lvmthin']
-
 - name: Compute driver pool value
   ansible.builtin.set_fact:
     _driver_pool: >-
@@ -76,38 +17,15 @@
         {{ _pool.vg }}
       {%- endif -%}
 
-- name: Create file or filethin storage directory
-  ansible.builtin.include_tasks: file.yml
-  when: _type in ['file', 'filethin']
-
-- name: Create ZFS zpool
-  ansible.builtin.include_tasks: zfs.yml
-  when: _type in ['zfs', 'zfsthin']
-
-- name: Create LVM storage
-  ansible.builtin.include_tasks: lvm.yml
-  when: _type in ['lvm', 'lvmthin']
-
-- name: Flush handlers before registering storage pool
-  ansible.builtin.meta: flush_handlers
-
-- name: Compute LINSTOR storage pool properties
-  ansible.builtin.set_fact:
-    _storage_pool_properties: >-
-      {{ {}
-        | combine({'StorDriver/LvcreateOptions': _lv_opts | trim}
-          if _type == 'lvm' and (_lv_opts | default('') | trim) != '' else {})
-        | combine({'StorDriver/ZfscreateOptions': (_pool.zfs_create_options
-          | default(storage_pool_defaults.zfs_create_options)) | trim}
-          if _type in ['zfs', 'zfsthin'] and (_pool.zfs_create_options
-          | default(storage_pool_defaults.zfs_create_options)) | trim != '' else {})
-      }}
-
-- name: Create LINSTOR storage pool
+- name: Check if storage pool exists
   linbit.linstor.storage_pool:
     name: "{{ _pool.name }}"
     node: "{{ linstor_hostname }}"
     driver: "{{ _type }}"
     driver_pool: "{{ _driver_pool | trim }}"
-    properties: "{{ _storage_pool_properties }}"
-  retries: 3
+  check_mode: true
+  register: _storage_pool_check
+
+- name: Create storage pool
+  ansible.builtin.include_tasks: create-pool.yml
+  when: _storage_pool_check is changed
