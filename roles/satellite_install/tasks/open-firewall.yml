@@ -4,13 +4,13 @@
   ansible.builtin.service_facts:
 
 - name: Open firewalld ports
-  ansible.builtin.include_tasks: firewalld.yml
+  ansible.builtin.include_tasks: configure-firewalld.yml
   when:
     - ansible_facts.services['firewalld.service'] is defined
     - ansible_facts.services['firewalld.service'].state == 'running'
 
 - name: Open UFW ports
-  ansible.builtin.include_tasks: ufw.yml
+  ansible.builtin.include_tasks: configure-ufw.yml
   when:
     - ansible_facts.services['ufw.service'] is defined
     - ansible_facts.services['ufw.service'].status == 'enabled'

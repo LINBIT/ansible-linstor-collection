@@ -33,6 +33,7 @@ Example Playbook
 ```yaml
 - name: Install LINSTOR satellites
   hosts: linstor_satellites
+  any_errors_fatal: true
   become: true
   tasks:
     - ansible.builtin.import_role:
