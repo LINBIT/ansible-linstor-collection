@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+---
+# Might be redundant in the future if packaging changes?
+# https://gitlab.at.linbit.com/linstor/linstor-client/-/issues/93
+- name: Create /etc/linstor directory
+  ansible.builtin.file:
+    path: /etc/linstor
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# Check for HA VIP: if linstor-client.conf already exists, the controller
+# may be reachable and may have an Aux/ha_database_vip property set.
+- name: Check for existing linstor-client.conf
+  ansible.builtin.stat:
+    path: /etc/linstor/linstor-client.conf
+  register: _client_install_conf
+  when: client_install_vip_discovery | bool
+
+- name: Query controller for HA VIP property
+  linbit.linstor.controller:
+  register: _client_install_controller_props
+  changed_when: false
+  ignore_errors: true
+  when:
+    - client_install_vip_discovery | bool
+    - _client_install_conf.stat.exists
+
+- name: Set controller addresses from HA VIP if available
+  ansible.builtin.set_fact:
+    linstor_controller_addresses:
+      - "{{ _client_install_controller_props.properties['Aux/ha_database_vip'] }}"
+  when:
+    - client_install_vip_discovery | bool
+    - _client_install_controller_props is not skipped
+    - _client_install_controller_props is not failed
+    - "'Aux/ha_database_vip' in _client_install_controller_props.properties"
+    - _client_install_controller_props.properties['Aux/ha_database_vip'] != ''
+
+- name: Setup linstor-client.conf
+  ansible.builtin.template:
+    src: "linstor-client.j2"
+    dest: /etc/linstor/linstor-client.conf
+    owner: root
+    group: root
+    mode: '0644'
