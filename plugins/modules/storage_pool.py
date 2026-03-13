@@ -248,9 +248,6 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        required_if=[
-            ('state', 'present', ['driver', 'driver_pool']),
-        ],
     )
 
     name = module.params['name']
@@ -284,6 +281,11 @@ def main():
                     changed=True, name=name, node=node,
                     driver=driver, driver_pool=driver_pool,
                     properties=properties)
+
+            if not driver or not driver_pool:
+                module.fail_json(
+                    msg="'driver' and 'driver_pool' are required "
+                        "to create storage pool %s on %s" % (name, node))
 
             driver_kind = get_driver_kind(driver)
             if driver_kind is None:

@@ -1,5 +1,26 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Set pool from check result
+  ansible.builtin.set_fact:
+    _pool: "{{ _check._pool }}"
+
+- name: Set pool type
+  ansible.builtin.set_fact:
+    _type: "{{ _pool.type | default(storage_pool_defaults.type) }}"
+
+- name: Compute driver pool value
+  ansible.builtin.set_fact:
+    _driver_pool: >-
+      {%- if _type in ['file', 'filethin'] -%}
+        {{ _pool.file_path | default(storage_pool_defaults.file_path) }}
+      {%- elif _type == 'lvmthin' -%}
+        {{ _pool.vg }}/{{ _pool.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}
+      {%- elif _type in ['zfs', 'zfsthin'] -%}
+        {{ _pool.zpool }}
+      {%- else -%}
+        {{ _pool.vg }}
+      {%- endif -%}
+
 - name: Assert pool name is set
   ansible.builtin.assert:
     that: _pool.name is defined and _pool.name | length > 0

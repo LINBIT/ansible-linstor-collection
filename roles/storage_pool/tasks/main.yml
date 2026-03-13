@@ -1,9 +1,23 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Create storage pools
-  ansible.builtin.include_tasks: pool.yml
+- name: Check if storage pool exists
+  linbit.linstor.storage_pool:
+    name: "{{ _pool.name }}"
+    node: "{{ linstor_hostname }}"
+  check_mode: true
   loop: "{{ linstor_storage_pools | default([]) }}"
   loop_control:
     loop_var: _pool
     label: "{{ _pool.name }}"
+  register: _storage_pool_checks
   when: _storage_pool_is_diskful | bool
+
+- name: Create storage pools
+  ansible.builtin.include_tasks: create-pool.yml
+  loop: "{{ _storage_pool_checks.results | default([]) }}"
+  loop_control:
+    loop_var: _check
+    label: "{{ _check._pool.name }}"
+  when:
+    - _storage_pool_is_diskful | bool
+    - _check is changed
