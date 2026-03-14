@@ -117,6 +117,21 @@ To skip repo configuration entirely (self-managed repos, building from source):
         cluster_init_repo_access: none
 ```
 
+Restrict LINSTOR Gateway satellite components to a subset of nodes using the `linstor_gateway_satellites` group:
+
+```yaml
+# hosts.yaml
+# cluster_init filters gateway satellite components to this group when defined,
+# otherwise falls back to all linstor_satellites
+linstor_gateway_satellites:
+  hosts:
+    linstor-1:
+    linstor-2:
+```
+
+Only `linstor-1` and `linstor-2` receive NFS/iSCSI resource agents, DRBD Reactor, and other satellite-side components.
+All other satellites are left untouched.
+
 Without `cluster_init`, the equivalent playbook calls each sub-role individually:
 
 ```yaml

@@ -59,7 +59,7 @@ Standalone LINSTOR Gateway install against an existing LINSTOR cluster:
 
 ```yaml
 - name: Install LINSTOR Gateway
-  hosts: all
+  hosts: linstor_satellites
   any_errors_fatal: true
   become: true
   tasks:
@@ -72,7 +72,7 @@ To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
 
 ```yaml
 - name: Install LINSTOR Gateway
-  hosts: all
+  hosts: linstor_satellites
   any_errors_fatal: true
   become: true
   tasks:
