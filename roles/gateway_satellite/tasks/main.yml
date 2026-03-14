@@ -43,11 +43,11 @@
       notify: disable_and_stop_nfs
 
     - name: Install SCST
-      ansible.builtin.include_tasks: scst.yml
+      ansible.builtin.include_tasks: install-scst.yml
       when: linstor_gateway_scst | bool
 
     - name: Open firewall ports for LINSTOR Gateway satellite services
-      ansible.builtin.include_tasks: firewall.yml
+      ansible.builtin.include_tasks: open-firewall.yml
       when: linstor_gateway_firewall_rules | bool
 
     - name: Fix portblock resource agent - overwrite and set immutable flag
