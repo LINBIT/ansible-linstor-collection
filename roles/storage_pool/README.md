@@ -89,16 +89,20 @@ Define `linstor_storage_pools` in inventory:
 
 ```yaml
 # hosts.yaml — all: vars:
-linstor_storage_pools:
-  - name: sp0
-    type: lvmthin
-    vg: drbdpool
-    vg_thinpool: thinpool
-    physical_devices:
-      - "{{ drbd_backing_disk_default }}"
+# Using /dev/disk/by-id/ device paths is recommended 
+all:
+  vars:
+    linstor_storage_pools:
+      - name: sp0
+        type: lvmthin
+        vg: drbdpool
+        vg_thinpool: thinpool
+        physical_devices:
+          - /dev/nvme1n1
+          - /dev/nvme2n1
 ```
 
-The playbook needs no vars bridge:
+The playbook does not need to pass any variables to the role:
 
 ```yaml
 - name: LINSTOR storage pool
@@ -106,44 +110,52 @@ The playbook needs no vars bridge:
   any_errors_fatal: true
   become: true
   tasks:
+    # The storage_pool role reads linstor_storage_pools directly from inventory
     - name: Create LINSTOR storage pools
       ansible.builtin.import_role:
         name: linbit.linstor.storage_pool
 ```
 
-With a per-host ZFS override:
+With a per-host ZFS pool:
 
 ```yaml
-# hosts.yaml — host vars
-linstor-3:
-  linstor_storage_pools:
-    - name: mypool1
-      type: zfs
-      zpool: myzpool
-      zpool_vdev_type: mirror
-      zpool_properties:
-        ashift: "12"
-      zfs_create_options: "-o compression=lz4"
-      physical_devices:
-        - /dev/vdb
-        - /dev/vdc
+# hosts.yaml
+# linstor_storage_pools must be defined per host when using /dev/disk/by-id/
+linstor_diskful_satellites:
+  hosts:
+    linstor-3:
+      linstor_storage_pools:
+        - name: mypool1
+          type: zfs
+          zpool: myzpool
+          zpool_vdev_type: mirror
+          zpool_properties:
+            ashift: "12"
+          zfs_create_options: "-o compression=lz4"
+          physical_devices:
+            - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W123456
+            - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W789012
 ```
 
 Multiple pools on the same node:
 
 ```yaml
-linstor_storage_pools:
-  - name: sp-fast
-    type: lvmthin
-    vg: fast-pool
-    physical_devices:
-      - /dev/nvme0n1
-  - name: sp-bulk
-    type: lvm
-    vg: bulk-pool
-    physical_devices:
-      - /dev/sda
-      - /dev/sdb
+# hosts.yaml
+linstor_diskful_satellites:
+  hosts:
+    linstor-4:
+      linstor_storage_pools:
+        - name: sp-fast
+          type: lvmthin
+          vg: fast-pool
+          physical_devices:
+            - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+        - name: sp-bulk
+          type: lvm
+          vg: bulk-pool
+          physical_devices:
+            - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH12345
+            - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH67890
 ```
 
 License
