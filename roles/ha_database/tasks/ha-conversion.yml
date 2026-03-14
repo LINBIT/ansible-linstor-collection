@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+---
 - name: Validate inventory topology for HA database
   ansible.builtin.include_tasks: ha-readiness.yml
 
