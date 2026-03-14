@@ -6,59 +6,19 @@
     state: present
   failed_when: false
   notify: restart_linstor_gateway
+  register: _gateway_install_package
 
-- name: Determine if linstor-gateway is installed
-  ansible.builtin.package_facts:
-    manager: auto
-
-# Fix later - GitHub release will not update after initial installation
 - name: Install LINSTOR Gateway from GitHub
   ansible.builtin.get_url:
     url: "{{ linstor_gateway_github_binary }}"
     dest: '/usr/sbin/linstor-gateway'
     mode: '0755'
-  when: "'linstor-gateway' not in ansible_facts.packages"
+  register: _gateway_installed_from_github
+  when: _gateway_install_package is failed
   notify: restart_linstor_gateway
 
-# Only needed when installing from GitHub
-- name: Create linstor-gateway systemd service
-  ansible.builtin.copy:
-    src: linstor-gateway.service
-    dest: /etc/systemd/system/linstor-gateway.service
-    mode: '0644'
-  when: "'linstor-gateway' not in ansible_facts.packages"
-
-- name: Create /etc/linstor-gateway if it does not exist
-  ansible.builtin.file:
-    path: /etc/linstor-gateway
-    state: directory
-    mode: '0755'
-
-- name: Setup linstor-gateway.toml
-  ansible.builtin.template:
-    src: linstor-gateway.j2
-    dest: /etc/linstor-gateway/linstor-gateway.toml
-    mode: '0644'
-
-- name: Open firewall ports for LINSTOR Gateway
-  ansible.builtin.include_tasks: firewall.yml
-  when: gateway_install_firewall_rules | bool
-
-# Satellite-side components (NFS/iSCSI RAs, packages, Reactor) are only
-# needed on satellite nodes. If linstor_gateway_satellites is defined and
-# non-empty, restrict to those nodes; otherwise fall back to all linstor_satellites.
-- name: Install LINSTOR Gateway satellite components
-  ansible.builtin.include_role:
-    name: linbit.linstor.gateway_satellite
-  vars:
-    _gw_satellite_targets: "{{ groups.get('linstor_gateway_satellites', []) or groups.get('linstor_satellites', []) }}"
-  when: inventory_hostname in _gw_satellite_targets
-
-- name: Start and enable LINSTOR Gateway service
-  ansible.builtin.systemd_service:
-    name: linstor-gateway.service
-    state: started
-    enabled: true
-
-- name: Flush handlers for gateway_install
-  ansible.builtin.meta: flush_handlers
+- name: Configure LINSTOR Gateway # noqa: no-handler
+  ansible.builtin.include_tasks: configure-gateway.yml
+  when:
+    (_gateway_install_package is changed) or
+    (_gateway_installed_from_github is changed)
