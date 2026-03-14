@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Configure HA LINSTOR database with DRBD Reactor
+    description:
+      - Configure highly available LINSTOR database storage using DRBD replication and DRBD Reactor.
+      - Migrates the LINSTOR database onto a DRBD resource replicated across 2-3 combined controller and satellite nodes.
+      - "Idempotent: checks the C(Aux/ClusterIsHA) controller property and skips if conversion is already completed."
+      - Silently skips when fewer than 2 combined nodes or fewer than 3 total satellites exist.
+    options:
+      ha_database_pool:
+        type: str
+        default: ""
+        description:
+          - Storage pool for the HA database resource.
+          - When empty, LINSTOR auto-selects from available pools.
+          - Set explicitly when nodes have multiple storage pools.
+      ha_database_rg:
+        type: str
+        default: linstor-db-grp
+        description:
+          - LINSTOR resource group name for the HA database.
+      ha_database_res:
+        type: str
+        default: linstor_db
+        description:
+          - LINSTOR resource name for the HA database.
+      ha_database_res_size:
+        type: str
+        default: 200M
+        description:
+          - Size of the HA database resource.
+      ha_database_max_controllers:
+        type: int
+        default: 3
+        description:
+          - Maximum number of combined controller nodes allowed.
+      ha_database_tiebreaker_node:
+        type: str
+        default: ""
+        description:
+          - Pin the TieBreaker to a specific satellite (inventory hostname).
+          - Only used with exactly 2 combined nodes.
+          - When empty, a satellite is chosen at random.
+      ha_database_vip:
+        type: str
+        default: ""
+        description:
+          - Virtual IP for the HA controller in CIDR notation (for example C(10.0.0.100/24)).
+          - DRBD Reactor floats an IPaddr2 resource with the active controller.
+          - The IP is stored as C(Aux/ha_database_vip) so C(client_install) discovers it on subsequent runs.
+          - Defaults to C(/24) if no CIDR is given.
+      ha_database_drbd_options:
+        type: dict
+        description:
+          - DRBD options applied to the HA database resource group.
+          - See C(defaults/main.yml) for the default options.
+      short_hostnames:
+        type: bool
+        description:
+          - Use short hostnames instead of FQDNs.
+          - Auto-detected from the kernel version (true on Proxmox VE).
+      linstor_hostname:
+        type: str
+        description:
+          - LINSTOR node name.
+          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.

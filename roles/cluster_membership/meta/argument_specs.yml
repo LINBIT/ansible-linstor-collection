@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Register LINSTOR nodes into the cluster
+    description:
+      - Register LINSTOR nodes into the cluster.
+      - Runs C(linstor node create) for controller, combined, and satellite node types.
+      - "Idempotent: nodes already registered are skipped."
+    options:
+      short_hostnames:
+        type: bool
+        description:
+          - Use short hostnames instead of FQDNs when registering nodes.
+          - Auto-detected from the kernel version (true on Proxmox VE).
+      linstor_hostname:
+        type: str
+        description:
+          - LINSTOR node name.
+          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.
+      replication_ip:
+        type: str
+        required: true
+        description:
+          - Node IP used for DRBD replication traffic.
+          - Set per host in inventory.

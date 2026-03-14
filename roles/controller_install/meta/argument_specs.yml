@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Install and configure the LINSTOR controller
+    description:
+      - Install and configure the LINSTOR controller.
+      - Opens firewall port C(3370/tcp) for the LINSTOR controller API.
+    options:
+      controller_install_package_state:
+        type: str
+        default: latest
+        choices:
+          - latest
+          - present
+        description:
+          - Package state for LINSTOR controller packages.
+          - Set C(present) to skip upgrades.
+      controller_install_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Manage firewall rules for LINSTOR controller ports.
+          - Set C(false) to skip firewall configuration.
+      controller_install_firewall_ports:
+        type: list
+        elements: dict
+        default:
+          - port: "3370"
+            proto: tcp
+        description:
+          - Ports to open in firewalld or UFW for the LINSTOR controller.

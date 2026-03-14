@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Install and configure the LINSTOR client
+    description:
+      - Install and configure the LINSTOR client.
+      - Deploys C(/etc/linstor/linstor-client.conf) with controller addresses.
+      - On subsequent runs, discovers the HA VIP from controller properties and uses it as the controller address.
+    options:
+      linstor_controller_addresses:
+        type: list
+        elements: str
+        description:
+          - List of controller IPs for C(linstor-client.conf).
+          - Auto-discovered from the C(linstor_controllers) group C(replication_ip) values.
+      client_install_vip_discovery:
+        type: bool
+        default: true
+        description:
+          - Query the controller for the C(Aux/ha_database_vip) property and use it as the controller address.
+          - Set to C(false) to always use C(linstor_controller_addresses).

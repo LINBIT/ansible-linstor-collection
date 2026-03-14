@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Create LINSTOR storage pools on diskful satellites
+    description:
+      - Create LINSTOR storage pools on diskful satellite nodes.
+      - Supports all LINSTOR storage pool driver types.
+      - The role loops over the C(linstor_storage_pools) inventory variable and creates the underlying storage before registering each pool with LINSTOR.
+      - Filters internally to nodes in the C(linstor_diskful_satellites) inventory group.
+    options:
+      linstor_storage_pools:
+        type: list
+        elements: dict
+        default: []
+        description:
+          - List of pool definitions, typically defined in inventory.
+          - "Each item supports keys: C(name) (required), C(type), C(vg), C(vg_thinpool), C(zpool), C(physical_devices), C(file_path), C(thinpool_size), C(pv_create_options), C(lv_create_options), C(zfs_create_options), C(zpool_vdev_type), C(zpool_properties), C(wipefs_force)."
+      storage_pool_defaults:
+        type: dict
+        description:
+          - Dict providing fallback values for omitted keys in each pool item.
+          - Override this dict to change defaults globally.
+          - See C(defaults/main.yml) for the full default dict.
+      short_hostnames:
+        type: bool
+        description:
+          - Use short hostnames instead of FQDNs when registering storage pools.
+          - Auto-detected from the kernel version (true on Proxmox VE).
+      linstor_hostname:
+        type: str
+        description:
+          - LINSTOR node name.
+          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.

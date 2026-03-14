@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Install LINSTOR Gateway satellite-side components
+    description:
+      - Install LINSTOR Gateway satellite-side components on LINSTOR satellite nodes.
+      - Installs NFS and iSCSI resource agents, supplemental packages, and patches C(linstor_satellite.toml).
+      - Dynamically includes C(linbit.drbd_reactor.reactor_install) if DRBD Reactor is not already present.
+    options:
+      linstor_gateway_portblock_ra_url:
+        type: str
+        default: "https://raw.githubusercontent.com/ClusterLabs/resource-agents/tags/v4.16.0/heartbeat/portblock"
+        description:
+          - URL to fetch the portblock resource agent.
+      linstor_gateway_portblock_fix:
+        type: bool
+        default: true
+        description:
+          - Overwrite and pin the portblock RA to fix iptables issues.
+      linstor_gateway_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Manage firewall rules for LINSTOR Gateway satellite ports.
+          - Set C(false) to skip firewall configuration.
+      linstor_gateway_firewall_ports:
+        type: list
+        elements: dict
+        default:
+          - port: "111"
+            proto: tcp
+          - port: "2049"
+            proto: tcp
+          - port: "3260"
+            proto: tcp
+        description:
+          - Ports to open in firewalld or UFW for NFS and iSCSI (111/tcp, 2049/tcp, 3260/tcp).
+      linstor_gateway_scst:
+        type: bool
+        default: false
+        description:
+          - Compile and install SCST iSCSI target from source as a LIO alternative.
+      linstor_gateway_scst_version:
+        type: str
+        default: "3.9.x"
+        description:
+          - SCST git tag to build from source.
+          - Only used when C(linstor_gateway_scst=true).

@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Install and configure LINSTOR satellite nodes
+    description:
+      - Install and configure LINSTOR satellite nodes.
+      - Opens firewall ports C(3366-3367/tcp) and C(7000-8000/tcp).
+    options:
+      satellite_install_package_state:
+        type: str
+        default: latest
+        choices:
+          - latest
+          - present
+        description:
+          - Package state for LINSTOR satellite packages.
+          - Set C(present) to skip upgrades.
+      satellite_install_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Manage firewall rules for LINSTOR satellite ports.
+          - Set C(false) to skip firewall configuration.
+      satellite_install_firewall_ports:
+        type: list
+        elements: dict
+        default:
+          - port: "3366-3367"
+            proto: tcp
+          - port: "7000-8000"
+            proto: tcp
+        description:
+          - Ports to open in firewalld or UFW for the LINSTOR satellite.

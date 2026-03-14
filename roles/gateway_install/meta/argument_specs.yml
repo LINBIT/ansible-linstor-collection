@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Install the linstor-gateway binary and service
+    description:
+      - Install the C(linstor-gateway) daemon, deploy its configuration, open firewall port C(8337/tcp), and start the service.
+      - On satellite nodes, also installs satellite-side components via C(linbit.linstor.gateway_satellite).
+    options:
+      linstor_gateway_github_binary:
+        type: str
+        default: "https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64"
+        description:
+          - GitHub download URL for the linstor-gateway binary.
+          - Used as fallback when the package is unavailable.
+      gateway_install_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Manage firewall rules for LINSTOR Gateway ports.
+          - Set C(false) to skip firewall configuration.
+      gateway_install_firewall_ports:
+        type: list
+        elements: dict
+        default:
+          - port: "8337"
+            proto: tcp
+        description:
+          - Ports to open in firewalld or UFW for LINSTOR Gateway.
