@@ -92,6 +92,6 @@ argument_specs:
           - SSL port for satellite communication.
       ssl_satellite_protocol:
         type: str
-        default: TLSv1.2
+        default: TLSv1.3
         description:
           - TLS protocol version for satellite SSL connections.

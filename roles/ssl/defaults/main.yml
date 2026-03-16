@@ -27,7 +27,7 @@ ssl_https_port: 3371
 
 # Satellite SSL settings
 ssl_satellite_port: 3367
-ssl_satellite_protocol: "TLSv1.2"
+ssl_satellite_protocol: "TLSv1.3"
 
 # Controller addresses for linstor-client.conf (same default as client_install)
 linstor_controller_addresses:
