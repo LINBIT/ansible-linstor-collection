@@ -27,8 +27,8 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `ssl_https` | `false` | Enable HTTPS on the LINSTOR REST API (port 3371) |
-| `ssl_satellite` | `false` | Enable SSL for controller-to-satellite communication (port 3367) |
+| `ssl_https` | `true` | Enable HTTPS on the LINSTOR REST API (port 3371) |
+| `ssl_satellite` | `true` | Enable SSL for controller-to-satellite communication (port 3367) |
 | `ssl_https_mtls` | `false` | Enable client certificate authentication for the REST API (requires `ssl_https`) |
 | `ssl_generate_certs` | `true` | Generate self-signed certificates using keytool |
 | `ssl_cert_validity_days` | `3650` | Certificate validity period in days |
@@ -43,7 +43,7 @@ Role Variables
 | `ssl_key_password` | `linstor` | Password for private keys (use Ansible Vault for production) |
 | `ssl_https_port` | `3371` | HTTPS port for the LINSTOR REST API |
 | `ssl_satellite_port` | `3367` | SSL port for satellite communication |
-| `ssl_satellite_protocol` | `TLSv1.2` | TLS protocol version for satellite SSL |
+| `ssl_satellite_protocol` | `TLSv1.3` | TLS protocol version for satellite SSL |
 Firewall ports 3370-3371 (controller) and 3366-3367 (satellite) are managed by the `controller_install` and `satellite_install` roles respectively.
 
 Dependencies
