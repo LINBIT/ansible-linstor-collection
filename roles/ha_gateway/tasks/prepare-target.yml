@@ -63,6 +63,35 @@
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
 
+- name: "Check for resource group collisions - {{ _protocol }}"
+  linbit.linstor.resource_group:
+    name: "rg-{{ _target.name }}"
+    state: query
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_rg_check
+
+- name: "Fail if resource group exists but is not managed by ha_gateway - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: >-
+      not _check.exists
+      or ('Aux/gw-' ~ _check._target.name ~ '=True') in (_check.replicas_on_same | default([]))
+    fail_msg: >-
+      Resource group 'rg-{{ _check._target.name }}' already exists but is not
+      managed by ha_gateway (missing Aux/gw-{{ _check._target.name }}=True
+      in replicas_on_same). Rename the target or remove the conflicting
+      resource group.
+    quiet: true
+  loop: "{{ _gw_rg_check.results | default([]) }}"
+  loop_control:
+    loop_var: _check
+    label: "{{ _check._target.name }}"
+  run_once: true  # noqa: run-once[task]
+
 - name: "Create per-target resource groups - {{ _protocol }}"
   linbit.linstor.resource_group:
     name: "rg-{{ _target.name }}"
