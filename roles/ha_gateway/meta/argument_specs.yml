@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Create HA iSCSI, NFS, and NVMe-oF targets with DRBD Reactor
+    description:
+      - Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
+      - Processes C(linstor_iscsi_targets), C(linstor_nfs_exports), and C(linstor_nvmeof_targets) inventory variables.
+      - Each target gets its own resource group with per-target placement constraints.
+      - Requires C(linbit.linstor.gateway_satellite) on all satellite nodes before use.
+    options:
+      ha_gateway_storage_pool:
+        type: str
+        default: ""
+        description:
+          - Default storage pool for per-target resource groups.
+          - When empty, LINSTOR auto-selects from available pools.
+      ha_gateway_place_count:
+        type: int
+        default: 2
+        description:
+          - Default replica count for per-target resource groups.
+          - Use C(2) for 2 diskful + 1 tiebreaker, or C(3) for 3 diskful replicas.
+      ha_gateway_tickle_dir_size:
+        type: str
+        default: 64M
+        description:
+          - Size of the portblock tickle_dir volume (volume 0 on every target).
+      ha_gateway_fstype:
+        type: str
+        default: ext4
+        description:
+          - Default filesystem for portblock tickle_dir and data volumes.
+      ha_gateway_drbd_options:
+        type: dict
+        description:
+          - DRBD resource options applied to every target's resource definition.
+          - See C(defaults/main.yml) for the default options.
+      ha_gateway_iscsi_port:
+        type: int
+        default: 3260
+        description:
+          - Default iSCSI target port.
+      ha_gateway_iscsi_iqn_base:
+        type: str
+        default: iqn.2019-08.com.linbit
+        description:
+          - Default IQN base when C(iqn) is not set on a target.
+      ha_gateway_nfs_port:
+        type: int
+        default: 2049
+        description:
+          - NFS service port.
+      ha_gateway_nfs_allowed_ips:
+        type: list
+        elements: str
+        default:
+          - 0.0.0.0/0
+        description:
+          - Default client CIDRs for NFS exports.
+      ha_gateway_nfs_options:
+        type: str
+        default: "rw,all_squash,anonuid=0,anongid=0"
+        description:
+          - Default NFS export options string.
+      ha_gateway_nvmeof_port:
+        type: int
+        default: 4420
+        description:
+          - Default NVMe-oF target port.
+      linstor_iscsi_targets:
+        type: list
+        elements: dict
+        default: []
+        description:
+          - List of iSCSI target definitions.
+          - Each entry requires C(name), C(service_ips), C(volumes), and C(nodes).
+      linstor_nfs_exports:
+        type: list
+        elements: dict
+        default: []
+        description:
+          - List of NFS export definitions.
+          - Each entry requires C(name), C(service_ips), C(exports), and C(nodes).
+      linstor_nvmeof_targets:
+        type: list
+        elements: dict
+        default: []
+        description:
+          - List of NVMe-oF target definitions.
+          - Each entry requires C(name), C(nqn), C(service_ips), C(volumes), and C(nodes).
+      short_hostnames:
+        type: bool
+        description:
+          - Use short hostnames instead of FQDNs.
+          - Auto-detected from the kernel version (true on Proxmox VE).
+      linstor_hostname:
+        type: str
+        description:
+          - LINSTOR node name.
+          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.
