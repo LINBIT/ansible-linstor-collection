@@ -8,6 +8,20 @@
     state: restarted
   listen: restart_linstor_satellite
 
+- name: Wait for satellite to be ONLINE after restart
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    state: query
+  register: _gw_satellite_status
+  until: _gw_satellite_status.connection_status | default('') == 'ONLINE'
+  retries: 5
+  delay: 5
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  listen: restart_linstor_satellite
+  when:
+    - groups.get('linstor_controllers', []) | length > 0
+    - inventory_hostname in groups.get('linstor_satellites', [])
+
 - name: Disable and stop NFS (Debian)
   ansible.builtin.systemd_service:
     name: nfs-server.service
