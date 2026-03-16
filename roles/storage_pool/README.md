@@ -85,21 +85,32 @@ No hard role dependencies.
 Example Playbook
 ----------------
 
-Define `linstor_storage_pools` in inventory:
+Define `linstor_storage_pools` variables in inventory. This example uses per-host variable files in the `host_vars/` directory:
 
 ```yaml
-# hosts.yaml — all: vars:
-# Using /dev/disk/by-id/ device paths is recommended 
-all:
-  vars:
-    linstor_storage_pools:
-      - name: sp0
-        type: lvmthin
-        vg: drbdpool
-        vg_thinpool: thinpool
-        physical_devices:
-          - /dev/nvme1n1
-          - /dev/nvme2n1
+# host_vars/linstor-4.yml
+linstor_storage_pools:
+  - name: sp-fast
+    type: lvmthin
+    vg: fast-pool
+    physical_devices:
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+  - name: sp-bulk
+    type: lvm
+    vg: bulk-pool
+    physical_devices:
+      - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH12345
+      - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH67890
+```
+
+```yaml
+# host_vars/linstor-5.yml
+linstor_storage_pools:
+  - name: sp-fast
+    type: lvmthin
+    vg: fast-pool
+    physical_devices:
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ9876543210
 ```
 
 The playbook does not need to pass any variables to the role:
@@ -116,7 +127,7 @@ The playbook does not need to pass any variables to the role:
         name: linbit.linstor.storage_pool
 ```
 
-With a per-host ZFS pool:
+A per-host ZFS pool defined inline in the main inventory file (`hosts.yaml`):
 
 ```yaml
 # hosts.yaml
@@ -137,25 +148,36 @@ linstor_diskful_satellites:
             - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W789012
 ```
 
-Multiple pools on the same node:
+Storage pools can also be defined cluster-wide, but the `physical_devices` must match on all hosts:
 
 ```yaml
-# hosts.yaml
-linstor_diskful_satellites:
-  hosts:
-    linstor-4:
-      linstor_storage_pools:
-        - name: sp-fast
-          type: lvmthin
-          vg: fast-pool
-          physical_devices:
-            - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
-        - name: sp-bulk
-          type: lvm
-          vg: bulk-pool
-          physical_devices:
-            - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH12345
-            - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH67890
+# hosts.yaml — all: vars:
+# Using /dev/disk/by-id/ device paths is recommended 
+all:
+  vars:
+    linstor_storage_pools:
+      - name: sp0
+        type: lvmthin
+        vg: drbdpool
+        vg_thinpool: thinpool
+        physical_devices:
+          - /dev/nvme1n1
+          - /dev/nvme2n1
+```
+
+Alternatively, place the same cluster-wide `linstor_storage_pools` variable in `group_vars/all` instead:
+
+```yaml
+# group_vars/all/sp0.yml
+# Using /dev/disk/by-id/ device paths is recommended
+linstor_storage_pools:
+  - name: sp0
+    type: lvmthin
+    vg: drbdpool
+    vg_thinpool: thinpool
+    physical_devices:
+      - /dev/nvme1n1
+      - /dev/nvme2n1
 ```
 
 License
