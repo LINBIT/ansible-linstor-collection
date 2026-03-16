@@ -34,7 +34,7 @@ Role Variables
 | `ssl_cert_validity_days` | `3650` | Certificate validity period in days |
 | `ssl_key_algorithm` | `RSA` | Key algorithm for certificate generation |
 | `ssl_key_size` | `2048` | Key size in bits |
-| `ssl_cert_ou` | `LINSTOR` | Organizational unit for the certificate DN |
+| `ssl_cert_ou` | `{{ linstor_hostname }}` | Organizational unit for the certificate DN |
 | `ssl_cert_o` | `""` | Organization for the certificate DN |
 | `ssl_cert_c` | `""` | Country code for the certificate DN |
 | `ssl_dir` | `/etc/linstor/ssl` | Directory for SSL keystores and certificates |

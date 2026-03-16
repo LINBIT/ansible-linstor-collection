@@ -47,9 +47,9 @@ argument_specs:
           - Key size in bits for certificate generation.
       ssl_cert_ou:
         type: str
-        default: LINSTOR
         description:
           - Organizational unit for the certificate distinguished name.
+          - Defaults to the node hostname (C(linstor_hostname)).
       ssl_cert_o:
         type: str
         default: ""

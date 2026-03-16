@@ -10,7 +10,7 @@ ssl_generate_certs: true
 ssl_cert_validity_days: 3650
 ssl_key_algorithm: RSA
 ssl_key_size: 2048
-ssl_cert_ou: "LINSTOR"
+ssl_cert_ou: "{{ linstor_hostname }}"
 ssl_cert_o: ""
 ssl_cert_c: ""
 
