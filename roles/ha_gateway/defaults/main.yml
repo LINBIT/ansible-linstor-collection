@@ -25,6 +25,11 @@ ha_gateway_nfs_options: rw,all_squash,anonuid=0,anongid=0
 # NVMe-oF-specific defaults
 ha_gateway_nvmeof_port: 4420
 
-# Hostname detection
-short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
-linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+# Node hostname for LINSTOR API calls.
+# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+linstor_hostname: >-
+  {{
+    inventory_hostname_short
+    if 'pve' in ansible_facts['kernel']
+    else inventory_hostname
+  }}

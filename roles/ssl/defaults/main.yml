@@ -34,7 +34,7 @@ linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
 
 # Node hostname for certificate DN and cross-node trust.
-# Uses short hostnames on Proxmox VE (detected via kernel version), FQDNs otherwise.
+# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
 linstor_hostname: >-
   {{
     inventory_hostname_short

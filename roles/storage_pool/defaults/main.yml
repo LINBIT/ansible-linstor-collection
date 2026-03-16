@@ -14,10 +14,14 @@ storage_pool_defaults:
   zpool_properties: {}
   wipefs_force: false
 
-# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
-# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
-short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
-linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+# Node hostname for LINSTOR storage pool registration.
+# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+linstor_hostname: >-
+  {{
+    inventory_hostname_short
+    if 'pve' in ansible_facts['kernel']
+    else inventory_hostname
+  }}
 
 # Computed (private)
 _storage_pool_is_diskful: "{{ inventory_hostname in groups.get('linstor_diskful_satellites', []) }}"

@@ -43,7 +43,7 @@
 
 - name: Tag nodes for HA database placement
   linbit.linstor.node:
-    name: "{{ item.split('.')[0] if short_hostnames | bool else item }}"
+    name: "{{ hostvars[item]['linstor_hostname'] | default(item) }}"
     aux_properties:
       ha-database-node: "True"
   delegate_to: "{{ _ha_db_primary_node }}"

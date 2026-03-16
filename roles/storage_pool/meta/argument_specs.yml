@@ -22,13 +22,8 @@ argument_specs:
           - Dict providing fallback values for omitted keys in each pool item.
           - Override this dict to change defaults globally.
           - See C(defaults/main.yml) for the full default dict.
-      short_hostnames:
-        type: bool
-        description:
-          - Use short hostnames instead of FQDNs when registering storage pools.
-          - Auto-detected from the kernel version (true on Proxmox VE).
       linstor_hostname:
         type: str
         description:
-          - LINSTOR node name.
-          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.
+          - Node hostname for LINSTOR.
+          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.

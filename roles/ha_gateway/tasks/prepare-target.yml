@@ -53,8 +53,7 @@
 
 - name: "Set per-target aux properties on satellite nodes - {{ _protocol }}"
   linbit.linstor.node:
-    name: "{{ hostvars[_tag.node].inventory_hostname_short
-              if short_hostnames | bool else _tag.node }}"
+    name: "{{ hostvars[_tag.node]['linstor_hostname'] | default(_tag.node) }}"
     aux_properties: "{{ {'gw-' ~ _tag.target: 'True'} }}"
   loop: "{{ _gw_node_tags | default([]) }}"
   loop_control:

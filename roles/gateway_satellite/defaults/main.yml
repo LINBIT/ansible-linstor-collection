@@ -13,7 +13,11 @@ linstor_gateway_firewall_ports:
 linstor_gateway_scst: false
 linstor_gateway_scst_version: '3.9.x'
 
-# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
-# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
-short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
-linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+# Node hostname for LINSTOR node properties.
+# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+linstor_hostname: >-
+  {{
+    inventory_hostname_short
+    if 'pve' in ansible_facts['kernel']
+    else inventory_hostname
+  }}

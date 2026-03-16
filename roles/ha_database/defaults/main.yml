@@ -34,7 +34,11 @@ ha_database_drbd_options:
     on-no-data-accessible: io-error
     on-suspended-primary-outdated: force-secondary
 
-# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
-# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
-short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
-linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+# Node hostname for LINSTOR API calls.
+# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+linstor_hostname: >-
+  {{
+    inventory_hostname_short
+    if 'pve' in ansible_facts['kernel']
+    else inventory_hostname
+  }}

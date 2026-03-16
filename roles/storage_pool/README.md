@@ -68,8 +68,7 @@ See `defaults/main.yml`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `short_hostnames` | auto-detected | Use short hostnames (true on Proxmox VE) |
-| `linstor_hostname` | auto-detected | LINSTOR node name: `inventory_hostname_short` on Proxmox VE, `inventory_hostname` otherwise |
+| `linstor_hostname` | auto-detected | Node hostname for LINSTOR. Forces short hostnames on Proxmox VE, unaltered otherwise |
 
 Behavior
 --------
