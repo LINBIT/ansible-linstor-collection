@@ -19,6 +19,7 @@ description:
     if the passphrase is already unlocked.
   - C(state=modified) changes the passphrase. NOT idempotent, because the
     module cannot verify the current passphrase value.
+  - Use C(state=query) to retrieve encryption status without modification.
 options:
   state:
     description:
@@ -26,13 +27,16 @@ options:
       - C(created) sets the initial passphrase if none exists.
       - C(entered) unlocks the passphrase for use.
       - C(modified) changes the passphrase (requires O(old_passphrase)).
+      - C(query) returns the current encryption status without modification.
     type: str
     required: true
-    choices: [created, entered, modified]
+    choices: [created, entered, modified, query]
   passphrase:
-    description: The encryption passphrase.
+    description:
+      - The encryption passphrase.
+      - Required for C(state=created), C(state=entered), and C(state=modified).
+      - Not required for C(state=query).
     type: str
-    required: true
   old_passphrase:
     description:
       - The current passphrase.
@@ -93,6 +97,12 @@ EXAMPLES = r'''
     passphrase: "{{ vault_new_passphrase }}"
     old_passphrase: "{{ vault_old_passphrase }}"
   run_once: true  # noqa: run-once[task]
+
+- name: Query encryption status
+  linbit.linstor.encryption:
+    state: query
+  register: crypt_result
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
@@ -133,8 +143,8 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         state=dict(type='str', required=True,
-                   choices=['created', 'entered', 'modified']),
-        passphrase=dict(type='str', required=True, no_log=True),
+                   choices=['created', 'entered', 'modified', 'query']),
+        passphrase=dict(type='str', no_log=True),
         old_passphrase=dict(type='str', no_log=True),
     ))
 
@@ -142,7 +152,9 @@ def main():
         argument_spec=argument_spec,
         supports_check_mode=True,
         required_if=[
-            ('state', 'modified', ['old_passphrase']),
+            ('state', 'created', ['passphrase']),
+            ('state', 'entered', ['passphrase']),
+            ('state', 'modified', ['passphrase', 'old_passphrase']),
         ],
     )
 
@@ -154,6 +166,9 @@ def main():
 
     try:
         status = get_crypt_status(lin)
+
+        if state == 'query':
+            module.exit_json(changed=False, status=status)
 
         if state == 'created':
             if status != 'unset':

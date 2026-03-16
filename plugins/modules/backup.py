@@ -15,6 +15,8 @@ description:
     M(linbit.linstor.remote) module.
   - C(state=present) creates a new backup and is NOT idempotent. Each
     invocation creates a new backup (full or incremental).
+  - C(state=query) returns backups, backup details, and queue status in
+    a single call. Always C(changed=false).
   - C(state=list) lists backups on a remote. Always C(changed=false).
   - C(state=info) returns details about a specific backup on a remote.
     Always C(changed=false).
@@ -39,7 +41,7 @@ options:
       - See the module description for idempotency details per state.
     type: str
     default: present
-    choices: [present, list, info, queued, absent, restored, shipped, aborted]
+    choices: [present, query, list, info, queued, absent, restored, shipped, aborted]
   resource:
     description:
       - Resource name.
@@ -241,9 +243,11 @@ notes:
     It is NOT idempotent by design, since each invocation produces a new
     point-in-time backup. Only works with S3-compatible remotes. For
     LINSTOR-to-LINSTOR remotes, use C(state=shipped) instead.
-  - C(state=list), C(state=info), and C(state=queued) are read-only and always
-    report C(changed=false). C(state=list) and C(state=info) are S3-oriented
-    and return empty results for LINSTOR-to-LINSTOR remotes.
+  - C(state=query), C(state=list), C(state=info), and C(state=queued) are
+    read-only and always report C(changed=false). C(state=query) combines the
+    output of C(state=list), C(state=info), and C(state=queued) into a single
+    call. C(state=list) and C(state=info) are S3-oriented and return empty
+    results for LINSTOR-to-LINSTOR remotes.
   - C(state=shipped) always initiates a new shipping operation and reports
     C(changed=true). It is NOT idempotent. Use O(dst_storage_pool) when the
     target cluster uses a different storage pool name than the source.
@@ -274,6 +278,21 @@ EXAMPLES = r'''
   linbit.linstor.backup:
     remote: remote-s3-backup
     resource: res-data
+  run_once: true  # noqa: run-once[task]
+
+- name: Query all backup information for a remote
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: query
+  register: backup_query
+  run_once: true  # noqa: run-once[task]
+
+- name: Query backup information for a specific resource
+  linbit.linstor.backup:
+    remote: remote-s3-backup
+    state: query
+    resource: res-data
+  register: backup_query
   run_once: true  # noqa: run-once[task]
 
 - name: List all backups on a remote
@@ -367,15 +386,15 @@ resource:
 backups:
   description: List of backup entries from the remote.
   type: list
-  returned: when state=list
+  returned: when state=list or state=query
 backup_info:
   description: Backup detail information including sizes and storage pools.
   type: dict
-  returned: when state=info
+  returned: when state=info or state=query
 queue:
   description: Backup queue entries grouped by node or snapshot.
   type: dict
-  returned: when state=queued
+  returned: when state=queued or state=query
 '''
 
 import traceback
@@ -400,7 +419,7 @@ def main():
     argument_spec.update(dict(
         remote=dict(type='str', required=True),
         state=dict(type='str', default='present',
-                   choices=['present', 'list', 'info', 'queued',
+                   choices=['present', 'query', 'list', 'info', 'queued',
                             'absent', 'restored', 'shipped', 'aborted']),
         resource=dict(type='str'),
         incremental=dict(type='bool', default=True),
@@ -456,6 +475,58 @@ def main():
     lin = get_linstor_connection(module)
 
     try:
+        if state == 'query':
+            # Gather backup list
+            list_kwargs = dict(remote_name=remote)
+            if resource:
+                list_kwargs['resource_name'] = resource
+            if module.params.get('snap_name'):
+                list_kwargs['snap_name'] = module.params['snap_name']
+
+            list_result = lin.backup_list(**list_kwargs)
+            backups = []
+            if list_result and hasattr(list_result[0], 'data_v0'):
+                backups = list_result[0].data_v0.get('linstor', [])
+
+            # Gather backup info
+            info_kwargs = dict(remote_name=remote)
+            if resource:
+                info_kwargs['resource_name'] = resource
+            if module.params.get('backup_id'):
+                info_kwargs['bak_id'] = module.params['backup_id']
+            if module.params.get('target_node'):
+                info_kwargs['target_node'] = module.params['target_node']
+            if module.params.get('storage_pool_map'):
+                info_kwargs['stor_pool_map'] = module.params['storage_pool_map']
+            if module.params.get('snap_name'):
+                info_kwargs['snap_name'] = module.params['snap_name']
+
+            info_result = lin.backup_info(**info_kwargs)
+            info = {}
+            if info_result and hasattr(info_result[0], 'data_v0'):
+                info = info_result[0].data_v0
+
+            # Gather backup queue
+            queue_kwargs = dict(
+                remotes=[remote],
+                snap_to_node=module.params['snap_to_node'],
+            )
+            if module.params.get('node'):
+                queue_kwargs['nodes'] = [module.params['node']]
+            if module.params.get('snap_name'):
+                queue_kwargs['snaps'] = [module.params['snap_name']]
+            if resource:
+                queue_kwargs['rscs'] = [resource]
+
+            queue_result = lin.backup_queue_list(**queue_kwargs)
+            queue = {}
+            if queue_result and hasattr(queue_result[0], 'data_v0'):
+                queue = queue_result[0].data_v0
+
+            module.exit_json(
+                changed=False, remote=remote, resource=resource,
+                backups=backups, backup_info=info, queue=queue)
+
         if state == 'present':
             # NOT idempotent: always creates a new backup
             if module.check_mode:

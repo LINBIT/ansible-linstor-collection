@@ -16,6 +16,7 @@ description:
   - Schedule definition CRUD is fully idempotent.
   - Enable and disable operations are idempotent when the current state
     can be queried.
+  - Use C(state=query) to retrieve schedule properties without modification.
 options:
   name:
     description: Name of the backup schedule.
@@ -25,7 +26,7 @@ options:
     description: Desired state of the schedule.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, query]
   full_cron:
     description:
       - Cron expression for full backups.
@@ -170,6 +171,13 @@ EXAMPLES = r'''
     resource: res-data
   run_once: true  # noqa: run-once[task]
 
+- name: Query a backup schedule
+  linbit.linstor.schedule:
+    name: sched-daily
+    state: query
+  register: sched_result
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a backup schedule
   linbit.linstor.schedule:
     name: sched-daily
@@ -191,6 +199,10 @@ name:
   description: Name of the schedule.
   type: str
   returned: always
+exists:
+  description: Whether the schedule exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 full_cron:
   description: Cron expression for full backups.
   type: str
@@ -265,7 +277,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
         full_cron=dict(type='str'),
         incremental_cron=dict(type='str'),
         keep_local=dict(type='int'),
@@ -306,6 +318,16 @@ def main():
 
     try:
         existing = get_schedule(lin, name)
+
+        if state == 'query':
+            if existing is None:
+                module.exit_json(changed=False, name=name, exists=False)
+            result = build_schedule_result(existing)
+            result['name'] = name
+            result['exists'] = True
+            result['on_failure'] = getattr(existing, 'on_failure', None)
+            result['max_retries'] = getattr(existing, 'max_retries', None)
+            module.exit_json(changed=False, **result)
 
         if state == 'absent':
             if existing is None:

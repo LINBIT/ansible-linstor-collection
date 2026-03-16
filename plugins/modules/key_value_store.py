@@ -16,6 +16,7 @@ description:
   - Idempotent. Only entries that differ from the current state are modified.
   - When C(state=absent), deletes the entire key-value store instance by
     removing all entries.
+  - Use C(state=query) to retrieve key-value store entries without modification.
 options:
   name:
     description: Name of the key-value store instance.
@@ -25,7 +26,7 @@ options:
     description: Desired state of the key-value store instance.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, query]
   entries:
     description:
       - Dictionary of key-value pairs to set.
@@ -73,11 +74,11 @@ EXAMPLES = r'''
       version: "2.1.0"
   run_once: true  # noqa: run-once[task]
 
-- name: Read key-value store (no changes)
+- name: Query a key-value store
   linbit.linstor.key_value_store:
     name: cluster-metadata
+    state: query
   register: kv_result
-  changed_when: false
   run_once: true  # noqa: run-once[task]
 
 - name: Remove specific entries
@@ -99,6 +100,10 @@ name:
   description: Name of the key-value store instance.
   type: str
   returned: always
+exists:
+  description: Whether the key-value store instance exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 entries:
   description: Key-value store entries after the operation.
   type: dict
@@ -128,7 +133,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
         entries=dict(type='dict', default={}),
         delete_entries=dict(type='list', elements='str', default=[]),
     ))
@@ -148,6 +153,13 @@ def main():
 
     try:
         current_entries = get_kv_entries(lin, name)
+
+        if state == 'query':
+            if not current_entries:
+                module.exit_json(changed=False, name=name, exists=False,
+                                 entries={})
+            module.exit_json(changed=False, name=name, exists=True,
+                             entries=current_entries)
 
         if state == 'absent':
             if not current_entries:

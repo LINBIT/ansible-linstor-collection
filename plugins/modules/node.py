@@ -14,6 +14,7 @@ description:
   - Idempotent. If the node already exists, only property changes are applied.
   - Node type and IP address cannot be changed after creation.
     The module warns if the requested values differ from the existing node.
+  - Use C(state=query) to retrieve node information without modification.
 options:
   name:
     description: Name of the LINSTOR node.
@@ -26,9 +27,10 @@ options:
         Idempotent, skips if the node already has the C(EVACUATE) flag.
       - C(restored) reverses an evacuation, allowing resources to return.
         Idempotent, skips if the node does not have the C(EVACUATE) flag.
+      - C(query) returns node information without modification.
     type: str
     default: present
-    choices: [present, absent, evacuated, restored]
+    choices: [present, absent, evacuated, restored, query]
   node_type:
     description: >-
       LINSTOR node type.
@@ -248,6 +250,13 @@ EXAMPLES = r'''
     restore_delete_snapshots: true
   run_once: true  # noqa: run-once[task]
 
+- name: Query a node
+  linbit.linstor.node:
+    name: node-1
+    state: query
+  register: node_result
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a node from the cluster
   linbit.linstor.node:
     name: node-3
@@ -260,10 +269,18 @@ name:
   description: Name of the LINSTOR node.
   type: str
   returned: always
+exists:
+  description: Whether the node exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 node_type:
   description: Node type.
   type: str
   returned: success
+connection_status:
+  description: Node connection status (e.g. ONLINE, OFFLINE). Only returned with C(state=query).
+  type: str
+  returned: query
 ip:
   description: IP address of the default network interface.
   type: str
@@ -272,6 +289,12 @@ properties:
   description: Node properties after the operation.
   type: dict
   returned: success
+aux_properties:
+  description: >-
+    Auxiliary properties (C(Aux/) prefix stripped).
+    Only returned with C(state=query).
+  type: dict
+  returned: query
 '''
 
 import traceback
@@ -324,12 +347,28 @@ def get_node_ip(node, netif_name='default'):
     return ''
 
 
+def get_connection_status(node):
+    """Get the connection status string from a node object."""
+    if hasattr(node, 'connection_status'):
+        return str(node.connection_status)
+    return ''
+
+
+def get_aux_properties(props):
+    """Extract auxiliary properties with the Aux/ prefix stripped."""
+    aux = {}
+    for key, value in props.items():
+        if key.startswith('Aux/'):
+            aux[key[4:]] = value
+    return aux
+
+
 def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'evacuated', 'restored']),
+                   choices=['present', 'absent', 'evacuated', 'restored', 'query']),
         node_type=dict(type='str', default=None,
                        choices=['Controller', 'Satellite', 'Combined', 'Auxiliary']),
         ip=dict(type='str'),
@@ -375,6 +414,18 @@ def main():
 
     try:
         existing_node = get_node(lin, name)
+
+        if state == 'query':
+            if existing_node is None:
+                module.exit_json(changed=False, name=name, exists=False)
+            props = get_node_props(existing_node)
+            module.exit_json(
+                changed=False, name=name, exists=True,
+                node_type=get_node_type_str(existing_node),
+                connection_status=get_connection_status(existing_node),
+                ip=get_node_ip(existing_node, netif_name),
+                properties=props,
+                aux_properties=get_aux_properties(props))
 
         if state == 'absent':
             if existing_node is None:

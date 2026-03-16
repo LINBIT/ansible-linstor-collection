@@ -10,11 +10,13 @@ module: snapshot
 short_description: Manage LINSTOR snapshots
 version_added: "0.10.0"
 description:
-  - Creates, deletes, rolls back, or restores LINSTOR snapshots.
+  - Creates, deletes, rolls back, restores, or queries LINSTOR snapshots.
   - Idempotent for C(state=present), C(state=absent), and C(state=restored).
   - C(state=rolled_back) is NOT idempotent. It always executes the rollback
     if the snapshot exists, because LINSTOR does not expose enough state to
     detect whether a rollback has already been applied.
+  - Use C(state=query) to check whether a snapshot exists and retrieve its
+    details without modification.
 options:
   resource:
     description: Name of the resource definition to snapshot.
@@ -34,9 +36,10 @@ options:
       - C(restored) restores the snapshot to a new resource definition
         specified by O(restore_to). Idempotent based on whether the
         target resource definition already exists.
+      - C(query) returns snapshot details without modification.
     type: str
     default: present
-    choices: [present, absent, rolled_back, restored]
+    choices: [present, absent, rolled_back, restored, query]
   nodes:
     description:
       - List of nodes to include in the snapshot.
@@ -152,6 +155,14 @@ EXAMPLES = r'''
     properties:
       Aux/purpose: pre-upgrade-backup
   run_once: true  # noqa: run-once[task]
+
+- name: Query a snapshot
+  linbit.linstor.snapshot:
+    resource: res-data
+    name: snap-before-upgrade
+    state: query
+  register: snap_result
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
@@ -163,10 +174,18 @@ name:
   description: Name of the snapshot.
   type: str
   returned: always
+exists:
+  description: Whether the snapshot exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 nodes:
   description: Nodes where the snapshot exists.
   type: list
   returned: success
+flags:
+  description: Snapshot flags. Only returned with C(state=query).
+  type: list
+  returned: query
 properties:
   description: Snapshot definition properties after the operation.
   type: dict
@@ -214,7 +233,7 @@ def main():
         resource=dict(type='str', required=True),
         name=dict(type='str', required=True),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'rolled_back', 'restored']),
+                   choices=['present', 'absent', 'rolled_back', 'restored', 'query']),
         nodes=dict(type='list', elements='str', default=[]),
         restore_to=dict(type='str'),
         restore_nodes=dict(type='list', elements='str', default=[]),
@@ -246,6 +265,18 @@ def main():
 
     try:
         existing_snap = get_snapshot(lin, resource, name)
+
+        if state == 'query':
+            if existing_snap is None:
+                module.exit_json(
+                    changed=False, name=name, resource=resource,
+                    exists=False)
+            module.exit_json(
+                changed=False, name=name, resource=resource,
+                exists=True,
+                nodes=existing_snap.nodes,
+                flags=list(existing_snap.flags) if hasattr(existing_snap, 'flags') and existing_snap.flags else [],
+                properties=get_snap_props(existing_snap))
 
         if state == 'absent':
             if existing_snap is None:

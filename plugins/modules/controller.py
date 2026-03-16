@@ -11,9 +11,17 @@ short_description: Manage LINSTOR controller properties
 version_added: "0.10.0"
 description:
   - Reads, sets, and deletes cluster-wide properties on the LINSTOR controller.
-  - The controller is a cluster-wide singleton, so no C(name) or C(state) parameter is needed.
+  - The controller is a cluster-wide singleton, so no C(name) parameter is needed.
   - Idempotent. Only properties that differ from the current state are modified.
+  - Use C(state=query) to retrieve controller properties without modification.
 options:
+  state:
+    description: >-
+      Operation mode. C(present) sets or deletes properties.
+      C(query) returns current properties without modification.
+    type: str
+    default: present
+    choices: [present, query]
   properties:
     description: Dictionary of LINSTOR properties to set on the controller.
     type: dict
@@ -73,11 +81,10 @@ author:
 '''
 
 EXAMPLES = r'''
-# Controller-level properties are analogous to cluster-wide properties
-- name: Read controller properties
+- name: Query controller properties
   linbit.linstor.controller:
+    state: query
   register: ctrl_result
-  changed_when: false
   run_once: true  # noqa: run-once[task]
 
 - name: Set multiple controller properties
@@ -170,6 +177,7 @@ def get_controller_props(lin):
 def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
+        state=dict(type='str', default='present', choices=['present', 'query']),
         properties=dict(type='dict', default={}),
         aux_properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
@@ -180,6 +188,7 @@ def main():
         supports_check_mode=True,
     )
 
+    state = module.params['state']
     properties = module.params['properties'] or {}
     aux_properties = module.params['aux_properties'] or {}
     delete_properties = module.params['delete_properties'] or []
@@ -195,6 +204,9 @@ def main():
 
     try:
         current_props = get_controller_props(lin)
+
+        if state == 'query':
+            module.exit_json(changed=False, properties=current_props)
 
         props_to_set, props_to_delete = compute_property_diff(
             current_props, all_properties, delete_properties)

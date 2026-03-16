@@ -12,6 +12,7 @@ version_added: "0.10.0"
 description:
   - Creates, modifies, or deletes LINSTOR volume groups within a resource group.
   - Idempotent. If the volume group already exists, only property changes are applied.
+  - Use C(state=query) to retrieve volume group properties without modification.
 options:
   resource_group:
     description: Name of the parent resource group.
@@ -26,7 +27,7 @@ options:
     description: Desired state of the volume group.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, query]
   gross:
     description: Whether to use gross size calculation.
     type: bool
@@ -103,6 +104,14 @@ EXAMPLES = r'''
       sys/fs/blkio_throttle_write_iops: "500"
   run_once: true  # noqa: run-once[task]
 
+- name: Query a volume group
+  linbit.linstor.volume_group:
+    resource_group: rg-0
+    volume_nr: 0
+    state: query
+  register: vg_result
+  run_once: true  # noqa: run-once[task]
+
 - name: Delete a volume group
   linbit.linstor.volume_group:
     resource_group: rg-0
@@ -116,6 +125,10 @@ resource_group:
   description: Name of the parent resource group.
   type: str
   returned: always
+exists:
+  description: Whether the volume group exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 volume_nr:
   description: Volume number.
   type: int
@@ -165,7 +178,7 @@ def main():
     argument_spec.update(dict(
         resource_group=dict(type='str', required=True),
         volume_nr=dict(type='int', default=0),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
         gross=dict(type='bool'),
         properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
@@ -188,6 +201,17 @@ def main():
 
     try:
         volume_groups = get_volume_groups(lin, resource_group)
+
+        if state == 'query':
+            existing_vg = find_volume_group(volume_groups, volume_nr)
+            if existing_vg is None:
+                module.exit_json(
+                    changed=False, resource_group=resource_group,
+                    volume_nr=volume_nr, exists=False)
+            module.exit_json(
+                changed=False, resource_group=resource_group,
+                volume_nr=existing_vg.number if hasattr(existing_vg, 'number') else volume_nr,
+                exists=True, properties=get_vg_props(existing_vg))
 
         if state == 'absent':
             existing_vg = find_volume_group(volume_groups, volume_nr)

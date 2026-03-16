@@ -13,6 +13,7 @@ description:
   - Creates, modifies, or deletes LINSTOR resource groups.
   - Supports placement rules, DRBD options, and arbitrary properties.
   - Idempotent. If the resource group already exists, only diffs are applied.
+  - Use C(state=query) to retrieve resource group properties without modification.
 options:
   name:
     description: Name of the resource group.
@@ -22,7 +23,7 @@ options:
     description: Desired state of the resource group.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, query]
   description:
     description: Human-readable description of the resource group.
     type: str
@@ -210,6 +211,13 @@ EXAMPLES = r'''
       StorPoolNameDrbdMeta: sp-meta-ssd
   run_once: true  # noqa: run-once[task]
 
+- name: Query a resource group
+  linbit.linstor.resource_group:
+    name: rg-0
+    state: query
+  register: rg_result
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a resource group
   linbit.linstor.resource_group:
     name: rg-0
@@ -222,6 +230,10 @@ name:
   description: Name of the resource group.
   type: str
   returned: always
+exists:
+  description: Whether the resource group exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 place_count:
   description: Configured replica count.
   type: int
@@ -230,6 +242,18 @@ storage_pool:
   description: Default storage pool.
   type: str
   returned: success
+description:
+  description: Human-readable description.
+  type: str
+  returned: query
+replicas_on_same:
+  description: List of same-node placement constraints.
+  type: list
+  returned: query
+replicas_on_different:
+  description: List of different-node placement constraints.
+  type: list
+  returned: query
 properties:
   description: Resource group properties after the operation.
   type: dict
@@ -356,7 +380,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
         description=dict(type='str'),
         place_count=dict(type='int', default=2),
         storage_pool=dict(type='str'),
@@ -393,6 +417,26 @@ def main():
 
     try:
         existing_rg = get_resource_group(lin, name)
+
+        if state == 'query':
+            if existing_rg is None:
+                module.exit_json(changed=False, name=name, exists=False)
+            sf = getattr(existing_rg, 'select_filter', None)
+            sp_list = getattr(sf, 'storage_pool_list', None) or getattr(sf, 'storage_pool', None) if sf else None
+            if isinstance(sp_list, list) and sp_list:
+                sp = sp_list[0]
+            elif isinstance(sp_list, str):
+                sp = sp_list
+            else:
+                sp = None
+            module.exit_json(
+                changed=False, name=name, exists=True,
+                description=getattr(existing_rg, 'description', ''),
+                place_count=getattr(sf, 'place_count', None) if sf else None,
+                storage_pool=sp,
+                replicas_on_same=list(getattr(sf, 'replicas_on_same', []) or []) if sf else [],
+                replicas_on_different=list(getattr(sf, 'replicas_on_different', []) or []) if sf else [],
+                properties=get_rg_props(existing_rg))
 
         if state == 'absent':
             if existing_rg is None:

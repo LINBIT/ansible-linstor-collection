@@ -15,6 +15,7 @@ description:
   - Idempotent. Existing volume definitions are updated if size differs.
     Missing volume definitions are added, but existing ones not in the list
     are not deleted (too destructive).
+  - Use C(state=query) to retrieve resource definition properties without modification.
 options:
   name:
     description: Name of the resource definition.
@@ -24,7 +25,7 @@ options:
     description: Desired state of the resource definition.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, query]
   port:
     description: TCP port for the DRBD resource.
     type: int
@@ -175,6 +176,13 @@ EXAMPLES = r'''
         on-no-quorum: io-error
   run_once: true  # noqa: run-once[task]
 
+- name: Query a resource definition
+  linbit.linstor.resource_definition:
+    name: res-0
+    state: query
+  register: rd_result
+  run_once: true  # noqa: run-once[task]
+
 # Deleting a resource definition removes all associated resources and volumes
 - name: Remove a resource definition
   linbit.linstor.resource_definition:
@@ -188,6 +196,10 @@ name:
   description: Name of the resource definition.
   type: str
   returned: always
+exists:
+  description: Whether the resource definition exists. Only returned with C(state=query).
+  type: bool
+  returned: query
 resource_group:
   description: Associated resource group name.
   type: str
@@ -275,7 +287,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
         port=dict(type='int'),
         external_name=dict(type='str'),
         resource_group=dict(type='str'),
@@ -323,6 +335,19 @@ def main():
 
     try:
         existing_rd = get_resource_definition(lin, name)
+
+        if state == 'query':
+            if existing_rd is None:
+                module.exit_json(changed=False, name=name, exists=False)
+            current_props = get_rd_props(existing_rd)
+            existing_vds = get_volume_defs(existing_rd)
+            vd_info_list = [volume_def_info(vd) for vd in existing_vds]
+            rd_rg = getattr(existing_rd, 'resource_group_name', None)
+            module.exit_json(
+                changed=False, name=name, exists=True,
+                resource_group=rd_rg,
+                volume_definitions=vd_info_list,
+                properties=current_props)
 
         if state == 'absent':
             if existing_rd is None:
