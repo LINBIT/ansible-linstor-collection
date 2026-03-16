@@ -1,2 +1,9 @@
 [global]
-controllers={% for address in linstor_controller_addresses %}{{ address }}{% if not loop.last %},{% endif %}{% endfor %}
+controllers={% for address in linstor_controller_addresses %}{% if linstor_client_https | default(false) | bool %}linstors://{% endif %}{{ address }}{% if not loop.last %},{% endif %}{% endfor %}
+{% if linstor_client_certfile | default('') %}
+
+certfile={{ linstor_client_certfile }}
+{% endif -%}
+{% if linstor_client_keyfile | default('') %}
+keyfile={{ linstor_client_keyfile }}
+{% endif -%}

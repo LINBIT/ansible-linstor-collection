@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+---
+# Feature toggles (both default to true: if the role runs, encrypt everything)
+ssl_https: true
+ssl_satellite: true
+ssl_https_mtls: false
+
+# Certificate generation
+ssl_generate_certs: true
+ssl_cert_validity_days: 3650
+ssl_key_algorithm: RSA
+ssl_key_size: 2048
+ssl_cert_ou: "LINSTOR"
+ssl_cert_o: ""
+ssl_cert_c: ""
+
+# Paths
+ssl_dir: /etc/linstor/ssl
+
+# Passwords (vault-ready)
+ssl_keystore_password: linstor
+ssl_truststore_password: linstor
+ssl_key_password: linstor
+
+# HTTPS settings
+ssl_https_port: 3371
+
+# Satellite SSL settings
+ssl_satellite_port: 3367
+ssl_satellite_protocol: "TLSv1.2"
+
+# Controller addresses for linstor-client.conf (same default as client_install)
+linstor_controller_addresses:
+  "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
+
+# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
+# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
+short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
+linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"

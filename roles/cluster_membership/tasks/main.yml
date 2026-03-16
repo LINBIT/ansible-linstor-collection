@@ -16,6 +16,8 @@
     name: "{{ linstor_hostname }}"
     ip: "{{ replication_ip }}"
     node_type: "{{ node_type }}"
+    com_type: "{{ cluster_membership_com_type }}"
+    port: "{{ cluster_membership_port }}"
   vars:
     node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
   when: inventory_hostname in groups['linstor_controllers']
@@ -26,4 +28,6 @@
     name: "{{ linstor_hostname }}"
     ip: "{{ replication_ip }}"
     node_type: Satellite
+    com_type: "{{ cluster_membership_com_type }}"
+    port: "{{ cluster_membership_port }}"
   when: inventory_hostname not in groups['linstor_controllers']

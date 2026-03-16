@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Configure SSL/TLS for LINSTOR
+    description:
+      - Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS).
+      - Generates Java keystores and certificates using keytool, builds cross-node truststores, and patches LINSTOR configuration files.
+      - Optionally generates a client certificate for REST API mutual TLS authentication.
+    options:
+      ssl_https:
+        type: bool
+        default: true
+        description:
+          - Enable HTTPS on the LINSTOR REST API (port 3371).
+      ssl_satellite:
+        type: bool
+        default: true
+        description:
+          - Enable SSL for controller-to-satellite communication (port 3367).
+      ssl_https_mtls:
+        type: bool
+        default: false
+        description:
+          - Enable client certificate authentication for the REST API.
+          - Requires C(ssl_https) to be true.
+      ssl_generate_certs:
+        type: bool
+        default: true
+        description:
+          - Generate self-signed certificates using keytool.
+          - Set to false to provide pre-existing keystores and truststores.
+      ssl_cert_validity_days:
+        type: int
+        default: 3650
+        description:
+          - Certificate validity period in days.
+      ssl_key_algorithm:
+        type: str
+        default: RSA
+        description:
+          - Key algorithm for certificate generation.
+      ssl_key_size:
+        type: int
+        default: 2048
+        description:
+          - Key size in bits for certificate generation.
+      ssl_cert_ou:
+        type: str
+        default: LINSTOR
+        description:
+          - Organizational unit for the certificate distinguished name.
+      ssl_cert_o:
+        type: str
+        default: ""
+        description:
+          - Organization for the certificate distinguished name.
+      ssl_cert_c:
+        type: str
+        default: ""
+        description:
+          - Country code for the certificate distinguished name.
+      ssl_dir:
+        type: str
+        default: /etc/linstor/ssl
+        description:
+          - Directory for SSL keystores and certificates.
+      ssl_keystore_password:
+        type: str
+        default: linstor
+        description:
+          - Password for Java keystores. Use Ansible Vault for production.
+      ssl_truststore_password:
+        type: str
+        default: linstor
+        description:
+          - Password for Java truststores. Use Ansible Vault for production.
+      ssl_key_password:
+        type: str
+        default: linstor
+        description:
+          - Password for private keys. Use Ansible Vault for production.
+      ssl_https_port:
+        type: int
+        default: 3371
+        description:
+          - HTTPS port for the LINSTOR REST API.
+      ssl_satellite_port:
+        type: int
+        default: 3367
+        description:
+          - SSL port for satellite communication.
+      ssl_satellite_protocol:
+        type: str
+        default: TLSv1.2
+        description:
+          - TLS protocol version for satellite SSL connections.

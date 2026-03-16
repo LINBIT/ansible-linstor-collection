@@ -14,3 +14,8 @@ cluster_init_linstor_gateway: false
 # Repo access type: 'customer' (LINBIT portal), 'public' (Proxmox/open-source),
 # or 'none' (self-managed repos)
 cluster_init_repo_access: customer
+
+# SSL/TLS: encrypt all LINSTOR communication (HTTPS REST API + satellite SSL)
+cluster_init_ssl: false
+# Restrict REST API to clients with a valid certificate (requires cluster_init_ssl)
+cluster_init_ssl_mtls: false

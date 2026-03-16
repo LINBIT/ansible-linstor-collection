@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+---
+# Remove any blockinfile-managed block from a previous version of this role
+- name: Remove legacy HTTPS blockinfile block
+  ansible.builtin.blockinfile:
+    path: /etc/linstor/linstor.toml
+    marker: "# {mark} ANSIBLE MANAGED HTTPS BLOCK"
+    state: absent
+  when: ansible_check_mode is not defined or not ansible_check_mode
+
+# Use ini_file to set keys under the existing [https] section.
+# TOML and INI share enough syntax for simple key = "value" pairs.
+- name: Set HTTPS keystore path in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: https
+    option: keystore
+    value: '"{{ ssl_dir }}/keystore.jks"'
+    mode: '0644'
+  notify: restart_linstor_controller_ssl
+
+- name: Set HTTPS keystore password in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: https
+    option: keystore_password
+    value: '"{{ ssl_keystore_password }}"'
+    mode: '0644'
+  notify: restart_linstor_controller_ssl
+
+- name: Set HTTPS truststore path in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: https
+    option: truststore
+    value: '"{{ ssl_dir }}/truststore_client.jks"'
+    mode: '0644'
+  notify: restart_linstor_controller_ssl
+  when: ssl_https_mtls | bool
+
+- name: Set HTTPS truststore password in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: https
+    option: truststore_password
+    value: '"{{ ssl_truststore_password }}"'
+    mode: '0644'
+  notify: restart_linstor_controller_ssl
+  when: ssl_https_mtls | bool

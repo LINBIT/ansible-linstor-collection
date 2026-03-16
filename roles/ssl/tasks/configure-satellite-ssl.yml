@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Patch linstor_satellite.toml with SSL configuration
+  ansible.builtin.blockinfile:
+    path: /etc/linstor/linstor_satellite.toml
+    marker: "# {mark} ANSIBLE MANAGED SSL BLOCK"
+    block: "{{ lookup('template', 'linstor-satellite-toml-ssl.j2') }}"
+    create: true
+    mode: '0644'
+    state: present
+  notify: restart_linstor_satellite_ssl

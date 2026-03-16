@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+# Re-template linstor-client.conf with HTTPS scheme after SSL is configured.
+# This runs after certificate generation so python-linstor connections
+# (used by cluster_membership) can reach the controller over HTTPS.
+- name: Update linstor-client.conf with HTTPS controller addresses
+  ansible.builtin.template:
+    src: "linstor-client.j2"
+    dest: /etc/linstor/linstor-client.conf
+    owner: root
+    group: root
+    mode: '0644'

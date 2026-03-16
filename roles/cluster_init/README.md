@@ -7,12 +7,13 @@ Includes the following roles in order:
 1. `linbit.common.customer_repo` or `linbit.common.public_repo` (based on `cluster_init_repo_access`)
 2. `linbit.linstor.satellite_install` (on `linstor_satellites` nodes)
 3. `linbit.linstor.controller_install` (on `linstor_controllers` nodes)
-4. `linbit.linstor.cluster_membership` (register all nodes)
-5. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
-6. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
-7. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
+4. `linbit.linstor.ssl` (when `cluster_init_ssl: true`)
+5. `linbit.linstor.cluster_membership` (register all nodes)
+6. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
+7. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
+8. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
 
-Steps 1 and 5-7 are optional and controlled by role variables.
+Steps 1 and 4-8 are optional and controlled by role variables.
 
 Requirements
 ------------
@@ -33,6 +34,8 @@ Role Variables
 | `cluster_init_linstor_gateway` | `false` | Also install LINSTOR Gateway on the cluster |
 | `cluster_init_deploy_storage` | `false` | Create storage pools from `linstor_storage_pools` inventory variable |
 | `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA (requires `cluster_init_deploy_storage` and 2+ combined nodes) |
+| `cluster_init_ssl` | `false` | Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL) |
+| `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl`) |
 
 When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor.storage_pool` which reads the `linstor_storage_pools` inventory variable.
 See the `storage_pool` role README for the full variable reference.
@@ -85,6 +88,27 @@ Full deployment with LINSTOR Gateway, storage pools, and HA database:
         cluster_init_linstor_gateway: true
         cluster_init_repo_access: customer  # cluster_init default
 ```
+
+Full deployment with SSL/TLS encryption:
+
+```yaml
+- name: Deploy LINSTOR
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Install and initialize LINSTOR
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_init
+      vars:
+        cluster_init_deploy_storage: true
+        cluster_init_ha_database: true      # cluster_init default
+        cluster_init_ssl: true
+        cluster_init_repo_access: customer  # cluster_init default
+```
+
+This encrypts the REST API (HTTPS on port 3371) and all controller-to-satellite connections (SSL on port 3367).
+See the `ssl` role README for additional variables such as certificate parameters and passwords.
 
 To use the LINBIT public repo instead of the customer portal (for example, on Proxmox):
 

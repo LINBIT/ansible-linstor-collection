@@ -4,3 +4,9 @@
 # Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
 short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
 linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+
+# Network communication type for node registration (Plain or SSL)
+cluster_membership_com_type: Plain
+
+# Network port for node registration
+cluster_membership_port: 3366

@@ -48,6 +48,20 @@
         - linstor_installation
   when: inventory_hostname in groups['linstor_controllers']
 
+- name: Configure LINSTOR SSL/TLS
+  tags:
+    - linstor
+    - linstor_ssl
+  ansible.builtin.include_role:
+    name: linbit.linstor.ssl
+    apply:
+      tags:
+        - linstor
+        - linstor_ssl
+  vars:
+    ssl_https_mtls: "{{ cluster_init_ssl_mtls }}"
+  when: cluster_init_ssl | bool
+
 - name: Register LINSTOR cluster membership
   tags:
     - linstor
@@ -58,6 +72,9 @@
       tags:
         - linstor
         - linstor_cluster_membership
+  vars:
+    cluster_membership_com_type: "{{ 'SSL' if cluster_init_ssl | bool else 'Plain' }}"
+    cluster_membership_port: "{{ 3367 if cluster_init_ssl | bool else 3366 }}"
 
 - name: Install LINSTOR Gateway
   tags:

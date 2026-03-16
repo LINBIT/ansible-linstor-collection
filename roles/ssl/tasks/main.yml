@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MIT
+---
+# Materialize linstor_hostname as a host fact so hostvars[host]['linstor_hostname']
+# works in cross-node tasks (role defaults are not visible through hostvars)
+- name: Set linstor_hostname fact for cross-node access
+  ansible.builtin.set_fact:
+    linstor_hostname: "{{ linstor_hostname }}"
+
+- name: Assert at least one SSL feature is enabled
+  ansible.builtin.assert:
+    that: ssl_https | bool or ssl_satellite | bool
+    fail_msg: >-
+      At least one of ssl_https or ssl_satellite must be true.
+    quiet: true
+
+- name: Assert ssl_https is true when ssl_https_mtls is true
+  ansible.builtin.assert:
+    that: ssl_https | bool
+    fail_msg: >-
+      ssl_https_mtls requires ssl_https to be true.
+    quiet: true
+  when: ssl_https_mtls | bool
+
+- name: Generate Java keystores and export certificates
+  ansible.builtin.include_tasks: generate-keystores.yml
+  when: ssl_generate_certs | bool
+
+- name: Build cross-node truststores for satellite SSL
+  ansible.builtin.include_tasks: build-truststores.yml
+  when:
+    - ssl_satellite | bool
+    - ssl_generate_certs | bool
+
+- name: Generate client certificate for mTLS
+  ansible.builtin.include_tasks: generate-client-cert.yml
+  when:
+    - ssl_https_mtls | bool
+    - ssl_generate_certs | bool
+
+- name: Configure HTTPS on controllers
+  ansible.builtin.include_tasks: configure-https.yml
+  when:
+    - ssl_https | bool
+    - inventory_hostname in groups['linstor_controllers']
+
+- name: Configure satellite SSL
+  ansible.builtin.include_tasks: configure-satellite-ssl.yml
+  when:
+    - ssl_satellite | bool
+    - inventory_hostname in groups['linstor_satellites']
+
+# The controller must restart to discover keystores for its SslConnector.
+# When ssl_https is also true, configure-https.yml already triggers this handler.
+- name: Restart controller to activate SSL connector
+  ansible.builtin.systemd_service:
+    name: linstor-controller.service
+    state: restarted
+  when:
+    - ssl_satellite | bool
+    - not (ssl_https | bool)
+    - inventory_hostname in groups['linstor_controllers']
+
+- name: Wait for controller after SSL connector restart
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 3370
+    delay: 5
+    timeout: 30
+  when:
+    - ssl_satellite | bool
+    - not (ssl_https | bool)
+    - inventory_hostname in groups['linstor_controllers']
+
+- name: Update linstor-client.conf for HTTPS
+  ansible.builtin.include_tasks: configure-client.yml
+  when: ssl_https | bool
+
+- name: Flush handlers for ssl
+  ansible.builtin.meta: flush_handlers

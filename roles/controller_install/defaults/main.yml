@@ -8,4 +8,4 @@ controller_install_package_state: latest
 controller_install_firewall_rules: true
 
 controller_install_firewall_ports:
-  - { port: '3370', proto: tcp }
+  - { port: '3370-3371', proto: tcp }
