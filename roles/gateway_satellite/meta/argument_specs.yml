@@ -5,19 +5,9 @@ argument_specs:
     short_description: Install LINSTOR Gateway satellite-side components
     description:
       - Install LINSTOR Gateway satellite-side components on LINSTOR satellite nodes.
-      - Installs NFS and iSCSI resource agents, supplemental packages, and patches C(linstor_satellite.toml).
-      - Dynamically includes C(linbit.drbd_reactor.reactor_install) if DRBD Reactor is not already present.
+      - Installs supplemental packages and patches C(linstor_satellite.toml).
+      - Includes C(linbit.drbd_reactor.reactor_install) for DRBD Reactor and OCF resource agents.
     options:
-      linstor_gateway_portblock_ra_url:
-        type: str
-        default: "https://raw.githubusercontent.com/ClusterLabs/resource-agents/tags/v4.16.0/heartbeat/portblock"
-        description:
-          - URL to fetch the portblock resource agent.
-      linstor_gateway_portblock_fix:
-        type: bool
-        default: true
-        description:
-          - Overwrite and pin the portblock RA to fix iptables issues.
       linstor_gateway_firewall_rules:
         type: bool
         default: true
@@ -34,8 +24,10 @@ argument_specs:
             proto: tcp
           - port: "3260"
             proto: tcp
+          - port: "4420"
+            proto: tcp
         description:
-          - Ports to open in firewalld or UFW for NFS and iSCSI (111/tcp, 2049/tcp, 3260/tcp).
+          - Ports to open in firewalld or UFW for NFS, iSCSI, and NVMe-oF.
       linstor_gateway_scst:
         type: bool
         default: false
@@ -47,3 +39,13 @@ argument_specs:
         description:
           - SCST git tag to build from source.
           - Only used when C(linstor_gateway_scst=true).
+      short_hostnames:
+        type: bool
+        description:
+          - Use short hostnames instead of FQDNs.
+          - Auto-detected from the kernel version (true on Proxmox VE).
+      linstor_hostname:
+        type: str
+        description:
+          - LINSTOR node name.
+          - Defaults to C(inventory_hostname_short) on Proxmox VE, C(inventory_hostname) otherwise.

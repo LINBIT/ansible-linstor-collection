@@ -22,6 +22,32 @@ argument_specs:
         description:
           - Manage firewall rules for LINSTOR satellite ports.
           - Set C(false) to skip firewall configuration.
+      satellite_install_packages:
+        type: list
+        elements: str
+        default:
+          - cryptsetup
+          - socat
+          - lvm2
+          - thin-send-recv
+          - zstd
+          - linstor-satellite
+        description:
+          - Packages to install for the LINSTOR satellite.
+          - Override to add or remove packages for unusual distributions.
+      satellite_install_zfs_packages:
+        type: list
+        elements: str
+        default: []
+        description:
+          - Additional ZFS packages to install.
+          - Populated by OS-specific vars files (for example C(vars/ubuntu.yml)).
+      satellite_install_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Manage firewall rules for LINSTOR satellite ports.
+          - Set C(false) to skip firewall configuration.
       satellite_install_firewall_ports:
         type: list
         elements: dict
