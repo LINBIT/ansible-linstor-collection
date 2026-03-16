@@ -7,6 +7,11 @@ argument_specs:
       - Install and configure the LINSTOR controller.
       - Opens firewall port C(3370/tcp) for the LINSTOR controller API.
     options:
+      controller_port:
+        type: int
+        default: 3370
+        description:
+          - LINSTOR controller API port.
       controller_install_package_state:
         type: str
         default: latest
