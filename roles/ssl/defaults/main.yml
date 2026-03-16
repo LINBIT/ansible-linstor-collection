@@ -33,7 +33,11 @@ ssl_satellite_protocol: "TLSv1.3"
 linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
 
-# Use short hostnames (inventory_hostname_short) instead of FQDNs when registering nodes.
-# Auto-detected from the kernel version (true on Proxmox VE). Can be overridden explicitly.
-short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
-linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
+# Node hostname for certificate DN and cross-node trust.
+# Uses short hostnames on Proxmox VE (detected via kernel version), FQDNs otherwise.
+linstor_hostname: >-
+  {{
+    inventory_hostname_short
+    if 'pve' in ansible_facts['kernel']
+    else inventory_hostname
+  }}
