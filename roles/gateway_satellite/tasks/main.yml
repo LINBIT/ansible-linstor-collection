@@ -17,6 +17,7 @@
   vars:
     reactor_install_resource_agents_github: true
 
+# Skip linstor_diskless_satellites as Reactor should not promote (6s delay)
 - name: Install HA dependencies
   when: inventory_hostname not in groups.get('linstor_diskless_satellites', [])
   block:
@@ -35,26 +36,29 @@
       ansible.builtin.include_tasks: open-firewall.yml
       when: linstor_gateway_firewall_rules | bool
 
-- name: Patch linstor_satellite.toml for DRBD Reactor
-  ansible.builtin.blockinfile:
-    path: /etc/linstor/linstor_satellite.toml
-    marker: "# {mark} ANSIBLE MANAGED FILE"
-    block: "{{ lookup('template', 'linstor_satellite.j2') }}"
-    create: true
-    mode: '0644'
-    state: present
-  notify: restart_linstor_satellite
+# Only run when in the presence of a LINSTOR-based inventory
+- name: Configure LINSTOR satellite integration
   when:
-    - "'linstor_satellites' in groups"
+    - groups.get('linstor_controllers', []) | length > 0
+    - groups.get('linstor_satellites', []) | length > 0
     - inventory_hostname in groups['linstor_satellites']
+  block:
+    - name: Patch linstor_satellite.toml for DRBD Reactor
+      ansible.builtin.blockinfile:
+        path: /etc/linstor/linstor_satellite.toml
+        marker: "# {mark} ANSIBLE MANAGED FILE"
+        block: "{{ lookup('template', 'linstor_satellite.j2') }}"
+        create: true
+        mode: '0644'
+        state: present
+      notify: restart_linstor_satellite
 
-- name: Set GatewaySatellite aux property on satellite nodes
-  linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
-    aux_properties:
-      GatewaySatellite: "True"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  when: inventory_hostname in groups['linstor_satellites']
+    - name: Set GatewaySatellite aux property on satellite nodes
+      linbit.linstor.node:
+        name: "{{ linstor_hostname }}"
+        aux_properties:
+          GatewaySatellite: "True"
+      delegate_to: "{{ groups['linstor_controllers'][0] }}"
 
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers
