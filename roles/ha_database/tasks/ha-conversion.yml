@@ -24,35 +24,13 @@
       {%- endif -%}
   run_once: true # noqa: run-once[task]
 
-# IPaddr2 resource agent (required for VIP)
-- name: Fetch IPaddr2 resource agent if missing
-  ansible.builtin.include_tasks: fetch-ipaddr2.yml
-  when:
-    - ha_database_vip | default('') != ''
-    - inventory_hostname in _ha_db_placement_nodes
-
-# DRBD Reactor install (soft dependency)
-- name: Check for DRBD Reactor
-  ansible.builtin.stat:
-    path: "{{ reactor_path }}"
-  vars:
-    reactor_path: >-
-      {%- if ansible_facts['os_family'] | lower == 'debian' -%}
-        /usr/sbin/drbd-reactor
-      {%- else -%}
-        /sbin/drbd-reactor
-      {%- endif -%}
-  when: inventory_hostname in _ha_db_placement_nodes
-  register: _ha_db_conversion_reactor_check
-
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
   vars:
     reactor_install_drbd: false # skip DRBD install, already present
-  when:
-    - inventory_hostname in _ha_db_placement_nodes
-    - not _ha_db_conversion_reactor_check.stat.exists
+    reactor_install_resource_agents_github: true
+  when: inventory_hostname in _ha_db_placement_nodes
 
 # LINSTOR node properties (informational aux prop on combined nodes)
 - name: Set ControllerIsHA on combined controller nodes
