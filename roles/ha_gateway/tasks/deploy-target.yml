@@ -12,6 +12,7 @@
     fail_msg: >-
       drbd-reactor.service not found on {{ inventory_hostname }}.
       Run gateway_satellite on all satellite nodes before using this role.
+    quiet: true
 
 - name: "Validate service IP subnets exist on target nodes - {{ _protocol }}"
   ansible.builtin.assert:
@@ -23,6 +24,7 @@
     fail_msg: >-
       No interface on {{ inventory_hostname }} has an address in
       {{ _vip_network }} for service IP {{ _svc.1 }}
+    quiet: true
   vars:
     _vip_network: "{{ _svc.1 | ansible.utils.ipaddr('network/prefix') }}"
   loop: "{{ _gw_present | subelements('service_ips') }}"

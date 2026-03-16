@@ -14,6 +14,7 @@
     fail_msg: >-
       NFS export node lists must not overlap (the kernel NFS server is a
       per-host singleton). A node cannot host more than one NFS service.
+    quiet: true
   run_once: true  # noqa: run-once[task]
   when:
     - _sizes_key == 'exports'
@@ -25,6 +26,7 @@
     fail_msg: >-
       Target {{ _target.name }} requires a nodes list
       (3 inventory hostnames for placement)
+    quiet: true
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
@@ -37,6 +39,7 @@
     fail_msg: >-
       place_count must be 2 or 3 for target {{ _target.name }},
       got {{ _target.place_count | default(ha_gateway_place_count) }}
+    quiet: true
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
@@ -49,6 +52,7 @@
     fail_msg: >-
       Target {{ _target.name }} nodes list must have exactly 3 members,
       got {{ _target.nodes | length }}
+    quiet: true
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
@@ -61,6 +65,7 @@
     fail_msg: >-
       Target {{ _target.name }} nodes list contains non-satellite hosts:
       {{ _target.nodes | difference(groups['linstor_satellites']) | join(', ') }}
+    quiet: true
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
@@ -78,6 +83,7 @@
       got {{ _target.nodes
              | intersect(groups.get('linstor_diskful_satellites', []))
              | length }}
+    quiet: true
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target

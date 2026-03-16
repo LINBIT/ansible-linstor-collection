@@ -8,6 +8,7 @@
     fail_msg: >-
       {{ inventory_hostname }} is a member of both linstor_diskless_satellites and
       linstor_diskful_satellites. A node can only belong to one.
+    quiet: true
 
 # Initialize both pure controllers and combined (controller+satellite) nodes
 - name: Register LINSTOR controller node

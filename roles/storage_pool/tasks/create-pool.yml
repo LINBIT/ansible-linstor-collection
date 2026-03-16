@@ -25,34 +25,40 @@
   ansible.builtin.assert:
     that: _pool.name is defined and _pool.name | length > 0
     fail_msg: "Each storage pool must have a 'name' key"
+    quiet: true
 
 - name: Assert pool type is valid
   ansible.builtin.assert:
     that: _type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk']
     fail_msg: "storage pool type '{{ _type }}' is not a valid LINSTOR storage pool driver"
+    quiet: true
 
 - name: Assert physical_devices is set
   ansible.builtin.assert:
     that: _pool.physical_devices is defined and _pool.physical_devices | length > 0
     fail_msg: "physical_devices must be set for type '{{ _type }}'"
+    quiet: true
   when: _type not in ['file', 'filethin']
 
 - name: Assert vg is set
   ansible.builtin.assert:
     that: _pool.vg is defined and _pool.vg | length > 0
     fail_msg: "vg must be set for type '{{ _type }}'"
+    quiet: true
   when: _type in ['lvm', 'lvmthin']
 
 - name: Assert zpool is set
   ansible.builtin.assert:
     that: _pool.zpool is defined and _pool.zpool | length > 0
     fail_msg: "zpool must be set for type '{{ _type }}'"
+    quiet: true
   when: _type in ['zfs', 'zfsthin']
 
 - name: Assert vg_thinpool is set
   ansible.builtin.assert:
     that: (_pool.vg_thinpool | default(storage_pool_defaults.vg_thinpool)) | length > 0
     fail_msg: "vg_thinpool must be set for type 'lvmthin'"
+    quiet: true
   when: _type == 'lvmthin'
 
 - name: Check for ZFS

@@ -19,6 +19,7 @@
       Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
       on {{ inventory_hostname }}. Install resource-agents package or
       run gateway_satellite first.
+    quiet: true
   loop: "{{ _ra_shared.results }}"
   loop_control:
     label: "{{ item.item }}"
@@ -38,6 +39,7 @@
     fail_msg: >-
       Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
       on {{ inventory_hostname }}. Install iSCSI resource agents.
+    quiet: true
   loop: "{{ _ra_iscsi.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
@@ -58,6 +60,7 @@
     fail_msg: >-
       Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
       on {{ inventory_hostname }}. Install NFS resource agents.
+    quiet: true
   loop: "{{ _ra_nfs.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
@@ -79,6 +82,7 @@
     fail_msg: >-
       Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
       on {{ inventory_hostname }}. Install nvmet-cli and NVMe-oF resource agents.
+    quiet: true
   loop: "{{ _ra_nvmeof.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"

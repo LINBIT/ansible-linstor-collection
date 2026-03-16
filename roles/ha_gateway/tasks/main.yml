@@ -6,6 +6,7 @@
     fail_msg: >-
       Duplicate resource names detected across gateway targets:
       {{ _all_names | difference(_all_names | unique) | join(', ') }}
+    quiet: true
   vars:
     _all_names: >-
       {{ ((linstor_iscsi_targets | default([]))
@@ -20,6 +21,7 @@
     fail_msg: >-
       Duplicate service IPs detected across gateway targets:
       {{ _all_ips | difference(_all_ips | unique) | join(', ') }}
+    quiet: true
   vars:
     _all_targets: >-
       {{ (linstor_iscsi_targets | default([]))
