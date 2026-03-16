@@ -11,33 +11,18 @@
         - "{{ role_path }}/vars"
       skip: true
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
-
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
-  when: "'drbd-reactor.service' not in ansible_facts.services"
+  vars:
+    reactor_install_resource_agents_github: true
 
 - name: Install HA dependencies
   when: inventory_hostname not in groups.get('linstor_diskless_satellites', [])
   block:
-    - name: Check for portblock resource agent
-      ansible.builtin.stat:
-        path: "{{ linstor_gateway_portblock_ra_dest }}"
-      register: _portblock_ra_check
-
-    - name: Fix portblock resource agent - remove immutable flag
-      ansible.builtin.file:
-        path: "{{ linstor_gateway_portblock_ra_dest }}"
-        attributes: '-i'
-      when:
-        - linstor_gateway_portblock_fix | bool
-        - _portblock_ra_check.stat.exists
-
     - name: Install LINSTOR Gateway supplemental packages
       ansible.builtin.package:
-        name: "{{ linstor_gateway_supplemental_packages + linstor_gateway_ra_packages }}"
+        name: "{{ linstor_gateway_supplemental_packages }}"
         state: present
       failed_when: false # for now, clear up packaging assumptions later
       notify: disable_and_stop_nfs
@@ -49,16 +34,6 @@
     - name: Open firewall ports for LINSTOR Gateway satellite services
       ansible.builtin.include_tasks: open-firewall.yml
       when: linstor_gateway_firewall_rules | bool
-
-    - name: Fix portblock resource agent - overwrite and set immutable flag
-      ansible.builtin.get_url:
-        url: "{{ linstor_gateway_portblock_ra_url }}"
-        dest: "{{ linstor_gateway_portblock_ra_dest }}"
-        mode: '0755'
-        attributes: '+i'
-      when:
-        - linstor_gateway_portblock_fix | bool
-        - _portblock_ra_check.stat.exists
 
 - name: Patch linstor_satellite.toml for DRBD Reactor
   ansible.builtin.blockinfile:

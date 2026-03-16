@@ -11,6 +11,3 @@ linstor_gateway_supplemental_packages:
   - rpcbind
   - targetcli-fb-common
   - python3-targetcli-fb
-
-# SUSE differs from Red Hat and Debian
-linstor_gateway_portblock_ra_dest: '/usr/lib/ocf/resource.d/heartbeat/portblock'

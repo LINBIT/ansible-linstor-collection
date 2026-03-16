@@ -7,6 +7,5 @@ linstor_gateway_supplemental_packages:
   - nvmetcli
   - nfs-utils
   - psmisc # Missing from Debian? Might not be included in minimal installs
-  - resource-agents
   - rpcbind
   - targetcli

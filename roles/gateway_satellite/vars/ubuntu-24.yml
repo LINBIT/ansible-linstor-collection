@@ -9,8 +9,3 @@ linstor_gateway_supplemental_packages:
   - rpcbind
   - targetcli-fb
   # - xfsprogs  # for debian
-
-linstor_gateway_ra_packages:
-  - resource-agents-common
-  - resource-agents-base
-  - resource-agents-extra

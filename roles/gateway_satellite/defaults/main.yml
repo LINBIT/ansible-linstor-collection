@@ -1,19 +1,12 @@
 # SPDX-License-Identifier: MIT
 ---
 # defaults file for gateway_satellite
-
-# RA fix - use v4.16 version
-linstor_gateway_portblock_ra_url: 'https://raw.githubusercontent.com/ClusterLabs/resource-agents/tags/v4.16.0/heartbeat/portblock'
-
 linstor_gateway_firewall_rules: true
 
 linstor_gateway_firewall_ports:
   - { port: '111', proto: tcp }
   - { port: '2049', proto: tcp }
   - { port: '3260', proto: tcp }
-
-# Overwrite existing portblock RA to fix iptables issues
-linstor_gateway_portblock_fix: true
 
 # SCST iSCSI target - compile and install from source
 linstor_gateway_scst: false
