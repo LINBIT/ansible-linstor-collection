@@ -4,6 +4,7 @@ gateway_satellite
 Install LINSTOR Gateway satellite-side components on LINSTOR satellite nodes.
 
 Installs NFS/iSCSI resource agents, supplemental packages, and patches `linstor_satellite.toml` to allow DRBD Reactor to manage systemd drop-in files.
+Sets the `Aux/GatewaySatellite=True` node property so that gateway resource groups can constrain placement to gateway-ready nodes.
 Dynamically includes `linbit.drbd_reactor.reactor_install` if DRBD Reactor is not already present.
 
 This role is the prerequisite for both `linbit.linstor.gateway_install` (satellite nodes) and `linbit.linstor.ha_gateway`.
@@ -28,6 +29,7 @@ Role Variables
 | `linstor_gateway_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `linstor_gateway_scst` | `false` | LIO alternative. Compile and install SCST iSCSI target from source |
 | `linstor_gateway_scst_version` | `3.9.x` | SCST git tag to build from source; only used when `linstor_gateway_scst=true` |
+| `short_hostnames` | auto-detected | Use short hostnames for LINSTOR node names; true on Proxmox VE |
 
 Dependencies
 ------------

@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+#
+# Deploy target on satellites: pre-flight check and promoter TOML config.
+# Included from prepare-target.yml with: when: inventory_hostname in _gw_satellites
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert DRBD Reactor is installed
+  ansible.builtin.assert:
+    that: "'drbd-reactor.service' in ansible_facts.services"
+    fail_msg: >-
+      drbd-reactor.service not found on {{ inventory_hostname }}.
+      Run gateway_satellite on all satellite nodes before using this role.
+
+- name: "Validate service IP subnets exist on target nodes - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: >-
+      ansible_facts.all_ipv4_addresses
+      | map('ansible.utils.ipaddr', _vip_network)
+      | select('string')
+      | list | length > 0
+    fail_msg: >-
+      No interface on {{ inventory_hostname }} has an address in
+      {{ _vip_network }} for service IP {{ _svc.1 }}
+  vars:
+    _vip_network: "{{ _svc.1 | ansible.utils.ipaddr('network/prefix') }}"
+  loop: "{{ _gw_present | subelements('service_ips') }}"
+  loop_control:
+    loop_var: _svc
+    label: "{{ _svc.0.name }}:{{ _svc.1 }}"
+  when: inventory_hostname in _svc.0.nodes
+
+- name: "Check resource agents - {{ _protocol }}"
+  ansible.builtin.include_tasks: check-resource-agents.yml
+
+- name: "Deploy promoter config - {{ _protocol }}"
+  ansible.builtin.template:
+    src: "{{ _toml_template }}"
+    dest: "/etc/drbd-reactor.d/{{ _toml_prefix }}-{{ _target.name }}.toml"
+    mode: '0600'
+    owner: root
+    group: root
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  when: inventory_hostname in _target.nodes
+  notify: reload_drbd_reactor

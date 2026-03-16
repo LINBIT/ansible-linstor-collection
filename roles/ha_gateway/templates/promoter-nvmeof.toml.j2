@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+# {{ ansible_managed }}
+{% set _ips = _target.service_ips %}
+{% set _port = _target.target_port | default(ha_gateway_nvmeof_port) | string %}
+{% set _nqn = _target.nqn %}
+{% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
+{% set _serial = _nqn | hash('sha256') %}
+{% set _volumes = _target.volumes %}
+[[promoter]]
+
+  [promoter.metadata]
+    linstor-gateway-schema-version = 1
+
+  [promoter.resources]
+
+    [promoter.resources.{{ _target.name }}]
+      on-drbd-demote-failure = "reboot-immediate"
+      on-disk-detach = "fail-over"
+      adjust-resource-on-start = false
+      runner = "systemd"
+      stop-services-on-exit = true
+      target-as = "Requires"
+      start = [
+{% for ip_cidr in _ips %}
+{% set _ip = ip_cidr.split('/')[0] %}
+        "ocf:heartbeat:portblock pblock{{ loop.index0 }} action=block ip={{ _ip }} portno={{ _port }} protocol=tcp",
+{% endfor %}
+        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _target.name }}/0 directory=/srv/ha/internal/{{ _target.name }} fstype={{ _fstype }} run_fsck=no",
+{% for ip_cidr in _ips %}
+{% set _ip = ip_cidr.split('/')[0] %}
+{% set _mask = ip_cidr.split('/')[1] %}
+        "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _mask }} ip={{ _ip }}",
+{% endfor %}
+        "ocf:heartbeat:nvmet-subsystem subsystem nqn={{ _nqn }} serial={{ _serial[:16] }}",
+{% for vol in _volumes %}
+{% set _ns = loop.index %}
+{% set _guid_hash = (_nqn ~ ':' ~ _ns | string) | hash('sha1') %}
+{% set _guid = _guid_hash[:8] ~ '-' ~ _guid_hash[8:12] ~ '-' ~ _guid_hash[12:16] ~ '-' ~ _guid_hash[16:20] ~ '-' ~ _guid_hash[20:32] %}
+        "ocf:heartbeat:nvmet-namespace ns_{{ _ns }} nqn={{ _nqn }} namespace_id={{ _ns }} backing_path=/dev/drbd/by-res/{{ _target.name }}/{{ _ns }} uuid={{ _guid }} nguid={{ _guid }}",
+{% endfor %}
+{% for ip_cidr in _ips %}
+{% set _ip = ip_cidr.split('/')[0] %}
+        "ocf:heartbeat:nvmet-port port{{ loop.index0 }} nqns={{ _nqn }} addr={{ _ip }} port={{ _port }} type=tcp",
+{% endfor %}
+{% for ip_cidr in _ips %}
+{% set _ip = ip_cidr.split('/')[0] %}
+        "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _target.name }}",
+{% endfor %}
+      ]

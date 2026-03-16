@@ -1,102 +1,67 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Spawn LINSTOR resources for HA gateway services
-  linbit.linstor.resource:
-    name: "{{ item.name }}"
-    mode: spawn
-    resource_group: "{{ ha_gateway_rg }}"
-    sizes:
-      - "{{ ha_gateway_tickledir_size }}"
-      - "{{ item.size }}"
-  register: _spawn_res
-  with_items: "{{ ha_gateway_all_resources }}"
-  when:
-    - ha_gateway_linstor_spawn | bool
-    - inventory_hostname in ansible_play_hosts[0]
-  throttle: 1
-
-- name: Wait until DRBD devices are enumerated
-  ansible.builtin.wait_for:
-    path: "/dev/drbd/by-res/{{ item.name }}/0"
-  with_items: "{{ ha_gateway_all_resources }}"
-
-# Temporarily use default auto-promote for formatting
-- name: Format partition - portblock tickledir
-  community.general.filesystem:
-    fstype: "{{ item.fstype | default('ext4') }}"
-    dev: "/dev/drbd/by-res/{{ item.name }}/0"
-  with_items: "{{ ha_gateway_all_resources }}"
-  when:
-    - _spawn_res.changed
-    - inventory_hostname in ansible_play_hosts[0]
-
-- name: Format partition - NFS export
-  community.general.filesystem:
-    fstype: "{{ item.fstype | default('ext4') }}"
-    dev: "/dev/drbd/by-res/{{ item.name }}/1"
-  with_items: "{{ ha_gateway_nfs_exports }}"
-  when:
-    - _spawn_res.changed
-    - inventory_hostname in ansible_play_hosts[0]
-
-- name: Set DRBD resource options for DRBD Reactor
-  linbit.linstor.resource_definition:
-    name: "{{ item.name }}"
-    drbd_options:
-      resource: "{{ ha_gateway_drbd_options }}"
-  with_items: "{{ ha_gateway_all_resources }}"
-  when:
-    - inventory_hostname in ansible_play_hosts[0]
-    - _spawn_res.changed
-
-# Reactor TOML files have '600' file permissions
-- name: Load iSCSI template for Reactor
-  ansible.builtin.template:
-    src: linstor-gateway-promoter.toml.j2
-    dest: "/etc/drbd-reactor.d/iscsi-{{ item.name }}.toml"
-    mode: '0600'
-    owner: root
-    group: root
+- name: Validate resource names are unique across all gateway targets
+  ansible.builtin.assert:
+    that: _all_names | length == _all_names | unique | length
+    fail_msg: >-
+      Duplicate resource names detected across gateway targets:
+      {{ _all_names | difference(_all_names | unique) | join(', ') }}
   vars:
-    iscsi: true # iSCSI HA services in DRBD Reactor
-    resource: "{{ item.name }}"
-    service_ip: "{{ (item.service_ip | default(item.vip)).split('/')[0] }}"
-    cidr_netmask: "{{ (item.service_ip | default(item.vip)).split('/')[1] if '/' in (item.service_ip | default(item.vip)) else item.cidr_netmask | default('24') }}"
-    target_port: "{{ item.target_port | default('3260') }}"
-    iqn_base: "{{ item.iqn_base | default('iqn.2019-08.com.linbit') }}"
-    fstype: "{{ item.fstype | default('ext4') }}"
-  register: _iscsi_toml
-  with_items: "{{ ha_gateway_iscsi_targets }}"
+    _all_names: >-
+      {{ ((linstor_iscsi_targets | default([]))
+          + (linstor_nfs_exports | default([]))
+          + (linstor_nvmeof_targets | default([])))
+         | map(attribute='name') | list }}
+  run_once: true  # noqa: run-once[task]
 
-# Reactor TOML files have '600' file permissions
-- name: Load NFS template for Reactor
-  ansible.builtin.template:
-    src: linstor-gateway-promoter.toml.j2
-    dest: "/etc/drbd-reactor.d/nfs-{{ item.name }}.toml"
-    mode: '0600'
-    owner: root
-    group: root
+- name: Validate service IPs are unique across all gateway targets
+  ansible.builtin.assert:
+    that: _all_ips | length == _all_ips | unique | length
+    fail_msg: >-
+      Duplicate service IPs detected across gateway targets:
+      {{ _all_ips | difference(_all_ips | unique) | join(', ') }}
   vars:
-    nfs: true # NFS HA services in DRBD Reactor
-    resource: "{{ item.name }}"
-    service_ip: "{{ (item.service_ip | default(item.vip)).split('/')[0] }}"
-    cidr_netmask: "{{ (item.service_ip | default(item.vip)).split('/')[1] if '/' in (item.service_ip | default(item.vip)) else item.cidr_netmask | default('24') }}"
-    fstype: "{{ item.fstype | default('ext4') }}"
-  register: _nfs_toml
-  with_items: "{{ ha_gateway_nfs_exports }}"
+    _all_targets: >-
+      {{ (linstor_iscsi_targets | default([]))
+         + (linstor_nfs_exports | default([]))
+         + (linstor_nvmeof_targets | default([])) }}
+    _all_ips: >-
+      {{ _all_targets
+         | selectattr('state', 'undefined') | list
+         + _all_targets
+         | selectattr('state', 'defined')
+         | selectattr('state', 'eq', 'present') | list
+         | map(attribute='service_ips', default=[])
+         | flatten
+         | map('ansible.utils.ipaddr', 'address') | list }}
+  run_once: true  # noqa: run-once[task]
 
-# Check for LINSTOR Gateway "automatic reload"
-- name: Check drbd-reactor-reload.path status
-  ansible.builtin.systemd:
-    name: drbd-reactor-reload.path
-  register: _reactor_reload
+- name: Deploy iSCSI targets
+  ansible.builtin.include_tasks: prepare-target.yml
+  vars:
+    _protocol: iSCSI
+    _targets: "{{ linstor_iscsi_targets | default([]) }}"
+    _toml_template: promoter-iscsi.toml.j2
+    _toml_prefix: iscsi
+    _sizes_key: volumes
+  when: linstor_iscsi_targets | default([]) | length > 0
 
-- name: Restart DRBD Reactor to load new services
-  ansible.builtin.systemd_service:
-    name: drbd-reactor.service
-    state: restarted
-    daemon_reload: true
-  when:
-    - _reactor_reload.status.LoadState == "loaded"
-    - _reactor_reload.status.ActiveState != "active"
-    - (_iscsi_toml.changed or _nfs_toml.changed)
+- name: Deploy NFS exports
+  ansible.builtin.include_tasks: prepare-target.yml
+  vars:
+    _protocol: NFS
+    _targets: "{{ linstor_nfs_exports | default([]) }}"
+    _toml_template: promoter-nfs.toml.j2
+    _toml_prefix: nfs
+    _sizes_key: exports
+  when: linstor_nfs_exports | default([]) | length > 0
+
+- name: Deploy NVMe-oF targets
+  ansible.builtin.include_tasks: prepare-target.yml
+  vars:
+    _protocol: NVMe-oF
+    _targets: "{{ linstor_nvmeof_targets | default([]) }}"
+    _toml_template: promoter-nvmeof.toml.j2
+    _toml_prefix: nvmeof
+    _sizes_key: volumes
+  when: linstor_nvmeof_targets | default([]) | length > 0

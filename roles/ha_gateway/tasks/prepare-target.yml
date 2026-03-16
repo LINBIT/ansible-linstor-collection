@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: MIT
+#
+# Shared target preparation logic for ha_gateway.
+# Included from main.yml with vars: _protocol, _targets, _toml_template, _toml_prefix, _sizes_key
+---
+- name: "Build present and absent target lists - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_present: >-
+      {{ _targets
+         | selectattr('state', 'undefined') | list
+         + _targets
+         | selectattr('state', 'defined')
+         | selectattr('state', 'eq', 'present') | list }}
+    _gw_absent: >-
+      {{ _targets
+         | selectattr('state', 'defined')
+         | selectattr('state', 'eq', 'absent') | list }}
+  run_once: true  # noqa: run-once[task]
+
+- name: "Build involved satellite list - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_satellites: >-
+      {%- set nodes = [] -%}
+      {%- for t in _gw_present -%}
+        {%- for n in t.nodes -%}
+          {%- if n not in nodes -%}
+            {%- set _ = nodes.append(n) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ nodes }}
+  run_once: true  # noqa: run-once[task]
+  when: _gw_present | length > 0
+
+- name: "Validate target definitions - {{ _protocol }}"
+  ansible.builtin.include_tasks: validate-target.yml
+  when: _gw_present | length > 0
+
+# --- Create present targets ---
+
+- name: "Build node tag list for target placement - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_node_tags: >-
+      {%- set result = [] -%}
+      {%- for t in _gw_present -%}
+        {%- for n in t.nodes -%}
+          {%- set _ = result.append({'target': t.name, 'node': n}) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ result }}
+  run_once: true  # noqa: run-once[task]
+  when: _gw_present | length > 0
+
+- name: "Set per-target aux properties on satellite nodes - {{ _protocol }}"
+  linbit.linstor.node:
+    name: "{{ hostvars[_tag.node].inventory_hostname_short
+              if short_hostnames | bool else _tag.node }}"
+    aux_properties: "{{ {'gw-' ~ _tag.target: 'True'} }}"
+  loop: "{{ _gw_node_tags | default([]) }}"
+  loop_control:
+    loop_var: _tag
+    label: "{{ _tag.node }}:gw-{{ _tag.target }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: "Create per-target resource groups - {{ _protocol }}"
+  linbit.linstor.resource_group:
+    name: "rg-{{ _target.name }}"
+    storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
+    place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
+    replicas_on_same:
+      - "Aux/gw-{{ _target.name }}=True"
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: "Spawn LINSTOR resources - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _target.name }}"
+    mode: spawn
+    resource_group: "rg-{{ _target.name }}"
+    sizes: >-
+      {{ [ha_gateway_tickle_dir_size]
+         + _target[_sizes_key] | map(attribute='size') | list }}
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_spawn
+
+- name: "Wait for DRBD devices - {{ _protocol }}"
+  ansible.builtin.wait_for:
+    path: "/dev/drbd/by-res/{{ _target.name }}/0"
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ _target.nodes[0] }}"
+  run_once: true  # noqa: run-once[task]
+  when: _gw_spawn is changed
+
+- name: "Format portblock tickle_dir partition - {{ _protocol }}"
+  community.general.filesystem:
+    fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
+    dev: "/dev/drbd/by-res/{{ _target.name }}/0"
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ _target.nodes[0] }}"
+  run_once: true  # noqa: run-once[task]
+  when: _gw_spawn is changed
+
+- name: Format NFS export partitions
+  community.general.filesystem:
+    fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
+    dev: "/dev/drbd/by-res/{{ _export.0.name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
+  loop: "{{ _gw_present | subelements('exports') if _sizes_key == 'exports' else [] }}"
+  loop_control:
+    loop_var: _export
+    label: "{{ _export.0.name }}:{{ _export.1.path | default('/') }}"
+  delegate_to: "{{ _export.0.nodes[0] }}"
+  run_once: true  # noqa: run-once[task]
+  when: _gw_spawn is changed
+
+- name: "Set DRBD resource options - {{ _protocol }}"
+  linbit.linstor.resource_definition:
+    name: "{{ _target.name }}"
+    drbd_options:
+      resource: "{{ ha_gateway_drbd_options }}"
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+
+# --- Deploy on satellites (pre-flight, TOML) ---
+
+- name: "Deploy promoter configs to satellites - {{ _protocol }}"
+  ansible.builtin.include_tasks: deploy-target.yml
+  when:
+    - _gw_present | length > 0
+    - inventory_hostname in (_gw_satellites | default([]))
+
+# --- Remove absent targets ---
+
+- name: "Remove promoter config for absent targets - {{ _protocol }}"
+  ansible.builtin.file:
+    path: "/etc/drbd-reactor.d/{{ _toml_prefix }}-{{ _target.name }}.toml"
+    state: absent
+  loop: "{{ _gw_absent }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  when: inventory_hostname in (_target.nodes | default(groups['linstor_satellites']))
+  notify: reload_drbd_reactor
+
+- name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _target.name }}"
+    state: absent
+  loop: "{{ _gw_absent }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]

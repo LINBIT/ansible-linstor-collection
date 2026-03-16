@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Reload DRBD Reactor configuration
+  ansible.builtin.systemd:
+    name: drbd-reactor.service
+    state: reloaded
+  listen: reload_drbd_reactor

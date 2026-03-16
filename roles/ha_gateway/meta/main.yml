@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 galaxy_info:
   author: LINBIT
-  description: Configure DRBD Reactor HA gateway resources for NFS and iSCSI
+  description: Configure DRBD Reactor HA gateway resources for iSCSI, NFS, and NVMe-oF
   company: LINBIT
 
   license: MIT
@@ -49,6 +49,7 @@ galaxy_info:
     - ha
     - nfs
     - iscsi
+    - nvmeof
     - gateway
 
 dependencies: []

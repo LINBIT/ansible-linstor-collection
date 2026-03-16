@@ -73,5 +73,13 @@
     - "'linstor_satellites' in groups"
     - inventory_hostname in groups['linstor_satellites']
 
+- name: Set GatewaySatellite aux property on satellite nodes
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    aux_properties:
+      GatewaySatellite: "True"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  when: inventory_hostname in groups['linstor_satellites']
+
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers

@@ -1,21 +1,30 @@
 # SPDX-License-Identifier: MIT
 ---
-# defaults file for ha_gateway_iscsi
-# defaults/main.yml
-ha_gateway_iscsi_targets: []
-ha_gateway_nfs_exports: []
-ha_gateway_all_resources: "{{ ha_gateway_iscsi_targets + ha_gateway_nfs_exports }}"
-
-ha_gateway_linstor_spawn: true
-ha_gateway_rg: 'DfltRscGrp'
-ha_gateway_fstype: 'ext4' # Used for portblock tickledir partition + NFS exports
-ha_gateway_tickledir_size: '64M' # LINSTOR Gateway default
-
-# Prevent promotion of HA resources on diskless nodes/resources
-ha_gateway_prefer_diskful: true
+# Shared defaults for all gateway protocols
+ha_gateway_storage_pool: ""
+ha_gateway_place_count: 2
+ha_gateway_tickle_dir_size: 64M
+ha_gateway_fstype: ext4
 
 ha_gateway_drbd_options:
   auto-promote: 'no'
+  quorum: majority
   on-suspended-primary-outdated: 'force-secondary'
   on-no-quorum: 'io-error'
-  # on-no-data-accessible: 'io-error' # LINSTOR default
+
+# iSCSI-specific defaults
+ha_gateway_iscsi_port: 3260
+ha_gateway_iscsi_iqn_base: iqn.2019-08.com.linbit
+
+# NFS-specific defaults
+ha_gateway_nfs_port: 2049
+ha_gateway_nfs_allowed_ips:
+  - 0.0.0.0/0
+ha_gateway_nfs_options: rw,all_squash,anonuid=0,anongid=0
+
+# NVMe-oF-specific defaults
+ha_gateway_nvmeof_port: 4420
+
+# Hostname detection
+short_hostnames: "{{ 'pve' in ansible_facts['kernel'] }}"
+linstor_hostname: "{{ inventory_hostname_short if short_hostnames | bool else inventory_hostname }}"
