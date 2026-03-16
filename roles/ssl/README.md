@@ -84,9 +84,6 @@ Use the role standalone (after controller and satellite are installed):
     - name: Configure SSL/TLS
       ansible.builtin.import_role:
         name: linbit.linstor.ssl
-      vars:
-        ssl_https: true
-        ssl_satellite: true
 ```
 
 License
