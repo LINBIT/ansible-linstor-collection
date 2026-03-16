@@ -4,8 +4,8 @@
 # or fewer than 3 total satellites (insufficient for quorum)
 - name: Check LINSTOR database to see if HA migration is needed
   linbit.linstor.controller:
+    state: query
   register: _ha_db_conversion_check
-  changed_when: false
   when: _ha_db_combined_nodes | length >= 2
   run_once: true # noqa: run-once[task]
 

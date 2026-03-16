@@ -4,7 +4,7 @@
   linbit.linstor.storage_pool:
     name: "{{ _pool.name }}"
     node: "{{ linstor_hostname }}"
-  check_mode: true
+    state: query
   loop: "{{ linstor_storage_pools | default([]) }}"
   loop_control:
     loop_var: _pool
@@ -20,4 +20,4 @@
     label: "{{ _check._pool.name }}"
   when:
     - _storage_pool_is_diskful | bool
-    - _check is changed
+    - not (_check.exists | default(false))

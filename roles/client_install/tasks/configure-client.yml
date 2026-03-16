@@ -20,8 +20,8 @@
 
 - name: Query controller for HA VIP property
   linbit.linstor.controller:
+    state: query
   register: _client_install_controller_props
-  changed_when: false
   ignore_errors: true
   when:
     - client_install_vip_discovery | bool
