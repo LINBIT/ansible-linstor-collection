@@ -41,12 +41,6 @@ argument_specs:
         default: 3650
         description:
           - Validity period in days for the CA certificate.
-      ssl_init_ca_key_size:
-        type: int
-        default: 4096
-        description:
-          - Key size in bits for the CA private key.
-          - Defaults to 4096 for the long-lived CA. Node keys use C(ssl_init_key_size).
       ssl_init_cert_validity_days:
         type: int
         default: 3650
@@ -59,7 +53,7 @@ argument_specs:
           - Key algorithm for certificate generation.
       ssl_init_key_size:
         type: int
-        default: 2048
+        default: 4096
         description:
           - Key size in bits for certificate generation.
       ssl_init_cert_ou:

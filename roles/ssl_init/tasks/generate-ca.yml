@@ -18,7 +18,7 @@
     cmd: >-
       openssl genpkey
       -algorithm {{ ssl_init_key_algorithm }}
-      -pkeyopt rsa_keygen_bits:{{ ssl_init_ca_key_size }}
+      -pkeyopt rsa_keygen_bits:{{ ssl_init_key_size }}
       -out {{ ssl_init_dir }}/ca.key
     creates: "{{ ssl_init_dir }}/ca.key"
   run_once: true
