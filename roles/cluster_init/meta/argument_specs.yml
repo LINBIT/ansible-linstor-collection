@@ -32,3 +32,15 @@ argument_specs:
         description:
           - Convert LINSTOR database to HA.
           - Requires C(cluster_init_deploy_storage) and 2+ combined nodes.
+      cluster_init_ssl:
+        type: bool
+        default: false
+        description:
+          - Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL).
+          - Includes the C(linbit.linstor.ssl_init) role.
+      cluster_init_ssl_mtls:
+        type: bool
+        default: false
+        description:
+          - Restrict REST API to clients with a valid certificate.
+          - Requires C(cluster_init_ssl) to be true.
