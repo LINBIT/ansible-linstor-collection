@@ -8,56 +8,64 @@
 
 - name: Assert at least one SSL feature is enabled
   ansible.builtin.assert:
-    that: ssl_https | bool or ssl_satellite | bool
+    that: ssl_init_https | bool or ssl_init_satellite | bool
     fail_msg: >-
-      At least one of ssl_https or ssl_satellite must be true.
+      At least one of ssl_init_https or ssl_init_satellite must be true.
     quiet: true
 
-- name: Assert ssl_https is true when ssl_https_mtls is true
+- name: Assert ssl_init_https is true when ssl_init_https_mtls is true
   ansible.builtin.assert:
-    that: ssl_https | bool
+    that: ssl_init_https | bool
     fail_msg: >-
-      ssl_https_mtls requires ssl_https to be true.
+      ssl_init_https_mtls requires ssl_init_https to be true.
     quiet: true
-  when: ssl_https_mtls | bool
+  when: ssl_init_https_mtls | bool
 
-- name: Generate Java keystores and export certificates
+- name: Generate private CA
+  ansible.builtin.include_tasks: generate-ca.yml
+  when: ssl_init_generate_certs | bool
+
+- name: Generate node keystores and certificates
   ansible.builtin.include_tasks: generate-keystores.yml
-  when: ssl_generate_certs | bool
+  when: ssl_init_generate_certs | bool
 
-- name: Build cross-node truststores for satellite SSL
+- name: Build CA-based truststores for satellite SSL
   ansible.builtin.include_tasks: build-truststores.yml
   when:
-    - ssl_satellite | bool
-    - ssl_generate_certs | bool
+    - ssl_init_satellite | bool
+    - ssl_init_generate_certs | bool
+
+- name: Install CA certificate into OS trust store
+  ansible.builtin.include_tasks: install-ca-cert.yml
+  when: ssl_init_generate_certs | bool
 
 - name: Generate client certificate for mTLS
   ansible.builtin.include_tasks: generate-client-cert.yml
   when:
-    - ssl_https_mtls | bool
-    - ssl_generate_certs | bool
+    - ssl_init_https_mtls | bool
+    - ssl_init_generate_certs | bool
 
 - name: Configure HTTPS on controllers
   ansible.builtin.include_tasks: configure-https.yml
   when:
-    - ssl_https | bool
+    - ssl_init_https | bool
     - inventory_hostname in groups['linstor_controllers']
 
 - name: Configure satellite SSL
   ansible.builtin.include_tasks: configure-satellite-ssl.yml
   when:
-    - ssl_satellite | bool
+    - ssl_init_satellite | bool
     - inventory_hostname in groups['linstor_satellites']
 
 # The controller must restart to discover keystores for its SslConnector.
-# When ssl_https is also true, configure-https.yml already triggers this handler.
+# When ssl_init_https is also true, configure-https.yml already triggers this handler.
 - name: Restart controller to activate SSL connector
   ansible.builtin.systemd_service:
     name: linstor-controller.service
     state: restarted
   when:
-    - ssl_satellite | bool
-    - not (ssl_https | bool)
+    - ssl_init_satellite | bool
+    - not (ssl_init_https | bool)
     - inventory_hostname in groups['linstor_controllers']
 
 - name: Wait for controller after SSL connector restart
@@ -67,13 +75,13 @@
     delay: 5
     timeout: 30
   when:
-    - ssl_satellite | bool
-    - not (ssl_https | bool)
+    - ssl_init_satellite | bool
+    - not (ssl_init_https | bool)
     - inventory_hostname in groups['linstor_controllers']
 
 - name: Update linstor-client.conf for HTTPS
   ansible.builtin.include_tasks: configure-client.yml
-  when: ssl_https | bool
+  when: ssl_init_https | bool
 
 - name: Flush handlers for ssl
   ansible.builtin.meta: flush_handlers

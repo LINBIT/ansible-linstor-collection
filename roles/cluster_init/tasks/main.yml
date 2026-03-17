@@ -53,13 +53,13 @@
     - linstor
     - linstor_ssl
   ansible.builtin.include_role:
-    name: linbit.linstor.ssl
+    name: linbit.linstor.ssl_init
     apply:
       tags:
         - linstor
         - linstor_ssl
   vars:
-    ssl_https_mtls: "{{ cluster_init_ssl_mtls }}"
+    ssl_init_https_mtls: "{{ cluster_init_ssl_mtls }}"
   when: cluster_init_ssl | bool
 
 - name: Register LINSTOR cluster membership

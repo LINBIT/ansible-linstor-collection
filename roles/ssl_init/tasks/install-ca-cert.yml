@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT
+---
+# Install the CA certificate into the operating system trust store.
+# This allows non-Java clients (linstor-gateway, Proxmox plugin) to
+# verify the LINSTOR controller's HTTPS certificate.
+- name: Install CA certificate into Debian/Ubuntu trust store
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Copy CA certificate to Debian trust directory
+      ansible.builtin.copy:
+        src: /tmp/linstor-ssl-certs/ca.crt
+        dest: /usr/local/share/ca-certificates/linstor-ca.crt
+        owner: root
+        group: root
+        mode: '0644'
+      register: _ssl_init_ca_debian
+
+    - name: Update Debian CA certificates
+      ansible.builtin.command:
+        cmd: update-ca-certificates
+      when: _ssl_init_ca_debian.changed  # noqa: no-handler
+
+- name: Install CA certificate into RedHat trust store
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Copy CA certificate to RedHat trust directory
+      ansible.builtin.copy:
+        src: /tmp/linstor-ssl-certs/ca.crt
+        dest: /etc/pki/ca-trust/source/anchors/linstor-ca.crt
+        owner: root
+        group: root
+        mode: '0644'
+      register: _ssl_init_ca_redhat
+
+    - name: Update RedHat CA trust
+      ansible.builtin.command:
+        cmd: update-ca-trust
+      when: _ssl_init_ca_redhat.changed  # noqa: no-handler
+
+- name: Install CA certificate into SUSE trust store
+  when: ansible_os_family == 'Suse'
+  block:
+    - name: Copy CA certificate to SUSE trust directory
+      ansible.builtin.copy:
+        src: /tmp/linstor-ssl-certs/ca.crt
+        dest: /etc/pki/trust/anchors/linstor-ca.crt
+        owner: root
+        group: root
+        mode: '0644'
+      register: _ssl_init_ca_suse
+
+    - name: Update SUSE CA certificates
+      ansible.builtin.command:
+        cmd: update-ca-certificates
+      when: _ssl_init_ca_suse.changed  # noqa: no-handler

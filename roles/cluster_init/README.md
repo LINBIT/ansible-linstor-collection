@@ -7,7 +7,7 @@ Includes the following roles in order:
 1. `linbit.common.customer_repo` or `linbit.common.public_repo` (based on `cluster_init_repo_access`)
 2. `linbit.linstor.satellite_install` (on `linstor_satellites` nodes)
 3. `linbit.linstor.controller_install` (on `linstor_controllers` nodes)
-4. `linbit.linstor.ssl` (when `cluster_init_ssl: true`)
+4. `linbit.linstor.ssl_init` (when `cluster_init_ssl: true`)
 5. `linbit.linstor.cluster_membership` (register all nodes)
 6. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
 7. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
@@ -108,7 +108,7 @@ Full deployment with SSL/TLS encryption:
 ```
 
 This encrypts the REST API (HTTPS on port 3371) and all controller-to-satellite connections (SSL on port 3367).
-See the `ssl` role README for additional variables such as certificate parameters and passwords.
+See the `ssl_init` role README for additional variables such as certificate parameters and passwords.
 
 To use the LINBIT public repo instead of the customer portal (for example, on Proxmox):
 

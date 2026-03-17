@@ -15,7 +15,7 @@
     path: /etc/linstor/linstor.toml
     section: https
     option: keystore
-    value: '"{{ ssl_dir }}/keystore.jks"'
+    value: '"{{ ssl_init_dir }}/keystore.jks"'
     mode: '0644'
   notify: restart_linstor_controller_ssl
 
@@ -24,7 +24,7 @@
     path: /etc/linstor/linstor.toml
     section: https
     option: keystore_password
-    value: '"{{ ssl_keystore_password }}"'
+    value: '"{{ ssl_init_keystore_password }}"'
     mode: '0644'
   notify: restart_linstor_controller_ssl
 
@@ -33,17 +33,17 @@
     path: /etc/linstor/linstor.toml
     section: https
     option: truststore
-    value: '"{{ ssl_dir }}/truststore_client.jks"'
+    value: '"{{ ssl_init_dir }}/truststore_client.jks"'
     mode: '0644'
   notify: restart_linstor_controller_ssl
-  when: ssl_https_mtls | bool
+  when: ssl_init_https_mtls | bool
 
 - name: Set HTTPS truststore password in linstor.toml
   community.general.ini_file:
     path: /etc/linstor/linstor.toml
     section: https
     option: truststore_password
-    value: '"{{ ssl_truststore_password }}"'
+    value: '"{{ ssl_init_truststore_password }}"'
     mode: '0644'
   notify: restart_linstor_controller_ssl
-  when: ssl_https_mtls | bool
+  when: ssl_init_https_mtls | bool

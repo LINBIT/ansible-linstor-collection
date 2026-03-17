@@ -12,7 +12,7 @@
 - name: Wait for LINSTOR controller after SSL restart
   ansible.builtin.wait_for:
     host: localhost
-    port: "{{ ssl_https_port if ssl_https | bool else 3370 }}"
+    port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
     delay: 5
     timeout: 30
   listen: restart_linstor_controller_ssl
@@ -27,7 +27,7 @@
 - name: Wait for LINSTOR satellite after SSL restart
   ansible.builtin.wait_for:
     host: localhost
-    port: "{{ ssl_satellite_port if ssl_satellite | bool else 3366 }}"
+    port: "{{ ssl_init_satellite_port if ssl_init_satellite | bool else 3366 }}"
     delay: 5
     timeout: 20
   listen: restart_linstor_satellite_ssl

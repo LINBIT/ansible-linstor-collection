@@ -1,7 +1,7 @@
 [global]
 controllers={% for address in linstor_controller_addresses %}linstors://{{ address }}{% if not loop.last %},{% endif %}{% endfor %}
-{% if ssl_https_mtls | default(false) | bool %}
+{% if ssl_init_https_mtls | default(false) | bool %}
 
-certfile={{ ssl_dir }}/client.pem
-keyfile={{ ssl_dir }}/client.key
+certfile={{ ssl_init_dir }}/client.pem
+keyfile={{ ssl_init_dir }}/client.key
 {% endif %}

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+---
+# Import the CA certificate into a Java truststore on each node.
+# All nodes trust the same CA, eliminating the need to exchange
+# individual peer certificates.
+- name: Check for CA certificate in truststore
+  ansible.builtin.command:
+    cmd: >-
+      keytool -list
+      -keystore {{ ssl_init_dir }}/certificates.jks
+      -storepass {{ ssl_init_truststore_password }}
+      -alias linstor-ca
+  register: _ssl_init_ca_in_truststore
+  failed_when: false
+  changed_when: false
+
+- name: Import CA certificate into truststore
+  ansible.builtin.command:
+    cmd: >-
+      keytool -importcert -noprompt
+      -keystore {{ ssl_init_dir }}/certificates.jks
+      -storepass {{ ssl_init_truststore_password }}
+      -alias linstor-ca
+      -file {{ ssl_init_dir }}/ca.crt
+  when: _ssl_init_ca_in_truststore.rc != 0

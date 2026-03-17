@@ -1,33 +1,37 @@
 # SPDX-License-Identifier: MIT
 ---
 # Feature toggles (both default to true: if the role runs, encrypt everything)
-ssl_https: true
-ssl_satellite: true
-ssl_https_mtls: false
+ssl_init_https: true
+ssl_init_satellite: true
+ssl_init_https_mtls: false
+
+# Private CA
+ssl_init_ca_name: "LINSTOR CA"
+ssl_init_ca_validity_days: 3650
 
 # Certificate generation
-ssl_generate_certs: true
-ssl_cert_validity_days: 3650
-ssl_key_algorithm: RSA
-ssl_key_size: 2048
-ssl_cert_ou: "{{ linstor_hostname }}"
-ssl_cert_o: ""
-ssl_cert_c: ""
+ssl_init_generate_certs: true
+ssl_init_cert_validity_days: 3650
+ssl_init_key_algorithm: RSA
+ssl_init_key_size: 2048
+ssl_init_cert_ou: "{{ linstor_hostname }}"
+ssl_init_cert_o: ""
+ssl_init_cert_c: ""
 
 # Paths
-ssl_dir: /etc/linstor/ssl
+ssl_init_dir: /etc/linstor/ssl
 
 # Passwords (vault-ready)
-ssl_keystore_password: linstor
-ssl_truststore_password: linstor
-ssl_key_password: linstor
+ssl_init_keystore_password: linstor
+ssl_init_truststore_password: linstor
+ssl_init_key_password: linstor
 
 # HTTPS settings
-ssl_https_port: 3371
+ssl_init_https_port: 3371
 
 # Satellite SSL settings
-ssl_satellite_port: 3367
-ssl_satellite_protocol: "TLSv1.3"
+ssl_init_satellite_port: 3367
+ssl_init_satellite_protocol: "TLSv1.3"
 
 # Controller addresses for linstor-client.conf (same default as client_install)
 linstor_controller_addresses:

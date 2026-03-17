@@ -1,0 +1,7 @@
+[https]
+  keystore = "{{ ssl_init_dir }}/keystore.jks"
+  keystore_password = "{{ ssl_init_keystore_password }}"
+{% if ssl_init_https_mtls | bool %}
+  truststore = "{{ ssl_init_dir }}/truststore_client.jks"
+  truststore_password = "{{ ssl_init_truststore_password }}"
+{% endif %}

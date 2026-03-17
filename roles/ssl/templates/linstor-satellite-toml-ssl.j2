@@ -1,9 +1,0 @@
-[netcom]
-  type = "ssl"
-  port = {{ ssl_satellite_port }}
-  server_certificate = "{{ ssl_dir }}/keystore.jks"
-  trusted_certificates = "{{ ssl_dir }}/certificates.jks"
-  key_password = "{{ ssl_key_password }}"
-  keystore_password = "{{ ssl_keystore_password }}"
-  truststore_password = "{{ ssl_truststore_password }}"
-  ssl_protocol = "{{ ssl_satellite_protocol }}"

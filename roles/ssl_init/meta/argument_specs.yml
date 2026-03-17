@@ -5,92 +5,103 @@ argument_specs:
     short_description: Configure SSL/TLS for LINSTOR
     description:
       - Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS).
-      - Generates Java keystores and certificates using keytool, builds cross-node truststores, and patches LINSTOR configuration files.
-      - Optionally generates a client certificate for REST API mutual TLS authentication.
+      - Generates a private CA, signs per-node certificates with SANs, converts to Java keystores, builds CA-based truststores, and patches LINSTOR configuration files.
+      - Installs the CA certificate into the operating system trust store for non-Java clients (LINSTOR Gateway, Proxmox plugin).
+      - Optionally generates a CA-signed client certificate for REST API mutual TLS authentication.
     options:
-      ssl_https:
+      ssl_init_https:
         type: bool
         default: true
         description:
           - Enable HTTPS on the LINSTOR REST API (port 3371).
-      ssl_satellite:
+      ssl_init_satellite:
         type: bool
         default: true
         description:
           - Enable SSL for controller-to-satellite communication (port 3367).
-      ssl_https_mtls:
+      ssl_init_https_mtls:
         type: bool
         default: false
         description:
           - Enable client certificate authentication for the REST API.
-          - Requires C(ssl_https) to be true.
-      ssl_generate_certs:
+          - Requires C(ssl_init_https) to be true.
+      ssl_init_generate_certs:
         type: bool
         default: true
         description:
-          - Generate self-signed certificates using keytool.
+          - Generate a private CA and sign per-node certificates.
           - Set to false to provide pre-existing keystores and truststores.
-      ssl_cert_validity_days:
+      ssl_init_ca_name:
+        type: str
+        default: LINSTOR CA
+        description:
+          - Common name (CN) for the private CA certificate.
+      ssl_init_ca_validity_days:
         type: int
         default: 3650
         description:
-          - Certificate validity period in days.
-      ssl_key_algorithm:
+          - Validity period in days for the CA certificate.
+      ssl_init_cert_validity_days:
+        type: int
+        default: 3650
+        description:
+          - Validity period in days for node and client certificates.
+      ssl_init_key_algorithm:
         type: str
         default: RSA
         description:
           - Key algorithm for certificate generation.
-      ssl_key_size:
+      ssl_init_key_size:
         type: int
         default: 2048
         description:
           - Key size in bits for certificate generation.
-      ssl_cert_ou:
+      ssl_init_cert_ou:
         type: str
         description:
           - Organizational unit for the certificate distinguished name.
           - Defaults to the node hostname (C(linstor_hostname)).
-      ssl_cert_o:
+      ssl_init_cert_o:
         type: str
         default: ""
         description:
           - Organization for the certificate distinguished name.
-      ssl_cert_c:
+      ssl_init_cert_c:
         type: str
         default: ""
         description:
           - Country code for the certificate distinguished name.
-      ssl_dir:
+      ssl_init_dir:
         type: str
         default: /etc/linstor/ssl
         description:
           - Directory for SSL keystores and certificates.
-      ssl_keystore_password:
+      ssl_init_keystore_password:
         type: str
         default: linstor
         description:
           - Password for Java keystores. Use Ansible Vault for production.
-      ssl_truststore_password:
+      ssl_init_truststore_password:
         type: str
         default: linstor
         description:
           - Password for Java truststores. Use Ansible Vault for production.
-      ssl_key_password:
+      ssl_init_key_password:
         type: str
         default: linstor
         description:
-          - Password for private keys. Use Ansible Vault for production.
-      ssl_https_port:
+          - Password for private keys in LINSTOR TOML configuration. Use Ansible Vault for production.
+      ssl_init_https_port:
         type: int
         default: 3371
         description:
           - HTTPS port for the LINSTOR REST API.
-      ssl_satellite_port:
+      ssl_init_satellite_port:
         type: int
         default: 3367
         description:
           - SSL port for satellite communication.
-      ssl_satellite_protocol:
+      ssl_init_satellite_protocol:
         type: str
         default: TLSv1.3
         description:
