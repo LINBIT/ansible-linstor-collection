@@ -48,14 +48,29 @@ argument_specs:
           - Validity period in days for node and client certificates.
       ssl_init_key_algorithm:
         type: str
-        default: RSA
+        default: EC
+        choices:
+          - EC
+          - RSA
         description:
           - Key algorithm for certificate generation.
-      ssl_init_key_size:
+          - C(EC) uses ECDSA with curves specified by C(ssl_init_ca_curve) and C(ssl_init_node_curve).
+          - C(RSA) uses RSA with key size specified by C(ssl_init_rsa_key_size).
+      ssl_init_ca_curve:
+        type: str
+        default: secp384r1
+        description:
+          - Elliptic curve for the CA key. Only used when C(ssl_init_key_algorithm) is C(EC).
+      ssl_init_node_curve:
+        type: str
+        default: prime256v1
+        description:
+          - Elliptic curve for node and client keys. Only used when C(ssl_init_key_algorithm) is C(EC).
+      ssl_init_rsa_key_size:
         type: int
         default: 4096
         description:
-          - Key size in bits for certificate generation.
+          - Key size in bits for RSA keys. Only used when C(ssl_init_key_algorithm) is C(RSA).
       ssl_init_cert_ou:
         type: str
         description:

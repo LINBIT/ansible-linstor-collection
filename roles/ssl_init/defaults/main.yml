@@ -12,8 +12,10 @@ ssl_init_ca_validity_days: 3650
 # Certificate generation
 ssl_init_generate_certs: true
 ssl_init_cert_validity_days: 3650
-ssl_init_key_algorithm: RSA
-ssl_init_key_size: 4096
+ssl_init_key_algorithm: EC
+ssl_init_ca_curve: secp384r1
+ssl_init_node_curve: prime256v1
+ssl_init_rsa_key_size: 4096
 ssl_init_cert_ou: "{{ linstor_hostname }}"
 ssl_init_cert_o: ""
 ssl_init_cert_c: ""
