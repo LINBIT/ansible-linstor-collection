@@ -18,7 +18,7 @@
     cmd: >-
       openssl genpkey
       -algorithm {{ ssl_init_key_algorithm }}
-      -pkeyopt rsa_keygen_bits:{{ ssl_init_key_size }}
+      -pkeyopt rsa_keygen_bits:{{ ssl_init_ca_key_size }}
       -out {{ ssl_init_dir }}/ca.key
     creates: "{{ ssl_init_dir }}/ca.key"
   run_once: true
@@ -41,6 +41,9 @@
       -out {{ ssl_init_dir }}/ca.crt
       -days {{ ssl_init_ca_validity_days }}
       -subj "/CN={{ ssl_init_ca_name }}{{ '/O=' + ssl_init_cert_o if ssl_init_cert_o else '' }}{{ '/C=' + ssl_init_cert_c if ssl_init_cert_c else '' }}"
+      -addext "basicConstraints=critical,CA:TRUE,pathlen:0"
+      -addext "keyUsage=critical,keyCertSign,cRLSign"
+      -addext "subjectKeyIdentifier=hash"
     creates: "{{ ssl_init_dir }}/ca.crt"
   run_once: true
   delegate_to: "{{ groups['linstor_controllers'][0] }}"

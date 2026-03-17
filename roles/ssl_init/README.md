@@ -34,9 +34,10 @@ Role Variables
 | `ssl_init_generate_certs` | `true` | Generate a private CA and sign per-node certificates |
 | `ssl_init_ca_name` | `LINSTOR CA` | Common name for the private CA certificate |
 | `ssl_init_ca_validity_days` | `3650` | Validity period in days for the CA certificate |
+| `ssl_init_ca_key_size` | `4096` | Key size in bits for the CA private key |
 | `ssl_init_cert_validity_days` | `3650` | Validity period in days for node and client certificates |
 | `ssl_init_key_algorithm` | `RSA` | Key algorithm for certificate generation |
-| `ssl_init_key_size` | `2048` | Key size in bits |
+| `ssl_init_key_size` | `2048` | Key size in bits for node and client keys |
 | `ssl_init_cert_ou` | `{{ linstor_hostname }}` | Organizational unit for the certificate DN |
 | `ssl_init_cert_o` | `""` | Organization for the certificate DN |
 | `ssl_init_cert_c` | `""` | Country code for the certificate DN |

@@ -8,6 +8,7 @@ ssl_init_https_mtls: false
 # Private CA
 ssl_init_ca_name: "LINSTOR CA"
 ssl_init_ca_validity_days: 3650
+ssl_init_ca_key_size: 4096
 
 # Certificate generation
 ssl_init_generate_certs: true
