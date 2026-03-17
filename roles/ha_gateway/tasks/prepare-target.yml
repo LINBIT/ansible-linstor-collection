@@ -189,6 +189,10 @@
   when: inventory_hostname in (_target.nodes | default(groups['linstor_satellites']))
   notify: reload_drbd_reactor
 
+- name: "Flush handlers to reload DRBD Reactor before resource deletion - {{ _protocol }}"
+  ansible.builtin.meta: flush_handlers
+  when: _gw_absent | length > 0
+
 - name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
   linbit.linstor.resource:
     name: "{{ _target.name }}"
@@ -199,3 +203,5 @@
     label: "{{ _target.name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
+  retries: 5
+  delay: 5

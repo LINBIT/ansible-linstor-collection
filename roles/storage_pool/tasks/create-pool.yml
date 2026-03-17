@@ -121,3 +121,4 @@
     driver_pool: "{{ _driver_pool | trim }}"
     properties: "{{ _storage_pool_properties }}"
   retries: 3
+  delay: 5
