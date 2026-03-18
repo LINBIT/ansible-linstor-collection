@@ -6,6 +6,9 @@ ha_gateway_place_count: 2
 ha_gateway_tickle_dir_size: 64M
 ha_gateway_fstype: ext4
 
+# Force 4K blocksize for cross-node 4Kn sector compatibility
+ha_gateway_filesystem_blocksize: 4096
+
 ha_gateway_drbd_options:
   auto-promote: 'no'
   quorum: majority

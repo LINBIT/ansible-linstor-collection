@@ -136,6 +136,7 @@
   community.general.filesystem:
     fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
     dev: "/dev/drbd/by-res/{{ _target.name }}/0"
+    opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
@@ -148,6 +149,7 @@
   community.general.filesystem:
     fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
     dev: "/dev/drbd/by-res/{{ _export.0.name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
+    opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   loop: "{{ _gw_present | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export

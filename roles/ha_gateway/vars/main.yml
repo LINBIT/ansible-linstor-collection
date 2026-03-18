@@ -9,3 +9,10 @@ _ra_base: >-
 _pve_check: >-  # noqa: var-naming[no-role-prefix]
   {{ 'pve' in ansible_facts['kernel'] or
      'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
+
+_ha_gw_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
+  {%- if ha_gateway_fstype == 'ext4' -%}
+    -b {{ ha_gateway_filesystem_blocksize }}
+  {%- elif ha_gateway_fstype == 'xfs' -%}
+    -b size={{ ha_gateway_filesystem_blocksize }}
+  {%- endif -%}
