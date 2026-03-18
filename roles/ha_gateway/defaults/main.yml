@@ -18,7 +18,7 @@ ha_gateway_iscsi_iqn_base: iqn.2019-08.com.linbit
 
 # NFS-specific defaults
 ha_gateway_nfs_port: 2049
-ha_gateway_nfsv4_only: true
+ha_gateway_nfsv4_only: false # currently broken due to upstream nfsserver RA
 ha_gateway_nfs_allowed_ips:
   - 0.0.0.0/0
 ha_gateway_nfs_options: rw,all_squash,anonuid=0,anongid=0
