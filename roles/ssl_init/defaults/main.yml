@@ -40,10 +40,11 @@ linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
 
 # Node hostname for certificate DN and cross-node trust.
-# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
 linstor_hostname: >-
   {{
     inventory_hostname_short
-    if 'pve' in ansible_facts['kernel']
+    if ('pve' in ansible_facts['kernel'] or
+        'proxmox-ve' in (ansible_facts['packages'] | default({})))
     else inventory_hostname
   }}

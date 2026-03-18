@@ -5,3 +5,7 @@ _ra_base: >-
   {{ '/usr/lib/ocf/resource.d/heartbeat'
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
+
+_pve_check: >-  # noqa: var-naming[no-role-prefix]
+  {{ 'pve' in ansible_facts['kernel'] or
+     'proxmox-ve' in (ansible_facts['packages'] | default({})) }}

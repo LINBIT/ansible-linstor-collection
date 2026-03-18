@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MIT
 ---
+# Used to determine if Proxmox VE is installed
+- name: Gather installed package facts for OS detection
+  ansible.builtin.package_facts:
+  when: ansible_facts['packages'] is not defined
+
 - name: Check if storage pool exists
   linbit.linstor.storage_pool:
     name: "{{ _pool.name }}"

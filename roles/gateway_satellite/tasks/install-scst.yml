@@ -71,10 +71,18 @@
               - quilt
             state: present
 
-        - name: Install kernel headers
+        # SCST uses DKMS, so install headers for all installed kernels.
+        - name: Install PVE kernel headers (Proxmox VE)
           ansible.builtin.package:
-            name: "{{ 'pve-headers-' if 'pve' in ansible_facts['kernel'] else 'linux-headers-' }}{{ ansible_facts['kernel'] }}"
+            name: proxmox-default-headers
             state: present
+          when: _pve_check | bool
+
+        - name: Install Debian kernel headers
+          ansible.builtin.package:
+            name: "linux-headers-{{ _debian_arch }}"
+            state: present
+          when: "'pve' not in ansible_facts['kernel']"
 
         - name: Compile SCST .deb packages
           ansible.builtin.shell: |

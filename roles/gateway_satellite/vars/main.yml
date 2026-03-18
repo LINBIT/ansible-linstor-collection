@@ -1,3 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
-# vars file for gateway_satellite
+_pve_check: >-  # noqa: var-naming[no-role-prefix]
+  {{ 'pve' in ansible_facts['kernel'] or
+     'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
+
+_debian_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"  # noqa: var-naming[no-role-prefix]

@@ -14,10 +14,11 @@ linstor_gateway_scst: false
 linstor_gateway_scst_version: '3.9.x'
 
 # Node hostname for LINSTOR node properties.
-# Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
+# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
 linstor_hostname: >-
   {{
     inventory_hostname_short
-    if 'pve' in ansible_facts['kernel']
+    if ('pve' in ansible_facts['kernel'] or
+        'proxmox-ve' in (ansible_facts['packages'] | default({})))
     else inventory_hostname
   }}
