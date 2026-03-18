@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: MIT
 ---
+# openssl package is no longer guaranteed in RHEL 10
+- name: Ensure openssl is installed
+  ansible.builtin.package:
+    name: openssl
+    state: present
+
 # Used to determine if Proxmox VE is installed
 - name: Gather installed package facts for OS detection
   ansible.builtin.package_facts:
