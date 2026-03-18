@@ -8,4 +8,4 @@ linstor_gateway_supplemental_packages:
   - psmisc # Missing from Debian? Might not be included in minimal installs
   - rpcbind
   - targetcli-fb
-  # - xfsprogs  # for debian
+  - xfsprogs  # for debian

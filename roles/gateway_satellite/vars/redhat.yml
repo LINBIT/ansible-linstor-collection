@@ -2,7 +2,6 @@
 ---
 # vars file for gateway_satellite
 linstor_gateway_supplemental_packages:
-  # - drbd-reactor # installed by role!
   - iptables # for portblock
   - nvmetcli
   - nfs-utils
