@@ -109,8 +109,9 @@
 
 - name: Create new filesystem for HA database
   community.general.filesystem:
-    fstype: ext4
+    fstype: "{{ ha_database_filesystem }}"
     dev: "/dev/drbd/by-res/{{ ha_database_res }}/0"
+    opts: "{{ _ha_db_mkfs_opts | default('') }}"
   when: inventory_hostname == _ha_db_primary_node
 
 - name: Create HA database mount unit

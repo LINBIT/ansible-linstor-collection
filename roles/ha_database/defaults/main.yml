@@ -5,6 +5,10 @@ ha_database_rg: linstor-db-grp
 ha_database_res: linstor_db
 ha_database_res_size: 200M
 
+ha_database_filesystem: ext4
+# Force 4K blocksize for cross-node 4Kn sector compatibility
+ha_database_filesystem_blocksize: 4096
+
 ha_database_max_controllers: 3
 
 # TieBreaker node for 2-node combined configurations. Only used when exactly 2 combined

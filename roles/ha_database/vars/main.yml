@@ -3,3 +3,10 @@
 _pve_check: >-  # noqa: var-naming[no-role-prefix]
   {{ 'pve' in ansible_facts['kernel'] or
      'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
+
+_ha_db_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
+  {%- if ha_database_filesystem == 'ext4' -%}
+    -b {{ ha_database_filesystem_blocksize }}
+  {%- elif ha_database_filesystem == 'xfs' -%}
+    -b size={{ ha_database_filesystem_blocksize }}
+  {%- endif -%}
