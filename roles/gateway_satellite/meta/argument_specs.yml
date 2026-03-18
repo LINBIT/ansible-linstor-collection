@@ -14,12 +14,16 @@ argument_specs:
         description:
           - Manage firewall rules for LINSTOR Gateway satellite ports.
           - Set C(false) to skip firewall configuration.
-      linstor_gateway_firewall_ports:
+      linstor_gateway_nfsv4_only:
+        type: bool
+        default: true
+        description:
+          - Skip opening NFSv3-only firewall ports (rpcbind 111, mountd 20048).
+          - Set to C(false) to allow NFSv3 clients.
+      linstor_gateway_firewall_ports_base:
         type: list
         elements: dict
         default:
-          - port: "111"
-            proto: tcp
           - port: "2049"
             proto: tcp
           - port: "3260"
@@ -27,7 +31,25 @@ argument_specs:
           - port: "4420"
             proto: tcp
         description:
-          - Ports to open in firewalld or UFW for NFS, iSCSI, and NVMe-oF.
+          - Firewall ports for nfsd, iSCSI, and NVMe-oF (always open).
+      linstor_gateway_firewall_ports_nfsv3:
+        type: list
+        elements: dict
+        default:
+          - port: "111"
+            proto: tcp
+          - port: "20048"
+            proto: tcp
+        description:
+          - Additional firewall ports for NFSv3 (rpcbind and mountd).
+          - Only opened when C(linstor_gateway_nfsv4_only=false).
+      linstor_gateway_firewall_ports:
+        type: list
+        elements: dict
+        description:
+          - Combined list of firewall ports to open.
+          - Computed from C(linstor_gateway_firewall_ports_base) and C(linstor_gateway_firewall_ports_nfsv3) based on C(linstor_gateway_nfsv4_only).
+          - Override directly for full control.
       linstor_gateway_scst:
         type: bool
         default: false

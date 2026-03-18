@@ -51,6 +51,13 @@ argument_specs:
         default: 2049
         description:
           - NFS service port.
+      ha_gateway_nfsv4_only:
+        type: bool
+        default: true
+        description:
+          - Run NFS in NFSv4-only mode.
+          - Disables rpcbind, mountd, and statd in the OCF nfsserver agent.
+          - Set to C(false) to allow NFSv3 clients.
       ha_gateway_nfs_allowed_ips:
         type: list
         elements: str

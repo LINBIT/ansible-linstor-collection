@@ -35,7 +35,7 @@
 {% set _mask = ip_cidr.split('/')[1] %}
         "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _mask }} ip={{ _ip }}",
 {% endfor %}
-        "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ _primary_ip }} nfs_server_scope={{ _primary_ip }} nfs_shared_infodir=/srv/ha/internal/{{ _target.name }}/nfs",
+        "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ _primary_ip }} nfs_server_scope={{ _primary_ip }} nfs_shared_infodir=/srv/ha/internal/{{ _target.name }}/nfs{% if _target.nfsv4_only | default(ha_gateway_nfsv4_only) | bool %} nfsv4_only=true{% endif %}",
 {% for export in _exports %}
 {% set _vol = loop.index %}
 {% set _path = export.path | default('/') %}

@@ -3,11 +3,20 @@
 # defaults file for gateway_satellite
 linstor_gateway_firewall_rules: true
 
-linstor_gateway_firewall_ports:
-  - { port: '111', proto: tcp }
-  - { port: '2049', proto: tcp }
-  - { port: '3260', proto: tcp }
-  - { port: '4420', proto: tcp }
+linstor_gateway_nfsv4_only: true
+
+linstor_gateway_firewall_ports_base:
+  - { port: '2049', proto: tcp } # nfsd (NFSv3 and NFSv4)
+  - { port: '3260', proto: tcp } # iSCSI
+  - { port: '4420', proto: tcp } # NVMe-oF
+
+linstor_gateway_firewall_ports_nfsv3:
+  - { port: '111', proto: tcp }   # rpcbind
+  - { port: '20048', proto: tcp } # mountd
+
+linstor_gateway_firewall_ports: >-
+  {{ linstor_gateway_firewall_ports_base +
+     ([] if linstor_gateway_nfsv4_only | bool else linstor_gateway_firewall_ports_nfsv3) }}
 
 # SCST iSCSI target - compile and install from source
 linstor_gateway_scst: false
