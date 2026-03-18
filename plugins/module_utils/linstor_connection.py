@@ -55,6 +55,21 @@ def get_linstor_connection(module):
 
     try:
         lin = linstor.MultiLinstor(uri_list)
+
+        # Read SSL cert paths from linstor-client.conf for HTTPS/mTLS
+        import configparser
+        config = configparser.ConfigParser()
+        config.read('/etc/linstor/linstor-client.conf')
+        certfile = config.get('global', 'certfile', fallback=None)
+        keyfile = config.get('global', 'keyfile', fallback=None)
+        cafile = config.get('global', 'cafile', fallback=None)
+        if certfile:
+            lin.certfile = certfile
+        if keyfile:
+            lin.keyfile = keyfile
+        if cafile:
+            lin.cafile = cafile
+
         lin.connect()
     except linstor.LinstorError as e:
         module.fail_json(
