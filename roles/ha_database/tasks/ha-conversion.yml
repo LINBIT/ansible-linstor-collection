@@ -39,16 +39,17 @@
     aux_properties:
       ControllerIsHA: "True"
   delegate_to: "{{ _ha_db_primary_node }}"
+  throttle: 1
   when: inventory_hostname in _ha_db_combined_nodes
 
 - name: Tag nodes for HA database placement
   linbit.linstor.node:
-    name: "{{ hostvars[item]['linstor_hostname'] | default(item) }}"
+    name: "{{ linstor_hostname }}"
     aux_properties:
       ha-database-node: "True"
   delegate_to: "{{ _ha_db_primary_node }}"
-  loop: "{{ _ha_db_placement_nodes }}"
-  run_once: true # noqa: run-once[task]
+  throttle: 1
+  when: inventory_hostname in _ha_db_placement_nodes
 
 # If storage_pool is omitted, LINSTOR auto-selects from available pools
 - name: Create HA database resource group
