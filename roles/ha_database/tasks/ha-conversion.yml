@@ -84,10 +84,10 @@
   when: inventory_hostname in _ha_db_combined_nodes
 
 - name: Backup original LINSTOR database
-  ansible.builtin.shell: |
-    mv /var/lib/linstor /var/lib/linstor.orig
-  changed_when: true
-  when: inventory_hostname in _ha_db_combined_nodes
+  ansible.builtin.command:
+    cmd: mv /var/lib/linstor /var/lib/linstor.orig
+    removes: /var/lib/linstor
+  when: inventory_hostname == _ha_db_primary_node
 
 - name: Create HA database mountpoint
   ansible.builtin.file:
