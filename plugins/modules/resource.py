@@ -73,6 +73,12 @@ options:
       - Number of replicas for autoplace mode.
     type: int
     default: 2
+  do_not_place_with_regex:
+    description:
+      - Autoplace mode only.
+      - A regex string. LINSTOR will not place the resource on nodes that
+        already have a resource whose name matches this regex.
+    type: str
   diskless:
     description:
       - Manual mode only. Create a diskless (DRBD client) resource.
@@ -337,6 +343,7 @@ def main():
         node=dict(type='str'),
         storage_pool=dict(type='str'),
         place_count=dict(type='int', default=2),
+        do_not_place_with_regex=dict(type='str'),
         diskless=dict(type='bool', default=False),
         properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
@@ -370,6 +377,7 @@ def main():
     node = module.params.get('node')
     storage_pool = module.params.get('storage_pool')
     place_count = module.params['place_count']
+    do_not_place_with_regex = module.params.get('do_not_place_with_regex')
     diskless = module.params['diskless']
     properties = module.params['properties'] or {}
     delete_properties = module.params['delete_properties'] or []
@@ -569,6 +577,8 @@ def main():
             )
             if storage_pool:
                 ap_kwargs['storage_pool'] = storage_pool
+            if do_not_place_with_regex:
+                ap_kwargs['do_not_place_with_regex'] = do_not_place_with_regex
 
             replies = lin.resource_auto_place(**ap_kwargs)
             check_api_response(module, replies, 'autoplace resource %s' % name)
