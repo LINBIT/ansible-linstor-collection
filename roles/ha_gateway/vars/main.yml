@@ -10,6 +10,22 @@ _pve_check: >-  # noqa: var-naming[no-role-prefix]
   {{ 'pve' in ansible_facts['kernel'] or
      'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
 
+# Normalized resource names per protocol (strip existing prefix, re-add with dash)
+_ha_gw_iscsi_names: >-  # noqa: var-naming[no-role-prefix]
+  {{ linstor_iscsi_targets | default([]) | map(attribute='name')
+     | map('regex_replace', '^iscsi[-_]', '') | map('regex_replace', '^', 'iscsi-') | list }}
+
+_ha_gw_nfs_names: >-  # noqa: var-naming[no-role-prefix]
+  {{ linstor_nfs_exports | default([]) | map(attribute='name')
+     | map('regex_replace', '^nfs[-_]', '') | map('regex_replace', '^', 'nfs-') | list }}
+
+_ha_gw_nvmeof_names: >-  # noqa: var-naming[no-role-prefix]
+  {{ linstor_nvmeof_targets | default([]) | map(attribute='name')
+     | map('regex_replace', '^nvmeof[-_]', '') | map('regex_replace', '^', 'nvmeof-') | list }}
+
+_ha_gw_all_resource_names: >-  # noqa: var-naming[no-role-prefix]
+  {{ _ha_gw_iscsi_names + _ha_gw_nfs_names + _ha_gw_nvmeof_names }}
+
 _ha_gw_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
   {%- if ha_gateway_fstype == 'ext4' -%}
     -b {{ ha_gateway_filesystem_blocksize }}

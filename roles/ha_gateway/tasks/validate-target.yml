@@ -3,35 +3,25 @@
 # Validate target definitions for ha_gateway.
 # Included from prepare-target.yml when: _gw_present | length > 0
 ---
-- name: Validate NFS exports have non-overlapping nodes
+- name: Validate NFS exports with explicit nodes have non-overlapping nodes
   ansible.builtin.assert:
     that: >-
-      _gw_present | map(attribute='nodes') | flatten
-      | length
-      ==
-      _gw_present | map(attribute='nodes') | flatten | unique
-      | length
+      _explicit_nodes | length == _explicit_nodes | unique | length
     fail_msg: >-
       NFS export node lists must not overlap (the kernel NFS server is a
       per-host singleton). A node cannot host more than one NFS service.
     quiet: true
+  vars:
+    _explicit_nodes: >-
+      {{ _gw_present
+         | selectattr('nodes', 'defined')
+         | map(attribute='nodes')
+         | reject('equalto', [])
+         | flatten }}
   run_once: true  # noqa: run-once[task]
   when:
     - _sizes_key == 'exports'
     - _gw_present | length > 1
-
-- name: "Validate target nodes is defined - {{ _protocol }}"
-  ansible.builtin.assert:
-    that: _target.nodes is defined
-    fail_msg: >-
-      Target {{ _target.name }} requires a nodes list
-      (3 inventory hostnames for placement)
-    quiet: true
-  loop: "{{ _gw_present }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target.name }}"
-  run_once: true  # noqa: run-once[task]
 
 - name: "Validate target place_count - {{ _protocol }}"
   ansible.builtin.assert:
@@ -40,7 +30,7 @@
       place_count must be 2 or 3 for target {{ _target.name }},
       got {{ _target.place_count | default(ha_gateway_place_count) }}
     quiet: true
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_present | rejectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}"
@@ -48,12 +38,15 @@
 
 - name: "Validate target nodes list size - {{ _protocol }}"
   ansible.builtin.assert:
-    that: _target.nodes | length == 3
+    that:
+      - _target.nodes | length <= 3
+      - _target.nodes | length >= (_target.place_count | default(ha_gateway_place_count)) | int
     fail_msg: >-
-      Target {{ _target.name }} nodes list must have exactly 3 members,
+      Target {{ _target.name }} nodes list must have between
+      {{ (_target.place_count | default(ha_gateway_place_count)) | int }} and 3 members,
       got {{ _target.nodes | length }}
     quiet: true
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_present | selectattr('nodes', 'defined') | rejectattr('nodes', 'equalto', []) | list }}"
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}"
@@ -66,25 +59,26 @@
       Target {{ _target.name }} nodes list contains non-satellite hosts:
       {{ _target.nodes | difference(groups['linstor_satellites']) | join(', ') }}
     quiet: true
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_present | selectattr('nodes', 'defined') | rejectattr('nodes', 'equalto', []) | list }}"
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}"
   run_once: true  # noqa: run-once[task]
 
-- name: "Validate target has enough diskful satellites - {{ _protocol }}"
+- name: "Validate diskful nodes are in linstor_diskful_satellites - {{ _protocol }}"
   ansible.builtin.assert:
     that: >-
-      _target.nodes
-      | intersect(groups.get('linstor_diskful_satellites', []))
-      | length >= 2
+      _target.nodes[:(_target.place_count | default(ha_gateway_place_count)) | int]
+      | difference(groups.get('linstor_diskful_satellites', []))
+      | length == 0
     fail_msg: >-
-      Target {{ _target.name }} requires at least 2 diskful satellites,
-      got {{ _target.nodes
-             | intersect(groups.get('linstor_diskful_satellites', []))
-             | length }}
+      The first {{ (_target.place_count | default(ha_gateway_place_count)) | int }}
+      nodes for target {{ _target.name }} must be diskful satellites.
+      Non-diskful: {{ _target.nodes[:(_target.place_count | default(ha_gateway_place_count)) | int]
+                      | difference(groups.get('linstor_diskful_satellites', []))
+                      | join(', ') }}
     quiet: true
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_present | selectattr('nodes', 'defined') | rejectattr('nodes', 'equalto', []) | list }}"
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}"

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # {{ ansible_managed }}
+{% set _resource = _toml_prefix ~ '-' ~ _target.name %}
 {% set _ips = _target.service_ips %}
 {% set _primary_ip = _ips[0].split('/')[0] %}
 {% set _port = _target.port | default(ha_gateway_nfs_port) | string %}
@@ -12,7 +13,7 @@
 
   [promoter.resources]
 
-    [promoter.resources.{{ _target.name }}]
+    [promoter.resources.{{ _resource }}]
       on-drbd-demote-failure = "reboot-immediate"
       on-disk-detach = "fail-over"
       adjust-resource-on-start = false
@@ -24,31 +25,31 @@
 {% set _ip = ip_cidr.split('/')[0] %}
         "ocf:heartbeat:portblock pblock{{ loop.index0 }} action=block ip={{ _ip }} portno={{ _port }} protocol=tcp",
 {% endfor %}
-        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _target.name }}/0 directory=/srv/ha/internal/{{ _target.name }} fstype={{ _fstype }} run_fsck=no",
+        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _resource }}/0 directory=/srv/ha/internal/{{ _resource }} fstype={{ _fstype }} run_fsck=no",
 {% for export in _exports %}
 {% set _vol = loop.index %}
 {% set _path = export.path | default('/') %}
-        "ocf:heartbeat:Filesystem fs_{{ _vol }} device=/dev/drbd/by-res/{{ _target.name }}/{{ _vol }} directory=/srv/gateway-exports/{{ _target.name }}{{ _path }} fstype={{ export.fstype | default(_fstype) }} run_fsck=no",
+        "ocf:heartbeat:Filesystem fs_{{ _vol }} device=/dev/drbd/by-res/{{ _resource }}/{{ _vol }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fstype={{ export.fstype | default(_fstype) }} run_fsck=no",
 {% endfor %}
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}
 {% set _mask = ip_cidr.split('/')[1] %}
         "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _mask }} ip={{ _ip }}",
 {% endfor %}
-        "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ _primary_ip }} nfs_server_scope={{ _primary_ip }} nfs_shared_infodir=/srv/ha/internal/{{ _target.name }}/nfs nfs_root_export=/srv/gateway-exports{% if _target.nfsv4_only | default(ha_gateway_nfsv4_only) | bool %} nfsv4_only=true{% endif %}",
+        "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ _primary_ip }} nfs_server_scope={{ _primary_ip }} nfs_shared_infodir=/srv/ha/internal/{{ _resource }}/nfs nfs_root_export=/srv/gateway-exports{% if _target.nfsv4_only | default(ha_gateway_nfsv4_only) | bool %} nfsv4_only=true{% endif %}",
 {% for export in _exports %}
 {% set _vol = loop.index %}
 {% set _path = export.path | default('/') %}
 {% set _allowed = export.allowed_ips | default(ha_gateway_nfs_allowed_ips) %}
 {% set _options = export.export_options | default(ha_gateway_nfs_options) %}
-{% set _fsid_hash = (_target.name ~ ':' ~ _vol | string) | hash('sha1') %}
+{% set _fsid_hash = (_resource ~ ':' ~ _vol | string) | hash('sha1') %}
 {% set _fsid = _fsid_hash[:8] ~ '-' ~ _fsid_hash[8:12] ~ '-' ~ _fsid_hash[12:16] ~ '-' ~ _fsid_hash[16:20] ~ '-' ~ _fsid_hash[20:32] %}
 {% for cidr in _allowed %}
-        "ocf:heartbeat:exportfs export_{{ _vol }}_{{ loop.index0 }} clientspec={{ cidr }} directory=/srv/gateway-exports/{{ _target.name }}{{ _path }} fsid={{ _fsid }} options='{{ _options }}'",
+        "ocf:heartbeat:exportfs export_{{ _vol }}_{{ loop.index0 }} clientspec={{ cidr }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fsid={{ _fsid }} options='{{ _options }}'",
 {% endfor %}
 {% endfor %}
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}
-        "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _target.name }}",
+        "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _resource }}",
 {% endfor %}
       ]

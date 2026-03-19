@@ -2,6 +2,7 @@
 #
 # Deploy target on satellites: pre-flight check and promoter TOML config.
 # Included from prepare-target.yml with: when: inventory_hostname in _gw_satellites
+# Uses _gw_resolved (targets with discovered node lists) for loops.
 ---
 - name: Gather service facts
   ansible.builtin.service_facts:
@@ -27,7 +28,7 @@
     quiet: true
   vars:
     _vip_network: "{{ _svc.1 | ansible.utils.ipaddr('network/prefix') }}"
-  loop: "{{ _gw_present | subelements('service_ips') }}"
+  loop: "{{ _gw_resolved | subelements('service_ips') }}"
   loop_control:
     loop_var: _svc
     label: "{{ _svc.0.name }}:{{ _svc.1 }}"
@@ -43,7 +44,7 @@
     mode: '0600'
     owner: root
     group: root
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_resolved }}"
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}"

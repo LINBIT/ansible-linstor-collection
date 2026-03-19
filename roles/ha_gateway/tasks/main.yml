@@ -7,17 +7,11 @@
 
 - name: Validate resource names are unique across all gateway targets
   ansible.builtin.assert:
-    that: _all_names | length == _all_names | unique | length
+    that: _ha_gw_all_resource_names | length == _ha_gw_all_resource_names | unique | length
     fail_msg: >-
       Duplicate resource names detected across gateway targets:
-      {{ _all_names | difference(_all_names | unique) | join(', ') }}
+      {{ _ha_gw_all_resource_names | difference(_ha_gw_all_resource_names | unique) | join(', ') }}
     quiet: true
-  vars:
-    _all_names: >-
-      {{ ((linstor_iscsi_targets | default([]))
-          + (linstor_nfs_exports | default([]))
-          + (linstor_nvmeof_targets | default([])))
-         | map(attribute='name') | list }}
   run_once: true  # noqa: run-once[task]
 
 - name: Validate service IPs are unique across all gateway targets

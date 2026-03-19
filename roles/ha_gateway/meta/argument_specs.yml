@@ -6,20 +6,20 @@ argument_specs:
     description:
       - Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
       - Processes C(linstor_iscsi_targets), C(linstor_nfs_exports), and C(linstor_nvmeof_targets) inventory variables.
-      - Each target gets its own resource group with per-target placement constraints.
+      - Resource names are auto-prefixed by protocol (C(iscsi-), C(nfs-), C(nvmeof-)).
       - Requires C(linbit.linstor.gateway_satellite) on all satellite nodes before use.
     options:
       ha_gateway_storage_pool:
         type: str
         default: ""
         description:
-          - Default storage pool for per-target resource groups.
+          - Default storage pool for resource placement.
           - When empty, LINSTOR auto-selects from available pools.
       ha_gateway_place_count:
         type: int
         default: 2
         description:
-          - Default replica count for per-target resource groups.
+          - Default replica count for resource placement.
           - Use C(2) for 2 diskful + 1 tiebreaker, or C(3) for 3 diskful replicas.
       ha_gateway_tickle_dir_size:
         type: str
@@ -53,11 +53,11 @@ argument_specs:
           - NFS service port.
       ha_gateway_nfsv4_only:
         type: bool
-        default: true
+        default: false
         description:
           - Run NFS in NFSv4-only mode.
           - Disables rpcbind, mountd, and statd in the OCF nfsserver agent.
-          - Set to C(false) to allow NFSv3 clients.
+          - Currently broken due to upstream nfsserver RA issues.
       ha_gateway_nfs_allowed_ips:
         type: list
         elements: str
@@ -70,32 +70,47 @@ argument_specs:
         default: "rw,all_squash,anonuid=0,anongid=0"
         description:
           - Default NFS export options string.
+      ha_gateway_filesystem_blocksize:
+        type: int
+        default: 4096
+        description:
+          - Filesystem block size for portblock tickle_dir and data volumes.
+          - Forces 4K for cross-node 4Kn sector compatibility.
       ha_gateway_nvmeof_port:
         type: int
         default: 4420
         description:
           - Default NVMe-oF target port.
+      ha_gateway_nvmeof_nqn_base:
+        type: str
+        default: "nqn.2014-08.io.linbit"
+        description:
+          - Default NQN base when C(nqn) is not set on a target.
+          - Auto-generates C(nqn_base:name) for targets without an explicit C(nqn).
       linstor_iscsi_targets:
         type: list
         elements: dict
         default: []
         description:
           - List of iSCSI target definitions.
-          - Each entry requires C(name), C(service_ips), C(volumes), and C(nodes).
+          - Each entry requires C(name), C(service_ips), and C(volumes).
+          - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
       linstor_nfs_exports:
         type: list
         elements: dict
         default: []
         description:
           - List of NFS export definitions.
-          - Each entry requires C(name), C(service_ips), C(exports), and C(nodes).
+          - Each entry requires C(name), C(service_ips), and C(exports).
+          - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
       linstor_nvmeof_targets:
         type: list
         elements: dict
         default: []
         description:
           - List of NVMe-oF target definitions.
-          - Each entry requires C(name), C(nqn), C(service_ips), C(volumes), and C(nodes).
+          - Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to C(ha_gateway_nvmeof_nqn_base:name).
+          - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
       linstor_hostname:
         type: str
         description:

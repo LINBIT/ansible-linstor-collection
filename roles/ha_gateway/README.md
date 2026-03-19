@@ -7,14 +7,13 @@ This is an Ansible-only implementation of [LINSTOR Gateway](https://github.com/L
 This role processes three inventory variables (`linstor_iscsi_targets`, `linstor_nfs_exports`, `linstor_nvmeof_targets`) through a shared task flow:
 
 1. Validate target definitions and pre-flight checks
-1. Tag nodes with per-target auxiliary properties
-1. Create per-target resource group
-1. Spawn LINSTOR resources
+1. Place LINSTOR resources (manual or autoplace)
 1. Format partitions
 1. Set DRBD resource options
 1. Deploy promoter TOML configs to `/etc/drbd-reactor.d/`
 
-Each target gets its own resource group (`rg-{{ name }}`) with `Aux/gw-{{ name }}=True` placement constraint.
+Resource names are auto-prefixed by protocol: `name: web` becomes `iscsi-web`, `nfs-web`, or `nvmeof-web` in LINSTOR depending on the target type.
+Targets with explicit `nodes` use manual placement; targets without `nodes` use LINSTOR autoplace.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config and deletes the LINSTOR resource.
 
@@ -56,10 +55,11 @@ See `defaults/main.yml`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `ha_gateway_storage_pool` | `""` | Default storage pool for per-target resource groups; empty for LINSTOR auto-select |
-| `ha_gateway_place_count` | `2` | Default replica count for per-target resource groups |
+| `ha_gateway_storage_pool` | `""` | Default storage pool for resource placement; empty for LINSTOR auto-select |
+| `ha_gateway_place_count` | `2` | Default replica count |
 | `ha_gateway_tickle_dir_size` | `64M` | Size of the portblock tickle_dir volume |
 | `ha_gateway_fstype` | `ext4` | Filesystem for the portblock tickle_dir and data volumes |
+| `ha_gateway_filesystem_blocksize` | `4096` | Filesystem block size; forces 4K for cross-node 4Kn sector compatibility |
 | `ha_gateway_drbd_options` | see defaults | DRBD resource options for HA operation |
 | `ha_gateway_iscsi_port` | `3260` | Default iSCSI target port |
 | `ha_gateway_iscsi_iqn_base` | `iqn.2019-08.com.linbit` | Default IQN base when `iqn` is not set on target |
@@ -67,6 +67,25 @@ See `defaults/main.yml`.
 | `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0"]` | Default client CIDRs for NFS exports |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
+| `ha_gateway_nvmeof_nqn_base` | `nqn.2014-08.io.linbit` | Default NQN base when `nqn` is not set on target |
+| `linstor_hostname` | auto-detected | Node hostname for LINSTOR; forces short hostnames on Proxmox VE |
+
+Resource Naming
+---------------
+
+The role auto-prefixes resource names by protocol to avoid collisions and enable protocol-aware placement constraints:
+
+| Protocol | Prefix | Example: `name: web` | LINSTOR resource |
+|---|---|---|---|
+| iSCSI | `iscsi-` | `name: web` | `iscsi-web` |
+| NFS | `nfs-` | `name: shared` | `nfs-shared` |
+| NVMe-oF | `nvmeof-` | `name: fast` | `nvmeof-fast` |
+
+Names that already include the protocol prefix are normalized rather than double-prefixed.
+For example, `name: iscsi-web` and `name: web` both produce the LINSTOR resource `iscsi-web`.
+A prefix separator of either `-` or `_` is recognized: `name: iscsi_web` also normalizes to `iscsi-web`.
+
+DRBD device paths, mount paths, and promoter configs all use the prefixed name (for example `/dev/drbd/by-res/nfs-shared/0`).
 
 iSCSI Targets
 -------------
@@ -75,12 +94,13 @@ Each entry in `linstor_iscsi_targets`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | LINSTOR resource name |
+| `name` | yes | | Target name (prefixed with `iscsi-` in LINSTOR) |
 | `service_ips` | yes | | List of VIPs in CIDR notation (iSCSI portals) |
 | `volumes` | yes | | List of volume definitions (`size` key) |
-| `nodes` | yes | | List of exactly 3 inventory hostnames for placement |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Override storage pool for this target |
-| `place_count` | no | `ha_gateway_place_count` | Override replica count for this target |
+| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
+| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
 | `iqn` | no | `{{ iqn_base }}:{{ name }}` | iSCSI Qualified Name |
 | `target_port` | no | `3260` | iSCSI target port |
 | `implementation` | no | (auto) | iSCSI implementation: `lio`, `tgt`, or `scst` |
@@ -97,12 +117,13 @@ Each entry in `linstor_nfs_exports`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | LINSTOR resource name |
+| `name` | yes | | Export name (prefixed with `nfs-` in LINSTOR) |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `exports` | yes | | List of export definitions (see below) |
-| `nodes` | yes | | List of exactly 3 inventory hostnames for placement |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Override storage pool for this export |
-| `place_count` | no | `ha_gateway_place_count` | Override replica count for this export |
+| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
+| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
 | `fstype` | no | `ext4` | Default filesystem for all volumes |
 | `port` | no | `2049` | NFS service port |
 | `state` | no | `present` | `present` or `absent` |
@@ -112,13 +133,15 @@ Each entry in `exports`:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `size` | yes | | Export volume size (for example `50G`) |
-| `path` | no | `/` | Path under `/srv/gateway-exports/<name>/` |
+| `path` | no | `/` | Path under `/srv/gateway-exports/<resource_name>/`; clients mount via the full server path (for example `mount -t nfs <VIP>:/srv/gateway-exports/nfs-shared/data /mnt`) |
 | `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client CIDRs |
 | `export_options` | no | `ha_gateway_nfs_options` | NFS export options |
 | `fstype` | no | service-level `fstype` | Filesystem for this volume |
 
 Multiple exports within a single NFS service are supported and fail over together as a unit.
 The kernel NFS server cannot have more than one instance per node, so multiple NFS service definitions must use non-overlapping nodes.
+When multiple NFS exports use autoplace, `do_not_place_with_regex` prevents LINSTOR from placing two NFS resources on the same node.
+A post-placement validation confirms non-overlapping nodes across all NFS exports.
 
 NVMe-oF Targets
 ---------------
@@ -127,13 +150,14 @@ Each entry in `linstor_nvmeof_targets`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | LINSTOR resource name |
-| `nqn` | yes | | NVMe Qualified Name |
+| `name` | yes | | Target name (prefixed with `nvmeof-` in LINSTOR) |
+| `nqn` | no | `{{ nqn_base }}:{{ name }}` | NVMe Qualified Name; auto-generated from `ha_gateway_nvmeof_nqn_base` and target name if omitted |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `volumes` | yes | | List of volume definitions (`size` key) |
-| `nodes` | yes | | List of exactly 3 inventory hostnames for placement |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Override storage pool for this target |
-| `place_count` | no | `ha_gateway_place_count` | Override replica count for this target |
+| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
+| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
 | `target_port` | no | `4420` | NVMe-oF target port |
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
@@ -141,9 +165,22 @@ Each entry in `linstor_nvmeof_targets`:
 Per-target Placement
 --------------------
 
-Each target requires a `nodes` list of exactly 3 inventory hostnames for quorum.
-The role sets `Aux/gw-{{ name }}=True` on each node and creates `rg-{{ name }}` with `replicas_on_same: "Aux/gw-{{ name }}=True"`.
-At least 2 of the 3 nodes must be in the `linstor_diskful_satellites` inventory group.
+Each target supports two placement modes:
+
+**Explicit nodes** (recommended for production): provide a `nodes` list with at least `place_count` entries (max 3).
+The first `place_count` nodes receive diskful replicas.
+Any additional nodes are placed as diskless (explicit TieBreaker control).
+All nodes are placed in a single batch API call.
+
+Examples with `place_count: 2` (default):
+- `nodes: [A, B]` — 2 diskful, LINSTOR auto-creates TieBreaker on a random satellite.
+- `nodes: [A, B, C]` — 2 diskful on A and B, diskless on C (you control the TieBreaker node).
+
+With `place_count: 3` and `nodes: [A, B, C]`, all three are diskful and quorum is inherent.
+All diskful nodes must be in the `linstor_diskful_satellites` inventory group.
+
+**Autoplace**: omit `nodes` (or set `nodes: []`) to let LINSTOR select nodes automatically based on `place_count`.
+The role queries LINSTOR after placement to discover the selected nodes and deploys promoter configs accordingly.
 
 Dependencies
 ------------
@@ -171,9 +208,10 @@ Example Playbook
 With `group_vars/all/ha-gateway.yaml`:
 
 ```yaml
-# iSCSI targets (with specific 'sp-fast' storage pool)
+# iSCSI target with 2 replicas (default) -> LINSTOR resource "iscsi-web"
+# LINSTOR auto-creates a TieBreaker on a third satellite for quorum
 linstor_iscsi_targets:
-  - name: iscsi-web
+  - name: web
     iqn: iqn.2026-03.com.linbit:web
     service_ips:
       - 192.168.222.240/24
@@ -183,12 +221,10 @@ linstor_iscsi_targets:
     nodes:
       - node-1
       - node-2
-      - node-3
 
-# NFS exports (with auto-selected storage pool)
-# The kernel NFS server can have multiple exports, not multiple instances
+# NFS export with 2 replicas -> LINSTOR resource "nfs-shared"
 linstor_nfs_exports:
-  - name: nfs-shared
+  - name: shared
     service_ips:
       - 192.168.222.241/24
     exports:
@@ -199,12 +235,11 @@ linstor_nfs_exports:
     nodes:
       - node-4
       - node-5
-      - node-6
 
-# NVMe-oF targets (with auto-selected storage pool)
+# NVMe-oF target with 2 replicas -> LINSTOR resource "nvmeof-fast"
+# NQN auto-generated from ha_gateway_nvmeof_nqn_base when omitted
 linstor_nvmeof_targets:
-  - name: nvme-fast
-    nqn: nqn.2026-03.io.linbit:nvme-fast
+  - name: fast
     service_ips:
       - 192.168.222.242/24
     volumes:
@@ -212,15 +247,36 @@ linstor_nvmeof_targets:
     nodes:
       - node-1
       - node-2
-      - node-3
 ```
 
-NVMe-oF target with 3 diskful replicas (no tiebreaker):
+Autoplace targets (omit `nodes` to let LINSTOR select nodes automatically):
+
+```yaml
+# group_vars/all/ha-autoplace.yaml
+# No 'nodes' key — LINSTOR autoplace selects satellites based on place_count
+linstor_iscsi_targets:
+  - name: auto
+    service_ips:
+      - 192.168.222.246/24
+    volumes:
+      - size: 10G
+    storage_pool: sp0
+
+linstor_nfs_exports:
+  - name: auto
+    service_ips:
+      - 192.168.222.247/24
+    exports:
+      - path: /data
+        size: 50G
+```
+
+NVMe-oF target with 3 diskful replicas (inherent quorum, no dedicated TieBreaker needed):
 
 ```yaml
 # group_vars/all/ha-3-replica-nvmeof.yaml
 linstor_nvmeof_targets:
-  - name: nvme-critical
+  - name: critical
     nqn: nqn.2026-03.io.linbit:nvme-critical
     service_ips:
       - 192.168.222.243/24
@@ -233,13 +289,31 @@ linstor_nvmeof_targets:
       - node-3
 ```
 
+Explicit TieBreaker placement (2 diskful + 1 diskless on a specific node):
+
+```yaml
+# group_vars/all/ha-explicit-tiebreaker.yaml
+linstor_iscsi_targets:
+  - name: pinned
+    service_ips:
+      - 192.168.222.250/24
+    volumes:
+      - size: 10G
+    # place_count defaults to 2: node-1 and node-2 are diskful,
+    # node-3 is placed as diskless (TieBreaker)
+    nodes:
+      - node-1
+      - node-2
+      - node-3
+```
+
 Multiple NFS services on non-overlapping nodes:
 
 ```yaml
 # group_vars/all/ha-multi-nfs.yaml
 # The kernel NFS server cannot have more than one instance per node
 linstor_nfs_exports:
-  - name: nfs-engineering
+  - name: engineering
     service_ips:
       - 192.168.222.243/24
     exports:
@@ -248,8 +322,7 @@ linstor_nfs_exports:
     nodes:
       - node-1
       - node-2
-      - node-3
-  - name: nfs-marketing
+  - name: marketing
     service_ips:
       - 192.168.222.244/24
       - 10.0.0.244/24
@@ -259,7 +332,31 @@ linstor_nfs_exports:
     nodes:
       - node-4
       - node-5
-      - node-6
+```
+
+Targets with a pre-existing resource group (storage pool, replica count, and constraints managed externally):
+
+```yaml
+# group_vars/all/ha-custom-rg.yaml
+linstor_iscsi_targets:
+  - name: database
+    service_ips:
+      - 192.168.222.248/24
+    volumes:
+      - size: 100G
+    resource_group: rg-ssd-fast
+    nodes:
+      - node-1
+      - node-2
+
+linstor_nfs_exports:
+  - name: archive
+    service_ips:
+      - 192.168.222.249/24
+    exports:
+      - path: /archive
+        size: 500G
+    resource_group: rg-hdd-bulk
 ```
 
 iSCSI target with CHAP authentication and initiator ACLs:
@@ -267,7 +364,7 @@ iSCSI target with CHAP authentication and initiator ACLs:
 ```yaml
 # group_vars/all/ha-iscsi-chap.yaml
 linstor_iscsi_targets:
-  - name: iscsi-secure
+  - name: secure
     iqn: iqn.2026-03.com.linbit:secure
     service_ips:
       - 192.168.222.245/24
@@ -278,7 +375,6 @@ linstor_iscsi_targets:
     nodes:
       - node-1
       - node-2
-      - node-3
     username: admin
     password: s3cret
     allowed_initiators:
@@ -290,15 +386,15 @@ Remove targets by setting `state: absent`:
 
 ```yaml
 linstor_iscsi_targets:
-  - name: iscsi-web
+  - name: web
     state: absent
 
 linstor_nfs_exports:
-  - name: nfs-shared
+  - name: shared
     state: absent
 
 linstor_nvmeof_targets:
-  - name: nvme-fast
+  - name: fast
     state: absent
 ```
 

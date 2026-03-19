@@ -2,26 +2,268 @@
 #
 # Shared target preparation logic for ha_gateway.
 # Included from main.yml with vars: _protocol, _targets, _toml_template, _toml_prefix, _sizes_key
+#
+# Resource names are auto-prefixed: {{ _toml_prefix }}-{{ name }}
+# (e.g. name: web with iSCSI becomes iscsi-web in LINSTOR)
 ---
+- name: "Reset protocol state - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_present: []
+    _gw_absent: []
+    _gw_explicit: []
+    _gw_autoplace: []
+    _gw_placements: []
+    _gw_rg_check: { results: [] }
+    _gw_spawn_defs: { changed: false, results: [] }
+    _gw_manual_place: { changed: false, results: [] }
+    _gw_spawn_rg: { changed: false, results: [] }
+    _gw_spawn_auto: { changed: false, results: [] }
+    _gw_query: { results: [] }
+    _gw_resolved: []
+    _gw_satellites: []
+  run_once: true  # noqa: run-once[task]
+
 - name: "Build present and absent target lists - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_present: >-
-      {{ _targets
-         | selectattr('state', 'undefined') | list
-         + _targets
-         | selectattr('state', 'defined')
-         | selectattr('state', 'eq', 'present') | list }}
+      {%- set result = [] -%}
+      {%- for t in _targets -%}
+        {%- if t.state is not defined or t.state == 'present' -%}
+          {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
+          {%- set _ = result.append(t | combine({'name': clean})) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
     _gw_absent: >-
-      {{ _targets
-         | selectattr('state', 'defined')
-         | selectattr('state', 'eq', 'absent') | list }}
+      {%- set result = [] -%}
+      {%- for t in _targets -%}
+        {%- if t.state is defined and t.state == 'absent' -%}
+          {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
+          {%- set _ = result.append(t | combine({'name': clean})) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
   run_once: true  # noqa: run-once[task]
 
-- name: "Build involved satellite list - {{ _protocol }}"
+- name: "Split present targets into explicit-node and autoplace - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_explicit: >-
+      {{ _gw_present
+         | selectattr('nodes', 'defined')
+         | rejectattr('nodes', 'equalto', []) | list }}
+    _gw_autoplace: >-
+      {{ _gw_present
+         | rejectattr('nodes', 'defined') | list
+         + _gw_present
+         | selectattr('nodes', 'defined')
+         | selectattr('nodes', 'equalto', []) | list }}
+  run_once: true  # noqa: run-once[task]
+
+- name: "Validate target definitions - {{ _protocol }}"
+  ansible.builtin.include_tasks: validate-target.yml
+  when: _gw_present | length > 0
+
+# --- Validate custom resource groups ---
+
+- name: "Validate custom resource groups exist - {{ _protocol }}"
+  linbit.linstor.resource_group:
+    name: "{{ _target.resource_group }}"
+    state: query
+  loop: "{{ _gw_present | selectattr('resource_group', 'defined') | list }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}:{{ _target.resource_group }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_rg_check
+
+- name: "Fail if custom resource group does not exist - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: _check.exists
+    fail_msg: >-
+      Resource group '{{ _check._target.resource_group }}' specified for
+      target '{{ _check._target.name }}' does not exist. Create it before
+      running this role.
+    quiet: true
+  loop: "{{ _gw_rg_check.results | default([]) }}"
+  loop_control:
+    loop_var: _check
+    label: "{{ _check._target.name }}:{{ _check._target.resource_group }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: "Validate resource group place_count - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: (_check.place_count | default(2)) | int in [2, 3]
+    fail_msg: >-
+      Resource group '{{ _check._target.resource_group }}' has
+      place_count {{ _check.place_count }}, must be 2 or 3
+    quiet: true
+  loop: "{{ _gw_rg_check.results | default([]) }}"
+  loop_control:
+    loop_var: _check
+    label: "{{ _check._target.name }}:{{ _check._target.resource_group }}"
+  run_once: true  # noqa: run-once[task]
+
+# --- Resource group targets: spawn definitions ---
+
+- name: "Spawn resource definitions from resource groups (explicit nodes) - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    mode: spawn
+    resource_group: "{{ _target.resource_group }}"
+    definitions_only: true
+    sizes: >-
+      {{ [ha_gateway_tickle_dir_size]
+         + _target[_sizes_key] | map(attribute='size') | list }}
+  loop: "{{ _gw_explicit | selectattr('resource_group', 'defined') | list }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_spawn_defs
+
+# --- Explicit-node targets: manual placement ---
+
+- name: "Build manual placement list - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_placements: >-
+      {%- set rg_pc = {} -%}
+      {%- for r in _gw_rg_check.results | default([]) -%}
+        {%- set _ = rg_pc.update({r._target.name: (r.place_count | default(2)) | int}) -%}
+      {%- endfor -%}
+      {%- set result = [] -%}
+      {%- for t in _gw_explicit -%}
+        {%- set has_rg = t.resource_group is defined -%}
+        {%- set pc = rg_pc.get(t.name, (t.place_count | default(ha_gateway_place_count)) | int) if has_rg else (t.place_count | default(ha_gateway_place_count)) | int -%}
+        {%- set vol_sizes = [ha_gateway_tickle_dir_size] + t[_sizes_key] | map(attribute='size') | list -%}
+        {%- set sp = t.storage_pool | default(ha_gateway_storage_pool) | default('', true) -%}
+        {%- set node_entries = [] -%}
+        {%- for n in t.nodes -%}
+          {%- set is_diskless = loop.index0 >= pc -%}
+          {%- set _ = node_entries.append({
+            'node': hostvars[n]['linstor_hostname'] | default(n),
+            'diskless': is_diskless,
+            'storage_pool': sp if (not has_rg and not is_diskless) else ''
+          }) -%}
+        {%- endfor -%}
+        {%- set _ = result.append({
+          'resource_name': _toml_prefix ~ '-' ~ t.name,
+          'nodes': node_entries,
+          'sizes': vol_sizes if not has_rg else []
+        }) -%}
+      {%- endfor -%}
+      {{ result }}
+  run_once: true  # noqa: run-once[task]
+  when: _gw_explicit | length > 0
+
+# All nodes placed in a single batch API call per resource.
+# Nodes beyond place_count are placed as diskless (explicit TieBreaker).
+# With exactly place_count nodes, LINSTOR auto-creates a TieBreaker.
+- name: "Place resources on explicit nodes - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _placement.resource_name }}"
+    mode: manual
+    nodes: "{{ _placement.nodes }}"
+    sizes: "{{ _placement.sizes | default(omit, true) }}"
+  loop: "{{ _gw_placements | default([]) }}"
+  loop_control:
+    loop_var: _placement
+    label: "{{ _placement.resource_name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_manual_place
+
+# --- Resource group autoplace targets: spawn ---
+
+- name: "Spawn LINSTOR resources from resource groups (autoplace) - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    mode: spawn
+    resource_group: "{{ _target.resource_group }}"
+    sizes: >-
+      {{ [ha_gateway_tickle_dir_size]
+         + _target[_sizes_key] | map(attribute='size') | list }}
+  loop: "{{ _gw_autoplace | selectattr('resource_group', 'defined') | list }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_spawn_rg
+
+# --- Autoplace targets without resource group ---
+
+- name: "Autoplace LINSTOR resources - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    mode: autoplace
+    sizes: >-
+      {{ [ha_gateway_tickle_dir_size]
+         + _target[_sizes_key] | map(attribute='size') | list }}
+    place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
+    storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
+    do_not_place_with_regex: "{{ '^' ~ _toml_prefix ~ '-' if _sizes_key == 'exports' and _gw_present | length > 1 else omit }}"
+  loop: "{{ _gw_autoplace | rejectattr('resource_group', 'defined') | list }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_spawn_auto
+
+# --- Discover placement and build resolved targets ---
+
+- name: "Query resource placement - {{ _protocol }}"
+  linbit.linstor.resource:
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    state: query
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_query
+  when: _gw_present | length > 0
+
+- name: "Resolve target node lists - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_resolved: >-
+      {%- set _inv_map = {} -%}
+      {%- for host in groups.get('linstor_satellites', []) -%}
+        {%- set lh = hostvars[host]['linstor_hostname'] | default(host) -%}
+        {%- set _ = _inv_map.update({lh: host}) -%}
+      {%- endfor -%}
+      {%- set resolved = [] -%}
+      {%- for result in _gw_query.results | default([]) -%}
+        {%- set t = result._target -%}
+        {%- if t.nodes | default([]) | length > 0 -%}
+          {%- set _ = resolved.append(t) -%}
+        {%- else -%}
+          {%- set diskful = [] -%}
+          {%- set diskless_nodes = [] -%}
+          {%- for ln in result.nodes -%}
+            {%- set inv_name = _inv_map.get(ln, ln) -%}
+            {%- set node_flags = result.flags.get(ln, []) -%}
+            {%- if 'DRBD_DISKLESS' in node_flags or 'TIE_BREAKER' in node_flags -%}
+              {%- set _ = diskless_nodes.append(inv_name) -%}
+            {%- else -%}
+              {%- set _ = diskful.append(inv_name) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- set _ = resolved.append(t | combine({'nodes': diskful + diskless_nodes})) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ resolved }}
+  run_once: true  # noqa: run-once[task]
+  when: _gw_present | length > 0
+
+- name: "Build resolved satellite list - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_satellites: >-
       {%- set nodes = [] -%}
-      {%- for t in _gw_present -%}
+      {%- for t in _gw_resolved | default([]) -%}
         {%- for n in t.nodes -%}
           {%- if n not in nodes -%}
             {%- set _ = nodes.append(n) -%}
@@ -32,141 +274,77 @@
   run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
 
-- name: "Validate target definitions - {{ _protocol }}"
-  ansible.builtin.include_tasks: validate-target.yml
-  when: _gw_present | length > 0
-
-# --- Create present targets ---
-
-- name: "Build node tag list for target placement - {{ _protocol }}"
-  ansible.builtin.set_fact:
-    _gw_node_tags: >-
-      {%- set result = [] -%}
-      {%- for t in _gw_present -%}
-        {%- for n in t.nodes -%}
-          {%- set _ = result.append({'target': t.name, 'node': n}) -%}
-        {%- endfor -%}
-      {%- endfor -%}
-      {{ result }}
-  run_once: true  # noqa: run-once[task]
-  when: _gw_present | length > 0
-
-- name: "Set per-target aux properties on satellite nodes - {{ _protocol }}"
-  linbit.linstor.node:
-    name: "{{ hostvars[_tag.node]['linstor_hostname'] | default(_tag.node) }}"
-    aux_properties: "{{ {'gw-' ~ _tag.target: 'True'} }}"
-  loop: "{{ _gw_node_tags | default([]) }}"
-  loop_control:
-    loop_var: _tag
-    label: "{{ _tag.node }}:gw-{{ _tag.target }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  run_once: true  # noqa: run-once[task]
-
-- name: "Check for resource group collisions - {{ _protocol }}"
-  linbit.linstor.resource_group:
-    name: "rg-{{ _target.name }}"
-    state: query
-  loop: "{{ _gw_present }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target.name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  run_once: true  # noqa: run-once[task]
-  register: _gw_rg_check
-
-- name: "Fail if resource group exists but is not managed by ha_gateway - {{ _protocol }}"
+- name: Validate resolved NFS exports have non-overlapping nodes
   ansible.builtin.assert:
     that: >-
-      not _check.exists
-      or ('Aux/gw-' ~ _check._target.name ~ '=True') in (_check.replicas_on_same | default([]))
+      _all_nfs_nodes | length == _all_nfs_nodes | unique | length
     fail_msg: >-
-      Resource group 'rg-{{ _check._target.name }}' already exists but is not
-      managed by ha_gateway (missing Aux/gw-{{ _check._target.name }}=True
-      in replicas_on_same). Rename the target or remove the conflicting
-      resource group.
+      NFS export node lists overlap after placement. The kernel NFS server
+      cannot have more than one instance per node. Use explicit nodes to
+      control placement or reduce the number of NFS exports.
     quiet: true
-  loop: "{{ _gw_rg_check.results | default([]) }}"
-  loop_control:
-    loop_var: _check
-    label: "{{ _check._target.name }}"
+  vars:
+    _all_nfs_nodes: >-
+      {{ _gw_resolved | map(attribute='nodes') | flatten }}
   run_once: true  # noqa: run-once[task]
+  when:
+    - _sizes_key == 'exports'
+    - _gw_resolved | default([]) | length > 1
 
-- name: "Create per-target resource groups - {{ _protocol }}"
-  linbit.linstor.resource_group:
-    name: "rg-{{ _target.name }}"
-    storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
-    place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
-    replicas_on_same:
-      - "Aux/gw-{{ _target.name }}=True"
-  loop: "{{ _gw_present }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target.name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  run_once: true  # noqa: run-once[task]
-
-- name: "Spawn LINSTOR resources - {{ _protocol }}"
-  linbit.linstor.resource:
-    name: "{{ _target.name }}"
-    mode: spawn
-    resource_group: "rg-{{ _target.name }}"
-    sizes: >-
-      {{ [ha_gateway_tickle_dir_size]
-         + _target[_sizes_key] | map(attribute='size') | list }}
-  loop: "{{ _gw_present }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target.name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  run_once: true  # noqa: run-once[task]
-  register: _gw_spawn
+# --- Wait, format, DRBD options ---
 
 - name: "Wait for DRBD devices - {{ _protocol }}"
   ansible.builtin.wait_for:
-    path: "/dev/drbd/by-res/{{ _target.name }}/0"
-  loop: "{{ _gw_present }}"
+    path: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _target.name }}/0"
+  loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target.name }}"
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: _gw_spawn is changed
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: "Format portblock tickle_dir partition - {{ _protocol }}"
   community.general.filesystem:
     fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
-    dev: "/dev/drbd/by-res/{{ _target.name }}/0"
+    dev: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _target.name }}/0"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
-  loop: "{{ _gw_present }}"
+  loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target.name }}"
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: _gw_spawn is changed
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: Format NFS export partitions
   community.general.filesystem:
     fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
-    dev: "/dev/drbd/by-res/{{ _export.0.name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
+    dev: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _export.0.name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
-  loop: "{{ _gw_present | subelements('exports') if _sizes_key == 'exports' else [] }}"
+  loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export
-    label: "{{ _export.0.name }}:{{ _export.1.path | default('/') }}"
+    label: "{{ _toml_prefix }}-{{ _export.0.name }}:{{ _export.1.path | default('/') }}"
   delegate_to: "{{ _export.0.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: _gw_spawn is changed
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: "Set DRBD resource options - {{ _protocol }}"
   linbit.linstor.resource_definition:
-    name: "{{ _target.name }}"
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
     drbd_options:
       resource: "{{ ha_gateway_drbd_options }}"
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target.name }}"
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
 
@@ -187,7 +365,7 @@
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target.name }}"
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
   when: inventory_hostname in (_target.nodes | default(groups['linstor_satellites']))
   notify: reload_drbd_reactor
 
@@ -196,13 +374,13 @@
   when: _gw_absent | length > 0
 
 - name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
-  linbit.linstor.resource:
-    name: "{{ _target.name }}"
+  linbit.linstor.resource_definition:
+    name: "{{ _toml_prefix }}-{{ _target.name }}"
     state: absent
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target.name }}"
+    label: "{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   retries: 5

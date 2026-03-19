@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # {{ ansible_managed }}
+{% set _resource = _toml_prefix ~ '-' ~ _target.name %}
 {% set _ips = _target.service_ips %}
 {% set _port = _target.target_port | default(ha_gateway_iscsi_port) | string %}
 {% set _iqn = _target.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ _target.name) %}
@@ -17,7 +18,7 @@
 
   [promoter.resources]
 
-    [promoter.resources.{{ _target.name }}]
+    [promoter.resources.{{ _resource }}]
       on-drbd-demote-failure = "reboot-immediate"
       on-disk-detach = "fail-over"
       adjust-resource-on-start = false
@@ -25,7 +26,7 @@
       stop-services-on-exit = true
       target-as = "Requires"
       start = [
-        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _target.name }}/0 directory=/srv/ha/internal/{{ _target.name }} fstype={{ _fstype }} run_fsck=no",
+        "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _resource }}/0 directory=/srv/ha/internal/{{ _resource }} fstype={{ _fstype }} run_fsck=no",
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}
 {% set _mask = ip_cidr.split('/')[1] %}
@@ -36,10 +37,10 @@
 {% for vol in _volumes %}
 {% set _lun = loop.index %}
 {% set _serial = (_iqn ~ '-' ~ _lun | string) | hash('md5') %}
-        "ocf:heartbeat:iSCSILogicalUnit lu{{ _lun }} lun={{ _lun }} path=/dev/drbd/by-res/{{ _target.name }}/{{ _lun }} product_id={{ _serial[:8] }} scsi_sn={{ _serial[:8] }} target_iqn={{ _iqn }}{{ ' implementation=' ~ _implementation if _implementation }}",
+        "ocf:heartbeat:iSCSILogicalUnit lu{{ _lun }} lun={{ _lun }} path=/dev/drbd/by-res/{{ _resource }}/{{ _lun }} product_id={{ _serial[:8] }} scsi_sn={{ _serial[:8] }} target_iqn={{ _iqn }}{{ ' implementation=' ~ _implementation if _implementation }}",
 {% endfor %}
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}
-        "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _target.name }}",
+        "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _resource }}",
 {% endfor %}
       ]
