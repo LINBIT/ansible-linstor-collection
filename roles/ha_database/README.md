@@ -37,7 +37,7 @@ See `defaults/main.yml`.
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_tiebreaker_node` | `""` | Pin the TieBreaker to a specific satellite (inventory hostname); only used with 2 combined nodes, random if empty |
-| `ha_database_vip` | `""` | Virtual IP for the HA controller (for example `10.0.0.100/24`). DRBD Reactor floats an IPaddr2 resource with the active controller. The IP is stored as `Aux/ha_database_vip` so `client_install` discovers it on subsequent runs. Defaults to `/24` if no CIDR is given. Requires the IPaddr2 resource agent, installed by `linbit.drbd_reactor.resource_agents_fetch` via `reactor_install`. |
+| `ha_database_vip` | `""` | Virtual IP for the HA controller (for example `10.0.0.100/24`). DRBD Reactor floats an IPaddr2 resource with the active controller. The IP is stored as `Aux/ha_database_vip` so `client_install` discovers it on subsequent runs. Defaults to `/24` if no CIDR is given. Requires the IPaddr2 resource agent, installed by `linbit.drbd_reactor.resource_agents_upstream` via `reactor_install`. |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
 | `linstor_hostname` | auto-detected | Node hostname for LINSTOR. Forces short hostnames on Proxmox VE, unaltered otherwise |
 

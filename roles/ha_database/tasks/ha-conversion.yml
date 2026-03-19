@@ -24,13 +24,18 @@
       {%- endif -%}
   run_once: true # noqa: run-once[task]
 
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
   vars:
     reactor_install_drbd: false # skip DRBD install, already present
-    reactor_install_resource_agents_github: true
-  when: inventory_hostname in _ha_db_placement_nodes
+    reactor_install_resource_agents_upstream: true
+  when:
+    - inventory_hostname in _ha_db_placement_nodes
+    - "'drbd-reactor.service' not in ansible_facts.services"
 
 # LINSTOR node properties (informational aux prop on combined nodes)
 - name: Set ControllerIsHA on combined controller nodes
