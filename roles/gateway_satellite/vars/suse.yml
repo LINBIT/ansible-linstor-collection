@@ -4,7 +4,7 @@
 linstor_gateway_supplemental_packages:
   # - drbd-reactor # installed by role!
   - iptables # for portblock
-  # - nvmetcli
+  - nvmetcli
   - nfs-kernel-server
   - nfs-utils
   - psmisc # Missing from Debian? Might not be included in minimal installs
