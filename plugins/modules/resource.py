@@ -63,8 +63,17 @@ options:
     default: false
   node:
     description:
-      - Target node name. Required when C(mode=manual).
+      - Target node name for single-node manual placement.
+      - Mutually exclusive with C(nodes).
     type: str
+  nodes:
+    description:
+      - List of node placement entries for batch manual placement.
+      - Each entry is a dict with C(node) (required) and optional C(diskless) (default false).
+      - All nodes are placed in a single API call, avoiding TieBreaker race conditions.
+      - Mutually exclusive with C(node).
+    type: list
+    elements: dict
   storage_pool:
     description: Storage pool to use for placement.
     type: str
@@ -115,6 +124,11 @@ notes:
     all API calls from a single host.
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname).
+  - "In C(mode=manual), use C(nodes) instead of C(node) for multi-node placement.
+    All nodes are placed in a single API call, which prevents LINSTOR from
+    auto-creating a TieBreaker between placements. With C(node) and a loop,
+    LINSTOR may auto-create a TieBreaker after placing the second replica,
+    resulting in an extra node."
   - "When C(state=absent) with C(node) specified, LINSTOR may convert a diskful
     resource to a TieBreaker (diskless quorum voter) instead of fully deleting it.
     This only happens at the 3-to-2 diskful replica boundary when C(auto-quorum)
@@ -171,24 +185,47 @@ EXAMPLES = r'''
       - 1G
   run_once: true  # noqa: run-once[task]
 
-- name: Place resource on a specific node
+- name: Place resource on a single node
   linbit.linstor.resource:
     name: res-data
     mode: manual
     node: node-1
     storage_pool: sp-lvm-thin
+    size: 10G
   run_once: true  # noqa: run-once[task]
 
-- name: Manually place a 3 replica resource
+# Batch placement: all nodes in a single API call.
+# With 2 diskful nodes, LINSTOR auto-creates a TieBreaker on a third
+# satellite for quorum. No explicit diskless placement needed.
+- name: Place 2-replica resource (auto TieBreaker)
   linbit.linstor.resource:
-    name: res-data
+    name: res-ha
     mode: manual
-    node: "{{ item }}"
-    storage_pool: sp-lvm-thin
-  loop:
-    - node-1
-    - node-2
-    - node-3
+    nodes:
+      - node: node-1
+        storage_pool: sp-lvm-thin
+      - node: node-2
+        storage_pool: sp-lvm-thin
+    sizes:
+      - 64M
+      - 1G
+  run_once: true  # noqa: run-once[task]
+
+# With 3 diskful nodes, quorum is inherent. No TieBreaker created.
+- name: Place 3-replica resource (no TieBreaker)
+  linbit.linstor.resource:
+    name: res-critical
+    mode: manual
+    nodes:
+      - node: node-1
+        storage_pool: sp-lvm-thin
+      - node: node-2
+        storage_pool: sp-lvm-thin
+      - node: node-3
+        storage_pool: sp-lvm-thin
+    sizes:
+      - 64M
+      - 1G
   run_once: true  # noqa: run-once[task]
 
 # Creates a diskless resource if it does not exist on the node.
@@ -223,20 +260,12 @@ EXAMPLES = r'''
     node: node-3
   run_once: true  # noqa: run-once[task]
 
+# To delete an entire resource (definition + all replicas), prefer
+# linbit.linstor.resource_definition with state=absent instead.
 - name: Remove a resource definition and all replicas
-  linbit.linstor.resource:
+  linbit.linstor.resource_definition:
     name: res-0
     state: absent
-  run_once: true  # noqa: run-once[task]
-
-# LINSTOR recommends no more than 3 diskful replicas per resource
-- name: Place resource on all satellite nodes from one host
-  linbit.linstor.resource:
-    name: res-data
-    mode: manual
-    node: "{{ item }}"
-    storage_pool: sp-lvm-thin
-  loop: "{{ groups['linstor_satellites'] }}"
   run_once: true  # noqa: run-once[task]
 '''
 
@@ -341,6 +370,7 @@ def main():
         sizes=dict(type='list', elements='str'),
         definitions_only=dict(type='bool', default=False),
         node=dict(type='str'),
+        nodes=dict(type='list', elements='dict', default=[]),
         storage_pool=dict(type='str'),
         place_count=dict(type='int', default=2),
         do_not_place_with_regex=dict(type='str'),
@@ -354,10 +384,9 @@ def main():
         supports_check_mode=True,
         mutually_exclusive=[
             ('size', 'sizes'),
+            ('node', 'nodes'),
         ],
-        required_if=[
-            ('mode', 'manual', ['node']),
-        ],
+        required_if=[],
     )
 
     name = module.params['name']
@@ -375,6 +404,9 @@ def main():
         module.fail_json(msg="mode=autoplace requires 'size' or 'sizes' parameter")
     definitions_only = module.params['definitions_only']
     node = module.params.get('node')
+    nodes = module.params.get('nodes') or []
+    if state == 'present' and mode == 'manual' and not node and not nodes:
+        module.fail_json(msg="mode=manual requires 'node' or 'nodes' parameter")
     storage_pool = module.params.get('storage_pool')
     place_count = module.params['place_count']
     do_not_place_with_regex = module.params.get('do_not_place_with_regex')
@@ -452,8 +484,47 @@ def main():
             deployed = get_resources(lin, name)
             node_list = get_resource_nodes(deployed)
 
-            # For manual mode, check if the resource is on the target node
-            if mode == 'manual' and node and node not in node_list:
+            # For manual mode with batch nodes, place any missing nodes
+            if mode == 'manual' and nodes:
+                missing = []
+                for entry in nodes:
+                    n = entry.get('node') or entry.get('name')
+                    if n not in node_list:
+                        missing.append(entry)
+                if missing:
+                    if module.check_mode:
+                        new_nodes = [e.get('node') or e.get('name')
+                                     for e in missing]
+                        module.exit_json(
+                            changed=True, name=name, mode=mode,
+                            resource_group=resource_group,
+                            nodes=node_list + new_nodes,
+                            properties=get_rd_props(existing_rd))
+                    create_data = []
+                    for entry in missing:
+                        n = entry.get('node') or entry.get('name')
+                        is_diskless = entry.get('diskless', False)
+                        sp = entry.get('storage_pool', storage_pool)
+                        if is_diskless:
+                            create_data.append(
+                                linstor.ResourceData(n, name, diskless=True))
+                        else:
+                            create_data.append(
+                                linstor.ResourceData(
+                                    n, name,
+                                    storage_pool=sp if sp else None))
+                    replies = lin.resource_create(create_data)
+                    placed = ', '.join(
+                        e.get('node') or e.get('name') for e in missing)
+                    check_api_response(module, replies,
+                                       'place resource %s on %s' % (
+                                           name, placed))
+                    changed = True
+                    deployed = get_resources(lin, name)
+                    node_list = get_resource_nodes(deployed)
+
+            # For manual mode with single node, check if the resource is on the target node
+            elif mode == 'manual' and node and node not in node_list:
                 if module.check_mode:
                     module.exit_json(
                         changed=True, name=name, mode=mode,
@@ -600,17 +671,42 @@ def main():
                 check_api_response(module, replies,
                                    'create volume definition %d in %s' % (i, name))
 
-            # Place on specified node
-            if diskless:
+            # Place on specified node(s)
+            if nodes:
+                # Batch placement: all nodes in one API call
+                create_data = []
+                for entry in nodes:
+                    n = entry.get('node') or entry.get('name')
+                    if not n:
+                        module.fail_json(
+                            msg="Each entry in 'nodes' must have a 'node' key")
+                    is_diskless = entry.get('diskless', False)
+                    sp = entry.get('storage_pool', storage_pool)
+                    if is_diskless:
+                        create_data.append(
+                            linstor.ResourceData(n, name, diskless=True))
+                    else:
+                        create_data.append(
+                            linstor.ResourceData(
+                                n, name,
+                                storage_pool=sp if sp else None))
+                replies = lin.resource_create(create_data)
+                placed = ', '.join(
+                    e.get('node') or e.get('name') for e in nodes)
+                check_api_response(module, replies,
+                                   'place resource %s on %s' % (name, placed))
+            elif diskless:
                 replies = lin.resource_create([
                     linstor.ResourceData(node, name, diskless=True)])
+                check_api_response(module, replies,
+                                   'place resource %s on %s' % (name, node))
             else:
                 create_data = [linstor.ResourceData(
                     node, name,
                     storage_pool=storage_pool if storage_pool else None)]
                 replies = lin.resource_create(create_data)
-            check_api_response(module, replies,
-                               'place resource %s on %s' % (name, node))
+                check_api_response(module, replies,
+                                   'place resource %s on %s' % (name, node))
             changed = True
 
         # Set properties on the new resource
