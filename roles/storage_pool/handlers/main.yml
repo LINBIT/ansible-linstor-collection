@@ -6,13 +6,28 @@
     state: restarted
   listen: storage_pool_restart_satellite
 
-- name: Wait for satellite service to be ready
+- name: Check for satellite on non-SSL port
   ansible.builtin.wait_for:
     port: 3366
     delay: 10
     timeout: 30
+  register: _sp_non_ssl_port
+  ignore_errors: true
   listen: storage_pool_restart_satellite
-  when: inventory_hostname in groups.get('linstor_satellites', [])
+  when:
+    - inventory_hostname in groups.get('linstor_satellites', [])
+    - not (cluster_init_ssl | default(false) | bool)
+
+# Fallback to SSL port when non-SSL check was skipped or failed
+- name: Wait for satellite on SSL port
+  ansible.builtin.wait_for:
+    port: 3367
+    delay: 10
+    timeout: 30
+  listen: storage_pool_restart_satellite
+  when:
+    - inventory_hostname in groups.get('linstor_satellites', [])
+    - _sp_non_ssl_port is not succeeded
 
 - name: Wait for satellite to be ONLINE after restart
   linbit.linstor.node:

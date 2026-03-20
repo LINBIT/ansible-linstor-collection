@@ -10,10 +10,23 @@
     enabled: true
   listen: sat_package_update
 
-- name: Wait for LINSTOR satellite service
+- name: Check for LINSTOR satellite on non-SSL port
   ansible.builtin.wait_for:
     host: localhost
     port: 3366
     delay: 5
-    timeout: 20
+    timeout: 15
+  register: _sat_non_ssl_port
+  ignore_errors: true
+  when: not (cluster_init_ssl | default(false) | bool)
+  listen: sat_package_update
+
+# Fallback to SSL port when non-SSL check was skipped or failed
+- name: Wait for LINSTOR satellite on SSL port
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 3367
+    delay: 5
+    timeout: 15
+  when: _sat_non_ssl_port is not succeeded
   listen: sat_package_update
