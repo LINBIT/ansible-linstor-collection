@@ -6,13 +6,21 @@
     state: restarted
   listen: storage_pool_restart_satellite
 
+- name: Wait for satellite service to be ready
+  ansible.builtin.wait_for:
+    port: 3366
+    delay: 10
+    timeout: 30
+  listen: storage_pool_restart_satellite
+  when: inventory_hostname in groups.get('linstor_satellites', [])
+
 - name: Wait for satellite to be ONLINE after restart
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
     state: query
   register: _sp_satellite_status
   until: _sp_satellite_status.connection_status | default('') == 'ONLINE'
-  retries: 5
+  retries: 6
   delay: 5
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   listen: storage_pool_restart_satellite

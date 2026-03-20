@@ -2,6 +2,12 @@
 ---
 - name: Create LINSTOR file storage pool directory
   ansible.builtin.file:
-    path: "{{ _pool.file_path | default(storage_pool_defaults.file_path) }}"
+    path: "{{ item.file_path | default(storage_pool_defaults.file_path) }}"
     state: directory
     mode: '0755'
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['file', 'filethin'])
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"

@@ -1,25 +1,52 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Check if ZFS zpool already exists
-  ansible.builtin.command: zpool list {{ _pool.zpool }}
-  register: _storage_pool_zpool_check
+- name: Check if ZFS zpools already exist
+  ansible.builtin.command: zpool list {{ item.zpool }}
+  register: _zpool_checks
   failed_when: false
   changed_when: false
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['zfs', 'zfsthin'])
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: Run wipefs on storage pool backing disks
-  ansible.builtin.command: wipefs -afq {{ item }}
+- name: Build zpool existence map
+  ansible.builtin.set_fact:
+    _zpool_exists: >-
+      {% set ns = namespace(result={}) -%}
+      {% for check in _zpool_checks.results | default([]) -%}
+      {% set ns.result = ns.result | combine({check.item.zpool: (check.rc == 0)}) -%}
+      {% endfor -%}
+      {{ ns.result }}
+
+- name: Run wipefs on ZFS pool backing disks
+  ansible.builtin.command: wipefs -afq {{ item.1 }}
   changed_when: true
-  loop: "{{ _pool.physical_devices }}"
-  when: _storage_pool_zpool_check.rc != 0
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['zfs', 'zfsthin'])
+       | list
+       | subelements('physical_devices') }}
+  loop_control:
+    label: "{{ item.0.name }} - {{ item.1 }}"
+  when: not (_zpool_exists[item.0.zpool] | default(false))
 
 - name: Create ZFS zpool for LINSTOR
   community.general.zpool:
-    name: "{{ _pool.zpool }}"
+    name: "{{ item.zpool }}"
     vdevs:
-      - disks: "{{ _pool.physical_devices }}"
-        type: "{{ _pool.zpool_vdev_type | default(storage_pool_defaults.zpool_vdev_type) }}"
-    pool_properties: "{{ _pool.zpool_properties | default(storage_pool_defaults.zpool_properties) }}"
+      - disks: "{{ item.physical_devices }}"
+        type: "{{ item.zpool_vdev_type | default(storage_pool_defaults.zpool_vdev_type) }}"
+    pool_properties: "{{ item.zpool_properties | default(storage_pool_defaults.zpool_properties) }}"
     state: present
     force: true
   notify: storage_pool_restart_satellite
-  when: _storage_pool_zpool_check.rc != 0
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['zfs', 'zfsthin'])
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+  when: not (_zpool_exists[item.zpool] | default(false))

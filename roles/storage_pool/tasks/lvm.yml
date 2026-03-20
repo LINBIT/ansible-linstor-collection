@@ -8,30 +8,53 @@
 
 # Don't wipe out physical volumes if the volume group is already enumerated
 - name: Run wipefs on storage pool backing disks
-  ansible.builtin.command: wipefs -afq {{ item }}
+  ansible.builtin.command: wipefs -afq {{ item.1 }}
   changed_when: true
-  loop: "{{ _pool.physical_devices }}"
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['lvm', 'lvmthin'])
+       | list
+       | subelements('physical_devices') }}
+  loop_control:
+    label: "{{ item.0.name }} - {{ item.1 }}"
   notify: storage_pool_restart_satellite
   when:
-    (_pool.vg not in ansible_facts['lvm']['vgs']) or
-    (_pool.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
+    (item.0.vg not in ansible_facts['lvm']['vgs']) or
+    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
 
 - name: Create LVM volume group for LINSTOR
   community.general.lvg:
-    vg: "{{ _pool.vg }}"
-    pvs: "{{ _pool.physical_devices }}"
-    pv_options: "{{ _pool.pv_create_options | default(storage_pool_defaults.pv_create_options) }}"
+    vg: "{{ item.vg }}"
+    pvs: "{{ item.physical_devices }}"
+    pv_options: "{{ item.pv_create_options | default(storage_pool_defaults.pv_create_options) }}"
     remove_extra_pvs: false
     state: present
   notify: storage_pool_restart_satellite
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['lvm', 'lvmthin'])
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
 
-# Stripe volumes by default when more than 1 device exists
+# Stripe volumes by default when more than 1 device exists.
+# Each vars expression uses a single {{ }} output to avoid jinja2_native
+# returning None for empty >- block scalar templates.
 - name: Create LVM thin pool for LINSTOR
   community.general.lvol:
-    vg: "{{ _pool.vg }}"
-    thinpool: "{{ _pool.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
-    size: "{{ _pool.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
-    opts: "{{ _lv_opts }}"
+    vg: "{{ item.vg }}"
+    thinpool: "{{ item.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
+    size: "{{ item.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
+    opts: "{{ _lv_opts or omit }}"
     shrink: false
+  vars:
+    _custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
+    _stripe_opts: "{{ ('-i ' ~ (item.physical_devices | length | string) ~ ' -I 64') if item.physical_devices | length > 1 else '' }}"
+    _lv_opts: "{{ _custom_opts or _stripe_opts }}"
   notify: storage_pool_restart_satellite
-  when: _type == 'lvmthin'
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'equalto', 'lvmthin')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
