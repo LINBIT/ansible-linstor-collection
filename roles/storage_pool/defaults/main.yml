@@ -2,6 +2,12 @@
 ---
 # The role reads linstor_storage_pools from inventory (list of pool dicts).
 # Default: empty list (skips if undefined).
+#
+# Optional targeting keys per pool entry:
+#   nodes: list of inventory_hostname values (pool applies only to listed nodes)
+#   groups: list of inventory group names (pool applies to all group members)
+# When both are set, the union of nodes and group members is used.
+# When neither is set, the pool applies to every host that sees the variable.
 storage_pool_defaults:
   type: lvmthin
   vg_thinpool: thinpool

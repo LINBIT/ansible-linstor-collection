@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT
+---
+# Install ZFS utilities before pool creation so all hosts install in parallel
+# rather than blocking the sequential pool loop.
+- name: Check for ZFS
+  ansible.builtin.stat:
+    path: /usr/sbin/zfs
+  register: _storage_pool_zfs_check
+
+- name: Install ZFS on Debian
+  when:
+    - not _storage_pool_zfs_check.stat.exists
+    - ansible_facts['distribution'] | lower == 'debian'
+    - storage_pool_zfs_install_debian | bool
+  block:
+    - name: Install gpg for repository management
+      ansible.builtin.package:
+        name: gpg
+        state: present
+
+    - name: Enable Debian contrib repository for ZFS
+      ansible.builtin.deb822_repository:
+        name: debian-contrib
+        uris: http://deb.debian.org/debian
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: contrib
+        signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+      register: _contrib_repo
+
+    - name: Update apt cache after enabling contrib
+      ansible.builtin.apt:
+        update_cache: true
+      when: _contrib_repo is changed
+
+    - name: Install ZFS utilities
+      ansible.builtin.package:
+        name: zfsutils-linux
+        state: present
+
+- name: Halt if ZFS is not installed
+  ansible.builtin.fail:
+    msg: "ZFS is not installed (/usr/sbin/zfs not found)"
+  when:
+    - not _storage_pool_zfs_check.stat.exists
+    - not (ansible_facts['distribution'] | lower == 'debian' and storage_pool_zfs_install_debian | bool)

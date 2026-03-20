@@ -16,6 +16,7 @@ argument_specs:
         description:
           - List of pool definitions, typically defined in inventory.
           - "Each item supports keys: C(name) (required), C(type), C(vg), C(vg_thinpool), C(zpool), C(physical_devices), C(file_path), C(thinpool_size), C(pv_create_options), C(lv_create_options), C(zfs_create_options), C(zpool_vdev_type), C(zpool_properties), C(wipefs_force)."
+          - "Optional targeting keys: C(nodes) (list of inventory hostnames) and C(groups) (list of inventory group names). When set, the pool is created only on hosts that match. When both are set, the union is used. When neither is set, the pool applies to every host that sees the variable."
       storage_pool_defaults:
         type: dict
         description:

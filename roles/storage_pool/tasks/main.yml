@@ -5,12 +5,40 @@
   ansible.builtin.package_facts:
   when: ansible_facts['packages'] is not defined
 
+# Filter pools for this host. Pools without nodes/groups keys apply unconditionally.
+# Pools with nodes and/or groups keys apply only when the current host is listed
+# in nodes or is a member of one of the listed inventory groups (union).
+- name: Filter pools for this host
+  ansible.builtin.set_fact:
+    _my_pools: >-
+      {%- set result = [] -%}
+      {%- for pool in linstor_storage_pools | default([]) -%}
+        {%- if pool.nodes is not defined and pool.groups is not defined -%}
+          {%- set _ = result.append(pool) -%}
+        {%- else -%}
+          {%- set ns = namespace(targets=pool.nodes | default([])) -%}
+          {%- for grp in pool.groups | default([]) -%}
+            {%- set ns.targets = ns.targets + groups.get(grp, []) -%}
+          {%- endfor -%}
+          {%- if inventory_hostname in ns.targets | unique -%}
+            {%- set _ = result.append(pool) -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Install ZFS prerequisites
+  ansible.builtin.include_tasks: zfs-prereq.yml
+  when:
+    - _storage_pool_is_diskful | bool
+    - _my_pools | selectattr('type', 'defined') | selectattr('type', 'in', ['zfs', 'zfsthin']) | list | length > 0
+
 - name: Check if storage pool exists
   linbit.linstor.storage_pool:
     name: "{{ _pool.name }}"
     node: "{{ linstor_hostname }}"
     state: query
-  loop: "{{ linstor_storage_pools | default([]) }}"
+  loop: "{{ _my_pools }}"
   loop_control:
     loop_var: _pool
     label: "{{ _pool.name }}"
