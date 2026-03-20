@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Check if ZFS is already installed
+  ansible.builtin.command:
+    cmd: which zfs
+  register: _satellite_install_zfs_check
+  changed_when: false
+  failed_when: false
+
+- name: Install and configure ZFS
+  when: _satellite_install_zfs_check.rc != 0
+  block:
+    # Not needed for Ubuntu or Proxmox (ships zfsutils-linux)
+    - name: Enable Debian contrib repository for ZFS
+      ansible.builtin.include_tasks: install-zfs-debian.yml
+      when:
+        - ansible_facts['distribution'] | lower == 'debian'
+        - not _pve_check
+
+    - name: Install ZFS utilities (Debian)
+      ansible.builtin.package:
+        name: zfsutils-linux
+        state: present
+      when: ansible_facts['os_family'] | lower == 'debian'
+
+    - name: Install ZFS packages (UEK kernel)
+      ansible.builtin.include_tasks: install-zfs-oraclelinux.yml
+      when:
+        - ansible_facts['os_family'] | lower == 'redhat'
+        - _uek_check
+
+    - name: Install ZFS packages (RedHat)
+      ansible.builtin.include_tasks: install-zfs-redhat.yml
+      when:
+        - ansible_facts['os_family'] | lower == 'redhat'
+        - not _uek_check
+
+    - name: Install ZFS packages (SUSE)
+      ansible.builtin.include_tasks: install-zfs-suse.yml
+      when: ansible_facts['os_family'] | lower == 'suse'
+
+- name: Allow unsupported kernel modules for ZFS (SUSE)
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/10-unsupported-modules.conf
+    regexp: '^allow_unsupported_modules'
+    line: 'allow_unsupported_modules 1'
+    create: true
+    mode: '0644'
+  when: ansible_facts['os_family'] | lower == 'suse'
+
+- name: Ensure ZFS kernel module loads at boot
+  ansible.builtin.copy:
+    content: "zfs\n"
+    dest: /etc/modules-load.d/zfs.conf
+    mode: '0644'
+  when: ansible_facts['os_family'] | lower != 'debian'
+
+- name: Load ZFS kernel module
+  community.general.modprobe:
+    name: zfs
+    state: present

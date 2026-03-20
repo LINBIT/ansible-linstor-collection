@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-satellite_install_zfs_packages:
-  - zfsutils-linux

@@ -1,3 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # vars file for linstor_satellite
+_pve_check: >-  # noqa: var-naming[no-role-prefix]
+  {{ 'pve' in ansible_facts['kernel'] or
+     'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
+_uek_check: "{{ 'uek' in ansible_facts['kernel'] }}"  # noqa: var-naming[no-role-prefix]

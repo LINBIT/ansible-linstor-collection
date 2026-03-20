@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MIT
+---
+# UEK (Unbreakable Enterprise Kernel) is not supported by the ZFS kmod repo.
+# DKMS builds the ZFS module against the running UEK kernel headers.
+# On EL8, the system GCC (8.x) does not match the compiler used to build UEK (11.x).
+# gcc-toolset-11 provides the matching compiler for DKMS builds.
+# EL9+ ships GCC 11+ as the system default, so no toolset is needed.
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install ZFS repository
+  ansible.builtin.dnf:
+    name: "https://zfsonlinux.org/epel/zfs-release-3-0{{ ansible_facts['distribution_version'] | regex_replace('^(\\d+).*', '.el\\1') }}.noarch.rpm"
+    state: present
+    disable_gpg_check: true
+
+- name: Disable ZFS kmod repository
+  ansible.builtin.command:
+    cmd: dnf config-manager --disable zfs-kmod
+  changed_when: false
+
+- name: Enable ZFS DKMS repository
+  ansible.builtin.command:
+    cmd: dnf config-manager --enable zfs
+  changed_when: false
+
+- name: Remove incompatible kmod-zfs package
+  ansible.builtin.dnf:
+    name: kmod-zfs
+    state: absent
+
+- name: Install GCC toolset matching UEK build compiler (EL8)
+  ansible.builtin.dnf:
+    name: gcc-toolset-11
+    state: present
+  when: ansible_facts['distribution_major_version'] == '8'
+
+- name: Install UEK kernel headers and DKMS prerequisites
+  ansible.builtin.dnf:
+    name:
+      - "kernel-uek-devel-{{ ansible_facts['kernel'] }}"
+      - dkms
+      - zfs-dkms
+    state: present
+
+- name: Build ZFS DKMS module with GCC toolset (EL8)
+  ansible.builtin.shell:
+    cmd: source /opt/rh/gcc-toolset-11/enable && dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
+  args:
+    creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
+  when: ansible_facts['distribution_major_version'] == '8'
+
+- name: Build ZFS DKMS module (EL9+)
+  ansible.builtin.command:
+    cmd: dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
+  args:
+    creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
+  when: ansible_facts['distribution_major_version'] != '8'
+
+- name: Install ZFS utilities
+  ansible.builtin.dnf:
+    name: zfs
+    state: present

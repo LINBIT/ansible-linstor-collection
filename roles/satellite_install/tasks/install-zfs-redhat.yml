@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install ZFS repository
+  ansible.builtin.dnf:
+    name: "https://zfsonlinux.org/epel/zfs-release-3-0{{ ansible_facts['distribution_version'] | regex_replace('^(\\d+).*', '.el\\1') }}.noarch.rpm"
+    state: present
+    disable_gpg_check: true
+
+- name: Disable ZFS DKMS repository
+  ansible.builtin.command:
+    cmd: dnf config-manager --disable zfs
+  changed_when: false
+
+- name: Enable ZFS kmod repository
+  ansible.builtin.command:
+    cmd: dnf config-manager --enable zfs-kmod
+  changed_when: false
+
+- name: Install ZFS packages
+  ansible.builtin.dnf:
+    name:
+      - kernel-devel
+      - zfs
+    state: present

@@ -9,19 +9,32 @@ argument_specs:
     options:
       satellite_install_package_state:
         type: str
-        default: latest
+        default: present
         choices:
           - latest
           - present
         description:
           - Package state for LINSTOR satellite packages.
-          - Set C(present) to skip upgrades.
+          - Set C(latest) to check for upgrades.
       satellite_install_firewall_rules:
         type: bool
         default: true
         description:
           - Manage firewall rules for LINSTOR satellite ports.
           - Set C(false) to skip firewall configuration.
+      satellite_install_zfs:
+        type: bool
+        default: true
+        description:
+          - Install ZFS utilities on Debian OS family nodes.
+          - Debian family includes Debian, Ubuntu, and Proxmox VE.
+      satellite_install_zfs_all_distros:
+        type: bool
+        default: false
+        description:
+          - Install ZFS on RedHat and SUSE OS family nodes.
+          - LINBIT does not support ZFS on non-Debian family operating systems.
+          - Use for testing purposes or at your own risk.
       satellite_install_packages:
         type: list
         elements: str
@@ -35,13 +48,6 @@ argument_specs:
         description:
           - Packages to install for the LINSTOR satellite.
           - Override to add or remove packages for unusual distributions.
-      satellite_install_zfs_packages:
-        type: list
-        elements: str
-        default: []
-        description:
-          - Additional ZFS packages to install.
-          - Populated by OS-specific vars files (for example C(vars/ubuntu.yml)).
       satellite_install_firewall_ports:
         type: list
         elements: dict

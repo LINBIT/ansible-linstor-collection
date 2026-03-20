@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: MIT
 ---
 # tasks file for linstor-satellite
+- name: Gather installed package facts for satellite_install
+  ansible.builtin.package_facts:
+  when: ansible_facts['packages'] is not defined
+
 - name: Load OS-specific variables for satellite_install
   ansible.builtin.include_vars: "{{ item }}"
   with_first_found:
@@ -11,13 +15,24 @@
         - "{{ role_path }}/vars"
       skip: true
 
-- name: Check for LINSTOR satellite updates
-  ansible.builtin.package:
-    name: "{{ satellite_install_packages + satellite_install_zfs_packages }}"
-    state: "{{ satellite_install_package_state }}"
-  register: _satellite_install_packages
-  notify: sat_package_update
+- name: Install and configure LINSTOR satellite
+  when:
+    - "'linstor-satellite' not in ansible_facts['packages']
+      or satellite_install_package_state != 'present'"
+  block:
+    - name: Install ZFS utilities
+      ansible.builtin.include_tasks: install-zfs.yml
+      when: >-
+        (ansible_facts['os_family'] | lower == 'debian' and satellite_install_zfs | bool)
+        or (ansible_facts['os_family'] | lower in ['redhat', 'suse'] and satellite_install_zfs_all_distros | bool)
 
-- name: Configure LINSTOR satellite
-  ansible.builtin.include_tasks: configure-satellite.yml
-  when: _satellite_install_packages is changed  # noqa: no-handler
+    - name: Install LINSTOR satellite packages
+      ansible.builtin.package:
+        name: "{{ satellite_install_packages }}"
+        state: "{{ satellite_install_package_state }}"
+      register: _satellite_install_packages
+      notify: sat_package_update
+
+    - name: Configure LINSTOR satellite
+      ansible.builtin.include_tasks: configure-satellite.yml
+      when: _satellite_install_packages is changed  # noqa: no-handler

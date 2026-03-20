@@ -1,8 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
 # defaults file for linstor_satellite
-# client_install role handles client packages
-satellite_install_package_state: latest
+# client_install role handles LINSTOR client packages and configuration
+satellite_install_package_state: present
+
+# Enable ZFS storage pool support for Debian OS family
+satellite_install_zfs: true
+
+# Enable ZFS storage pool support for RedHat/SUSE OS family
+satellite_install_zfs_all_distros: false
 
 satellite_install_packages:
   - cryptsetup    # pre-req for luks
@@ -11,9 +17,6 @@ satellite_install_packages:
   - thin-send-recv
   - zstd
   - linstor-satellite
-
-# placeholder for Ubuntu
-satellite_install_zfs_packages: []
 
 satellite_install_firewall_rules: true
 
