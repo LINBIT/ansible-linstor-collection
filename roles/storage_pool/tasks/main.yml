@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-# Used to determine if Proxmox VE is installed
-- name: Gather installed package facts for OS detection
-  ansible.builtin.package_facts:
-  when: ansible_facts['packages'] is not defined
-
 # Filter pools for this host. Pools without nodes/groups keys apply unconditionally.
 # Pools with nodes and/or groups keys apply only when the current host is listed
 # in nodes or is a member of one of the listed inventory groups (union).
@@ -135,52 +130,23 @@
 
 - name: Check for ZFS
   ansible.builtin.stat:
-    path: /usr/sbin/zfs
+    path: "{{ _storage_pool_zfs_path }}"
   register: _storage_pool_zfs_check
   when:
     - _storage_pool_is_diskful | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
 
-- name: Install ZFS on Debian
-  when:
-    - _storage_pool_is_diskful | bool
-    - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
-    - not (_storage_pool_zfs_check.stat.exists | default(true))
-    - ansible_facts['distribution'] | lower == 'debian'
-    - storage_pool_zfs_install_debian | bool
-  block:
-    - name: Install gpg for repository management
-      ansible.builtin.package:
-        name: gpg
-        state: present
-
-    - name: Enable Debian contrib repository for ZFS
-      ansible.builtin.deb822_repository:
-        name: debian-contrib
-        uris: http://deb.debian.org/debian
-        suites: "{{ ansible_facts['distribution_release'] }}"
-        components: contrib
-        signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
-      register: _contrib_repo
-
-    - name: Update apt cache after enabling contrib
-      ansible.builtin.apt:
-        update_cache: true
-      when: _contrib_repo is changed
-
-    - name: Install ZFS utilities
-      ansible.builtin.package:
-        name: zfsutils-linux
-        state: present
-
 - name: Halt if ZFS is not installed
   ansible.builtin.fail:
-    msg: "ZFS is not installed (/usr/sbin/zfs not found)"
+    msg: >-
+      ZFS is not installed ({{ _storage_pool_zfs_path }} not found).
+      Install ZFS for ZFS-backed storage pools.
+      Alternatively, override `satellite_install_zfs` and
+      `satellite_install_zfs_all_distros` in linbit.linstor.satellite_install.
   when:
     - _storage_pool_is_diskful | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
     - not (_storage_pool_zfs_check.stat.exists | default(true))
-    - not (ansible_facts['distribution'] | lower == 'debian' and storage_pool_zfs_install_debian | bool)
 
 # --- Create storage backends ---
 # Each type file loops internally over the relevant pools from _pools_to_create.
@@ -227,7 +193,10 @@
          if item._type in ['zfs', 'zfsthin']
          else item.vg }}
     _sp_custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
-    _sp_stripe_opts: "{{ ('-i ' ~ (item.physical_devices | default([]) | length | string) ~ ' -I 64') if (item.physical_devices | default([]) | length) > 1 else '' }}"
+    _sp_stripe_opts: >-
+      {%- if (item.physical_devices | default([]) | length) > 1 -%}
+        -i {{ item.physical_devices | default([]) | length }} -I 64
+      {%- endif -%}
     _sp_lv_opts: "{{ _sp_custom_opts or _sp_stripe_opts }}"
     _sp_properties: >-
       {{ {}

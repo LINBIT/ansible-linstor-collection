@@ -29,10 +29,3 @@ linstor_hostname: >-
         'proxmox-ve' in (ansible_facts['packages'] | default({})))
     else inventory_hostname
   }}
-
-# Install ZFS utilities on Debian-family hosts when a ZFS pool is requested.
-# Enables contrib repo and installs zfsutils-linux. Has no effect on RHEL/SUSE.
-storage_pool_zfs_install_debian: true
-
-# Computed (private)
-_storage_pool_is_diskful: "{{ inventory_hostname in groups.get('linstor_diskful_satellites', []) }}"

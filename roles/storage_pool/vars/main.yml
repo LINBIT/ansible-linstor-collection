@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
-_pve_check: >-  # noqa: var-naming[no-role-prefix]
-  {{ 'pve' in ansible_facts['kernel'] or
-     'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
+_storage_pool_is_diskful: "{{ inventory_hostname in groups.get('linstor_diskful_satellites', []) }}"  # noqa: var-naming[no-role-prefix]
+_storage_pool_zfs_path: >-  # noqa: var-naming[no-role-prefix]
+  {%- if ansible_facts['os_family'] | lower == 'redhat' -%}
+    /sbin/zfs
+  {%- else -%}
+    /usr/sbin/zfs
+  {%- endif -%}
