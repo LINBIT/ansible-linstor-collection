@@ -585,7 +585,7 @@ def main():
             modify_port = port
             if modify_port is None:
                 modify_port = 3367 if com_type == 'SSL' else 3366
-            if com_type != existing_com_type or modify_port != existing_stlt_port:
+            if com_type.upper() != existing_com_type.upper() or modify_port != existing_stlt_port:
                 if not module.check_mode:
                     replies = lin.netinterface_modify(
                         node_name=name,
