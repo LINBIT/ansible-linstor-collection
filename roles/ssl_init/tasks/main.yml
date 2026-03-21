@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-# Used to determine if Proxmox VE is installed
-- name: Gather installed package facts for OS detection
-  ansible.builtin.package_facts:
-  when: ansible_facts['packages'] is not defined
-
 # Materialize linstor_hostname as a host fact so hostvars[host]['linstor_hostname']
 # works in cross-node tasks (role defaults are not visible through hostvars)
 - name: Set linstor_hostname fact for cross-node access
