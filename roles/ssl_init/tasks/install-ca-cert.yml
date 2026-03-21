@@ -20,6 +20,7 @@
       ansible.builtin.command:
         cmd: update-ca-certificates
       when: _ssl_init_ca_debian.changed  # noqa: no-handler
+      changed_when: true
 
 - name: Install CA certificate into RedHat trust store
   when: ansible_os_family == 'RedHat'
@@ -38,6 +39,7 @@
       ansible.builtin.command:
         cmd: update-ca-trust
       when: _ssl_init_ca_redhat.changed  # noqa: no-handler
+      changed_when: true
 
 - name: Install CA certificate into SUSE trust store
   when: ansible_os_family == 'Suse'
@@ -56,3 +58,4 @@
       ansible.builtin.command:
         cmd: update-ca-certificates
       when: _ssl_init_ca_suse.changed  # noqa: no-handler
+      changed_when: true
