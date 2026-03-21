@@ -15,7 +15,7 @@
       ansible.builtin.include_tasks: install-zfs-debian.yml
       when:
         - ansible_facts['distribution'] | lower == 'debian'
-        - not _pve_check
+        - not (ansible_facts | linbit.common.is_pve)
 
     - name: Install ZFS utilities (APT)
       ansible.builtin.package:

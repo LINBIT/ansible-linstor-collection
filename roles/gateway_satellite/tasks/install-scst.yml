@@ -76,7 +76,7 @@
           ansible.builtin.package:
             name: proxmox-default-headers
             state: present
-          when: _pve_check | bool
+          when: ansible_facts | linbit.common.is_pve
 
         - name: Install Debian kernel headers
           ansible.builtin.package:

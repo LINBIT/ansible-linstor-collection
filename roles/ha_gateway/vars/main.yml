@@ -6,10 +6,6 @@ _ra_base: >-
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
 
-_pve_check: >-  # noqa: var-naming[no-role-prefix]
-  {{ 'pve' in ansible_facts['kernel'] or
-     'proxmox-ve' in (ansible_facts['packages'] | default({})) }}
-
 # Normalized resource names per protocol (strip existing prefix, re-add with dash)
 _ha_gw_iscsi_names: >-  # noqa: var-naming[no-role-prefix]
   {{ linstor_iscsi_targets | default([]) | map(attribute='name')
