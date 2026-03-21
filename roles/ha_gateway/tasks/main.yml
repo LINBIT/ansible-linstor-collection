@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-# Used to determine if Proxmox VE is installed
-- name: Gather installed package facts for OS detection
-  ansible.builtin.package_facts:
-  when: ansible_facts['packages'] is not defined
-
 - name: Validate resource names are unique across all gateway targets
   ansible.builtin.assert:
     that: _ha_gw_all_resource_names | length == _ha_gw_all_resource_names | unique | length

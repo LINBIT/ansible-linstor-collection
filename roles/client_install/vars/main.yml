@@ -1,3 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 # vars file for client_install
+_client_install_linstor_path: >-
+  {{
+    '/bin/linstor'
+    if ansible_facts['os_family'] | lower == 'redhat'
+    else '/usr/bin/linstor'
+  }}

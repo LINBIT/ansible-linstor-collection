@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Check if linstor-client is already installed
+  ansible.builtin.stat:
+    path: "{{ _client_install_linstor_path }}"
+  register: _client_install_check
+
 - name: Install linstor-client
   ansible.builtin.package:
     name: linstor-client
-    state: present
+    state: "{{ client_install_package_state }}"
   register: _client_install_package
+  when:
+    - not _client_install_check.stat.exists
+      or client_install_package_state != 'present'
 
 - name: Configure linstor-client
   ansible.builtin.include_tasks: configure-client.yml

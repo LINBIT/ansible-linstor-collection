@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # defaults file for client_install
+client_install_package_state: present
 linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
 

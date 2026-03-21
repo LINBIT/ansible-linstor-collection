@@ -1,23 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
 # tasks file for linstor-satellite
-- name: Gather installed package facts for satellite_install
-  ansible.builtin.package_facts:
-  when: ansible_facts['packages'] is not defined
-
-- name: Load OS-specific variables for satellite_install
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - files:
-        - "{{ ansible_facts['distribution'] | lower }}.yml"
-        - "{{ ansible_facts['os_family'] | lower }}.yml"
-      paths:
-        - "{{ role_path }}/vars"
-      skip: true
+- name: Check if linstor-satellite is already installed
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/linstor-satellite.service
+  register: _satellite_install_check
 
 - name: Install and configure LINSTOR satellite
   when:
-    - "'linstor-satellite' not in ansible_facts['packages']
+    - "not _satellite_install_check.stat.exists
       or satellite_install_package_state != 'present'"
   block:
     - name: Install ZFS utilities

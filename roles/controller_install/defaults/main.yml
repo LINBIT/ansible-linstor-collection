@@ -3,7 +3,7 @@
 # defaults file for controller_install
 controller_port: 3370
 
-controller_install_package_state: latest
+controller_install_package_state: present
 
 controller_install_firewall_rules: true
 
