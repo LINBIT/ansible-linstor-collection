@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: MIT
+---
+# openssl package is no longer guaranteed in RHEL 10
+- name: Ensure openssl is installed
+  ansible.builtin.package:
+    name: openssl
+    state: present
+
+- name: Assert at least one SSL feature is enabled
+  ansible.builtin.assert:
+    that: ssl_init_https | bool or ssl_init_satellite | bool
+    fail_msg: >-
+      At least one of ssl_init_https or ssl_init_satellite must be true.
+    quiet: true
+
+- name: Assert ssl_init_https is true when ssl_init_https_mtls is true
+  ansible.builtin.assert:
+    that: ssl_init_https | bool
+    fail_msg: >-
+      ssl_init_https_mtls requires ssl_init_https to be true.
+    quiet: true
+  when: ssl_init_https_mtls | bool
+
+- name: Verify external certificate files exist
+  when: not (ssl_init_generate_certs | bool)
+  block:
+    - name: Check for required PEM files in ssl_init_dir
+      ansible.builtin.stat:
+        path: "{{ ssl_init_dir }}/{{ item }}"
+      register: _ssl_init_external_files
+      loop:
+        - ca.crt
+        - node.crt
+        - node.key
+
+    - name: Assert all required PEM files are present
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: >-
+          Missing {{ item.item }} in {{ ssl_init_dir }}.
+          When ssl_init_generate_certs is false, place ca.crt, node.crt, and
+          node.key in {{ ssl_init_dir }} on each node before running this role.
+        quiet: true
+      loop: "{{ _ssl_init_external_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+# Used to determine if Proxmox VE is installed
+- name: Gather installed package facts for OS detection
+  ansible.builtin.package_facts:
+  when: ansible_facts['packages'] is not defined
+
+- name: Generate private CA
+  ansible.builtin.include_tasks: generate-ca.yml
+  when: ssl_init_generate_certs | bool
+
+- name: Generate node keystores and certificates
+  ansible.builtin.include_tasks: generate-keystores.yml
+
+- name: Build CA-based truststores for satellite SSL
+  ansible.builtin.include_tasks: build-truststores.yml
+  when: ssl_init_satellite | bool
+
+- name: Install CA certificate into OS trust store
+  ansible.builtin.include_tasks: install-ca-cert.yml
+
+- name: Generate client certificate for mTLS
+  ansible.builtin.include_tasks: generate-client-cert.yml
+  when:
+    - ssl_init_https_mtls | bool
+    - ssl_init_generate_certs | bool
+
+- name: Configure HTTPS on controllers
+  ansible.builtin.include_tasks: configure-https.yml
+  when:
+    - ssl_init_https | bool
+    - inventory_hostname in groups['linstor_controllers']
+
+- name: Configure satellite SSL
+  ansible.builtin.include_tasks: configure-satellite-ssl.yml
+  when:
+    - ssl_init_satellite | bool
+    - inventory_hostname in groups['linstor_satellites']
+
+- name: Update linstor-client.conf for HTTPS
+  ansible.builtin.include_tasks: configure-client.yml
+  when: ssl_init_https | bool
+
+- name: Flush handlers for ssl
+  ansible.builtin.meta: flush_handlers
+
+# Update node network interfaces to SSL after services are restarted.
+# On fresh clusters the node may not exist yet (cluster_membership runs after
+# ssl_init), so failures are suppressed. The wait and verify tasks only run
+# when the registration actually changed.
+- name: Update node network interface to SSL
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    com_type: SSL
+    port: "{{ ssl_init_satellite_port }}"
+  register: _ssl_init_netif_update
+  failed_when: false
+  when: ssl_init_satellite | bool
+
+# Single controller restart at the end handles both HTTPS keystore loading
+# and SslConnector creation after node registrations change to SSL.
+- name: Restart controller for SSL
+  ansible.builtin.systemd_service:
+    name: linstor-controller.service
+    state: restarted
+  when: inventory_hostname in groups['linstor_controllers']
+
+- name: Wait for controller after SSL restart
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
+    delay: 5
+    timeout: 30
+  when: inventory_hostname in groups['linstor_controllers']
+
+- name: Wait for satellite SSL port
+  ansible.builtin.wait_for:
+    port: "{{ ssl_init_satellite_port }}"
+    delay: 5
+    timeout: 30
+  when:
+    - _ssl_init_netif_update is changed
+    - inventory_hostname in groups['linstor_satellites']
+
+- name: Verify node is ONLINE over SSL
+  linbit.linstor.node:
+    name: "{{ linstor_hostname }}"
+    state: query
+  register: _ssl_init_node_status
+  failed_when: _ssl_init_node_status.connection_status | default('') != 'ONLINE'
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  when:
+    - _ssl_init_netif_update is changed
+    - inventory_hostname in groups['linstor_satellites']

@@ -1,21 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
 # handlers file for ssl
-
-- name: Restart LINSTOR controller for SSL
-  ansible.builtin.systemd_service:
-    name: linstor-controller.service
-    daemon_reload: true
-    state: restarted
-  listen: restart_linstor_controller_ssl
-
-- name: Wait for LINSTOR controller after SSL restart
-  ansible.builtin.wait_for:
-    host: localhost
-    port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
-    delay: 5
-    timeout: 30
-  listen: restart_linstor_controller_ssl
+# Controller restart is handled explicitly at the end of initialize-ssl.yml
+# to avoid a redundant restart when satellite SSL is also enabled.
 
 - name: Restart LINSTOR satellite for SSL
   ansible.builtin.systemd_service:

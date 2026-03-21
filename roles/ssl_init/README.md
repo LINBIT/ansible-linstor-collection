@@ -131,7 +131,8 @@ Dependencies
 
 None.
 
-This role should run after `controller_install` and `satellite_install` (services must be installed) and before `cluster_membership` (nodes must be registered with the correct `com_type`).
+This role should run after `controller_install` and `satellite_install` (services must be installed).
+The role updates node network interfaces to SSL automatically, so it can run before or after `cluster_membership`.
 
 When used through `cluster_init`, ordering is handled automatically.
 
@@ -165,6 +166,12 @@ Use the role standalone (after controller and satellite are installed):
       ansible.builtin.import_role:
         name: linbit.linstor.ssl_init
 ```
+
+### Converting an existing cluster to SSL
+
+Run the role against an existing non-SSL cluster to enable SSL.
+The role generates certificates, configures TOML files, updates node network interfaces to SSL, and restarts services.
+Use `--limit` for staged rollouts: the role detects which nodes still need SSL and only processes those.
 
 ### Adding a new node
 

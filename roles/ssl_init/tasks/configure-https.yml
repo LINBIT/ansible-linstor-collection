@@ -17,7 +17,6 @@
     option: keystore
     value: '"{{ ssl_init_dir }}/keystore.jks"'
     mode: '0644'
-  notify: restart_linstor_controller_ssl
 
 - name: Set HTTPS keystore password in linstor.toml
   community.general.ini_file:
@@ -26,7 +25,6 @@
     option: keystore_password
     value: '"{{ ssl_init_keystore_password }}"'
     mode: '0644'
-  notify: restart_linstor_controller_ssl
 
 - name: Set HTTPS truststore path in linstor.toml
   community.general.ini_file:
@@ -35,7 +33,6 @@
     option: truststore
     value: '"{{ ssl_init_dir }}/truststore_client.jks"'
     mode: '0644'
-  notify: restart_linstor_controller_ssl
   when: ssl_init_https_mtls | bool
 
 - name: Set HTTPS truststore password in linstor.toml
@@ -45,5 +42,4 @@
     option: truststore_password
     value: '"{{ ssl_init_truststore_password }}"'
     mode: '0644'
-  notify: restart_linstor_controller_ssl
   when: ssl_init_https_mtls | bool
