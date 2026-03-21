@@ -30,7 +30,9 @@ argument_specs:
         default: true
         description:
           - Generate a private CA and sign per-node certificates.
-          - Set to false to provide pre-existing keystores and truststores.
+          - Set to false to use externally-provided PEM certificates.
+          - Place C(ca.crt), C(node.crt), and C(node.key) in C(ssl_init_dir) on each node.
+          - The role handles JKS keystore conversion, truststore creation, and OS trust store installation.
       ssl_init_ca_name:
         type: str
         default: LINSTOR CA

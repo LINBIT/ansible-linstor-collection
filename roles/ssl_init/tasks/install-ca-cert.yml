@@ -8,7 +8,8 @@
   block:
     - name: Copy CA certificate to Debian trust directory
       ansible.builtin.copy:
-        src: /tmp/linstor-ssl-certs/ca.crt
+        src: "{{ ssl_init_dir }}/ca.crt"
+        remote_src: true
         dest: /usr/local/share/ca-certificates/linstor-ca.crt
         owner: root
         group: root
@@ -25,7 +26,8 @@
   block:
     - name: Copy CA certificate to RedHat trust directory
       ansible.builtin.copy:
-        src: /tmp/linstor-ssl-certs/ca.crt
+        src: "{{ ssl_init_dir }}/ca.crt"
+        remote_src: true
         dest: /etc/pki/ca-trust/source/anchors/linstor-ca.crt
         owner: root
         group: root
@@ -42,7 +44,8 @@
   block:
     - name: Copy CA certificate to SUSE trust directory
       ansible.builtin.copy:
-        src: /tmp/linstor-ssl-certs/ca.crt
+        src: "{{ ssl_init_dir }}/ca.crt"
+        remote_src: true
         dest: /etc/pki/trust/anchors/linstor-ca.crt
         owner: root
         group: root

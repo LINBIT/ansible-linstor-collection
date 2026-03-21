@@ -71,6 +71,61 @@ The CA certificate is also installed into the operating system trust store:
 - RedHat: `/etc/pki/ca-trust/source/anchors/linstor-ca.crt`
 - SUSE: `/etc/pki/trust/anchors/linstor-ca.crt`
 
+### Using externally-provided certificates
+
+Set `ssl_init_generate_certs: false` to use certificates from an external CA instead of the built-in private CA.
+Place PEM certificate files on each node before running the role.
+The role handles JKS keystore conversion, truststore creation, OS trust store installation, and LINSTOR configuration.
+
+#### Required files
+
+Place the following files in `ssl_init_dir` (`/etc/linstor/ssl` by default) on each node:
+
+| File | Purpose |
+|---|---|
+| `ca.crt` | CA certificate, or full chain (root and intermediates concatenated) |
+| `node.crt` | CA-signed node certificate with SANs |
+| `node.key` | Node private key |
+
+The role asserts that all three files exist before proceeding.
+
+#### Subject Alternative Names (SANs)
+
+Request certificates from your CA with the following SANs per node:
+
+- `DNS:<linstor_hostname>` (the hostname LINSTOR uses for the node)
+- `IP:<replication_ip>` (the node's replication network address)
+- `IP:127.0.0.1`
+
+Controller certificates need additional SANs:
+
+- `IP:<replication_ip>` for every controller node (so any controller certificate is valid behind a VIP)
+- `IP:<linstor_ha_vip>` if using HA database with a virtual IP
+
+These match the SANs that the built-in certificate generation creates automatically.
+For complete certificate generation instructions, refer to the SSL/TLS section in the LINSTOR User's Guide.
+
+mTLS client certificate authentication (`ssl_init_https_mtls`) is not supported with external certificates because client certificate signing requires the CA private key.
+
+#### Example playbook
+
+```yaml
+- name: Deploy LINSTOR with external certificates
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Install and initialize LINSTOR
+      ansible.builtin.import_role:
+        name: linbit.linstor.cluster_init
+      vars:
+        cluster_init_ssl: true
+        ssl_init_generate_certs: false
+        ssl_init_keystore_password: "{{ vault_ssl_keystore_password }}"
+        ssl_init_truststore_password: "{{ vault_ssl_truststore_password }}"
+        ssl_init_key_password: "{{ vault_ssl_key_password }}"
+```
+
 Dependencies
 ------------
 

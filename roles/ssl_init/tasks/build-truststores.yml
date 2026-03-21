@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: MIT
 ---
-# Import the CA certificate into a Java truststore on each node.
-# All nodes trust the same CA, eliminating the need to exchange
-# individual peer certificates.
-- name: Check for CA certificate in truststore
-  ansible.builtin.command:
-    cmd: >-
-      keytool -list
-      -keystore {{ ssl_init_dir }}/certificates.jks
-      -storepass {{ ssl_init_truststore_password }}
-      -alias linstor-ca
-  register: _ssl_init_ca_in_truststore
-  failed_when: false
-  changed_when: false
-
-- name: Import CA certificate into truststore
-  ansible.builtin.command:
-    cmd: >-
-      keytool -importcert -noprompt
-      -keystore {{ ssl_init_dir }}/certificates.jks
-      -storepass {{ ssl_init_truststore_password }}
-      -alias linstor-ca
-      -file {{ ssl_init_dir }}/ca.crt
-  when: _ssl_init_ca_in_truststore.rc != 0
+# Import the CA certificate (or certificate chain) into a Java truststore
+# on each node. All nodes trust the same CA, eliminating the need to
+# exchange individual peer certificates.
+# Supports concatenated PEM chains (root + intermediate CAs in ca.crt).
+- name: Import CA certificate chain into truststore
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      n=0
+      cert=""
+      while IFS= read -r line || [ -n "$line" ]; do
+        cert="${cert}${line}"$'\n'
+        if [ "$line" = "-----END CERTIFICATE-----" ]; then
+          printf '%s' "$cert" | keytool -importcert -noprompt \
+            -keystore {{ ssl_init_dir }}/certificates.jks \
+            -storepass {{ ssl_init_truststore_password }} \
+            -alias "linstor-ca-${n}"
+          cert=""
+          n=$((n+1))
+        fi
+      done < {{ ssl_init_dir }}/ca.crt
+    executable: /bin/bash
+    creates: "{{ ssl_init_dir }}/certificates.jks"
