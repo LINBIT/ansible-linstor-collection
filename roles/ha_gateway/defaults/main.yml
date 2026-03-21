@@ -32,9 +32,4 @@ ha_gateway_nvmeof_nqn_base: "nqn.2014-08.io.linbit"
 
 # Node hostname for LINSTOR API calls.
 # Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
-linstor_hostname: >-
-  {{
-    inventory_hostname_short
-    if ansible_facts | linbit.common.is_pve
-    else inventory_hostname
-  }}
+linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"
