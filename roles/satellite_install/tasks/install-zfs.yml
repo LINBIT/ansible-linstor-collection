@@ -27,13 +27,13 @@
       ansible.builtin.include_tasks: install-zfs-oraclelinux.yml
       when:
         - ansible_facts['os_family'] | lower == 'redhat'
-        - _uek_check
+        - ansible_facts | linbit.common.is_uek
 
     - name: Install ZFS packages (DNF)
       ansible.builtin.include_tasks: install-zfs-redhat.yml
       when:
         - ansible_facts['os_family'] | lower == 'redhat'
-        - not _uek_check
+        - not (ansible_facts | linbit.common.is_uek)
 
     - name: Install ZFS packages (Zypper)
       ansible.builtin.include_tasks: install-zfs-suse.yml
