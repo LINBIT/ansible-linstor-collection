@@ -140,9 +140,8 @@
   ansible.builtin.fail:
     msg: >-
       ZFS is not installed ({{ _storage_pool_zfs_path }} not found).
-      Install ZFS for ZFS-backed storage pools.
-      Alternatively, override `satellite_install_zfs` and
-      `satellite_install_zfs_all_distros` in linbit.linstor.satellite_install.
+      Install ZFS for ZFS-backed storage pools, or set
+      `satellite_install_zfs: true` in linbit.linstor.satellite_install.
   when:
     - _storage_pool_is_diskful | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
