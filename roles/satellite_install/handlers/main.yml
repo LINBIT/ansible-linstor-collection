@@ -5,8 +5,7 @@
 - name: Enable and start LINSTOR satellite service
   ansible.builtin.systemd:
     name: linstor-satellite.service
-    daemon_reload: true
-    state: restarted
+    state: "{{ 'restarted' if satellite_install_package_state == 'latest' else 'started' }}"
     enabled: true
   listen: sat_package_update
 

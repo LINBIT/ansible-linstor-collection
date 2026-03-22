@@ -1,3 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 # vars file for linstor_satellite
+
+_satellite_install_prereqs: >-
+  {{
+    ['cryptsetup', 'socat', 'lvm2', 'thin-send-recv', 'zstd']
+    + (['zfsutils-linux'] if ansible_facts['distribution'] | lower == 'ubuntu' else [])
+  }}

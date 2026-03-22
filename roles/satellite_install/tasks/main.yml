@@ -13,13 +13,16 @@
   block:
     - name: Install ZFS utilities
       ansible.builtin.include_tasks: install-zfs.yml
-      when: >-
-        (ansible_facts['os_family'] | lower == 'debian' and satellite_install_zfs | bool)
-        or (ansible_facts['os_family'] | lower in ['redhat', 'suse'] and satellite_install_zfs_all_distros | bool)
+      when: satellite_install_zfs | bool
 
-    - name: Install LINSTOR satellite packages
+    - name: Install satellite prerequisites
       ansible.builtin.package:
-        name: "{{ satellite_install_packages }}"
+        name: "{{ _satellite_install_prereqs }}"
+        state: present
+
+    - name: Install LINSTOR satellite
+      ansible.builtin.package:
+        name: linstor-satellite
         state: "{{ satellite_install_package_state }}"
       register: _satellite_install_packages
       notify: sat_package_update
