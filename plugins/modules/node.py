@@ -585,11 +585,13 @@ def main():
             modify_port = port
             if modify_port is None:
                 existing_type = get_node_type_str(existing_node).upper()
-                is_satellite = existing_type == 'SATELLITE'
+                is_controller = existing_type == 'CONTROLLER'
                 if com_type == 'SSL':
-                    modify_port = 3367 if is_satellite else 3371
+                    # SSL: pure Controller=3371, Satellite/Combined=3367
+                    modify_port = 3371 if is_controller else 3367
                 else:
-                    modify_port = 3366 if is_satellite else 3370
+                    # Plain: pure Controller=3370, Satellite/Combined=3366
+                    modify_port = 3370 if is_controller else 3366
             if com_type.upper() != existing_com_type.upper() or modify_port != existing_stlt_port:
                 if not module.check_mode:
                     replies = lin.netinterface_modify(

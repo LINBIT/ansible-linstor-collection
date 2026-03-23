@@ -97,13 +97,28 @@
   failed_when: false
   when: ssl_init_satellite | bool
 
-# Single controller restart at the end handles both HTTPS keystore loading
-# and SslConnector creation after node registrations change to SSL.
-- name: Restart controller for SSL
+# Find and restart the active controller. On HA clusters, DRBD Reactor manages
+# the controller — only one node has it running. On standalone clusters, it's
+# always controllers[0].
+- name: Gather controller service facts
+  ansible.builtin.service_facts:
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  loop: "{{ groups['linstor_controllers'] }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Identify active controller node
+  ansible.builtin.set_fact:
+    _active_controller_node: "{{ item }}"
+  loop: "{{ groups['linstor_controllers'] }}"
+  when: hostvars[item].ansible_facts.services['linstor-controller.service'].state | default('') == 'running'
+  run_once: true  # noqa: run-once[task]
+
+- name: Restart active controller for SSL
   ansible.builtin.systemd_service:
     name: linstor-controller.service
     state: restarted
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: "{{ _active_controller_node }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Wait for controller after SSL restart
@@ -112,7 +127,7 @@
     port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
     delay: 5
     timeout: 30
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: "{{ _active_controller_node }}"
   run_once: true  # noqa: run-once[task]
 
 # On fresh clusters nodes may not exist yet (cluster_membership runs after ssl_init).
@@ -124,5 +139,5 @@
   failed_when:
     - _ssl_init_node_status.exists | default(false)
     - _ssl_init_node_status.connection_status | default('') != 'ONLINE'
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: "{{ _active_controller_node }}"
   when: inventory_hostname in groups['linstor_satellites']
