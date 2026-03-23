@@ -4,49 +4,31 @@
   ansible.builtin.include_tasks: open-firewall.yml
   when: controller_install_firewall_rules | bool
 
-- name: Set per-host LINSTOR controller status
+- name: Identify active controller nodes
   ansible.builtin.set_fact:
     _is_active: >-
-      {{
-        ansible_facts.services['linstor-controller.service'].state == 'running'
-      }}
+      {{ ansible_facts.services['linstor-controller.service'].state | default('') == 'running' }}
   when: inventory_hostname in groups['linstor_controllers']
 
-- name: Set fact based on LINSTOR controller service instances
+- name: Count active controller instances
   ansible.builtin.set_fact:
     _active_count: >-
-      {{
-        groups['linstor_controllers']
-        | map('extract', hostvars, '_is_active')
-        | select('equalto', true)
-        | list
-        | length
-      }}
+      {{ groups['linstor_controllers']
+         | map('extract', hostvars, '_is_active')
+         | select('equalto', true)
+         | list
+         | length }}
   when: inventory_hostname in groups['linstor_controllers']
 
-### HA controller logic ###
-# Before HA is active, we need to run the controller service initially ALWAYS (assume first controller host, controller[0])
-# Once HA, only restart the controller service on the active host if it was updated
-# Restarting the service handles patching/update cases (single and multi controller)
-
-# Case 0 - New cluster, controller is running everywhere (Debian/Ubuntu/Proxmox), stop controller except for controller[0]
-# Case 1 - New cluster, controller isn't running anywhere (RHEL), start on controller[0]
-# Case 2 - Old cluster, non-HA, controller running (systemd controlled), restart controller service if updated
-# Case 3 - Old cluster, HA, controller running (Reactor controlled), restart controller service if updated on active node
-###
-
-### How do we handle controller updates/patching with Reactor controlled HA operation?
-### Does restarting the active controller suffice - test?
-
-# Should handle case 2 and case 3 when this role is used or LINSTOR upgrades
+# Restart the active controller when packages were updated.
+# Works for both standalone (systemd) and HA (DRBD Reactor) clusters.
 - name: Restart LINSTOR controller service when already running and updated
   ansible.builtin.service:
     name: linstor-controller.service
     state: restarted
   when:
     - inventory_hostname in groups['linstor_controllers']
-    - ansible_facts.services['linstor-controller.service'] is defined
-    - ansible_facts.services['linstor-controller.service'].state == 'running'
+    - _is_active | bool
     - _active_count | int == 1
 
 # Fixes Debian auto-start after initial installation
