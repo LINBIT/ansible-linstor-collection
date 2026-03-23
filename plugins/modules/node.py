@@ -537,12 +537,18 @@ def main():
                     ip=ip, properties=all_properties)
 
             node_type_const = NODE_TYPE_MAP.get(create_type, 'SATELLITE')
+            # Work around python-linstor bug: Combined+SSL gets controller port (3371)
+            # instead of satellite port (3367). Override when port is not specified.
+            create_port = port
+            if create_port is None and create_com_type == 'SSL':
+                is_controller = create_type.upper() == 'CONTROLLER'
+                create_port = 3371 if is_controller else 3367
             replies = lin.node_create(
                 node_name=name,
                 node_type=node_type_const,
                 ip=ip,
                 com_type=create_com_type,
-                port=port,
+                port=create_port,
                 netif_name=netif_name,
             )
             check_api_response(module, replies, 'create node %s' % name)
