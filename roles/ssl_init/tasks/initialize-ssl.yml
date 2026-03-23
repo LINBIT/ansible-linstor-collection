@@ -92,7 +92,6 @@
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
     com_type: SSL
-    port: "{{ ssl_init_satellite_port }}"
   register: _ssl_init_netif_update
   failed_when: false
   when: ssl_init_satellite | bool
