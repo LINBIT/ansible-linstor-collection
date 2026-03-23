@@ -103,7 +103,8 @@
   ansible.builtin.systemd_service:
     name: linstor-controller.service
     state: restarted
-  when: inventory_hostname in groups['linstor_controllers']
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
 
 - name: Wait for controller after SSL restart
   ansible.builtin.wait_for:
@@ -111,24 +112,17 @@
     port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
     delay: 5
     timeout: 30
-  when: inventory_hostname in groups['linstor_controllers']
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
 
-- name: Wait for satellite SSL port
-  ansible.builtin.wait_for:
-    port: "{{ ssl_init_satellite_port }}"
-    delay: 5
-    timeout: 30
-  when:
-    - _ssl_init_netif_update is changed
-    - inventory_hostname in groups['linstor_satellites']
-
+# On fresh clusters nodes may not exist yet (cluster_membership runs after ssl_init).
 - name: Verify node is ONLINE over SSL
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
     state: query
   register: _ssl_init_node_status
-  failed_when: _ssl_init_node_status.connection_status | default('') != 'ONLINE'
+  failed_when:
+    - _ssl_init_node_status.exists | default(false)
+    - _ssl_init_node_status.connection_status | default('') != 'ONLINE'
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
-  when:
-    - _ssl_init_netif_update is changed
-    - inventory_hostname in groups['linstor_satellites']
+  when: inventory_hostname in groups['linstor_satellites']

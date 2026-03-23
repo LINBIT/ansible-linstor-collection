@@ -6,28 +6,23 @@
     state: restarted
   listen: storage_pool_restart_satellite
 
-- name: Check for satellite on non-SSL port
-  ansible.builtin.wait_for:
-    port: 3366
-    delay: 10
-    timeout: 30
-  register: _sp_non_ssl_port
-  ignore_errors: true
+- name: Read satellite TOML config
+  ansible.builtin.slurp:
+    src: /etc/linstor/linstor_satellite.toml
+  register: _sp_toml
+  failed_when: false
+  changed_when: false
   listen: storage_pool_restart_satellite
-  when:
-    - inventory_hostname in groups.get('linstor_satellites', [])
-    - not (cluster_init_ssl | default(false) | bool)
+  when: inventory_hostname in groups.get('linstor_satellites', [])
 
-# Fallback to SSL port when non-SSL check was skipped or failed
-- name: Wait for satellite on SSL port
+# 12 second delay ensures node is listed ONLINE after restart
+- name: Wait for LINSTOR satellite port
   ansible.builtin.wait_for:
-    port: 3367
-    delay: 10
+    port: "{{ 3367 if (_sp_toml.content | default('') | b64decode) is search('type.*ssl') else 3366 }}"
+    delay: 12
     timeout: 30
   listen: storage_pool_restart_satellite
-  when:
-    - inventory_hostname in groups.get('linstor_satellites', [])
-    - _sp_non_ssl_port is not succeeded
+  when: inventory_hostname in groups.get('linstor_satellites', [])
 
 - name: Wait for satellite to be ONLINE after restart
   linbit.linstor.node:
@@ -35,7 +30,7 @@
     state: query
   register: _sp_satellite_status
   until: _sp_satellite_status.connection_status | default('') == 'ONLINE'
-  retries: 6
+  retries: 9
   delay: 5
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   listen: storage_pool_restart_satellite

@@ -9,23 +9,17 @@
     enabled: true
   listen: sat_package_update
 
-- name: Check for LINSTOR satellite on non-SSL port
-  ansible.builtin.wait_for:
-    host: localhost
-    port: 3366
-    delay: 5
-    timeout: 15
-  register: _sat_non_ssl_port
-  ignore_errors: true
-  when: not (cluster_init_ssl | default(false) | bool)
+- name: Read satellite TOML config
+  ansible.builtin.slurp:
+    src: /etc/linstor/linstor_satellite.toml
+  register: _sat_toml
+  failed_when: false
+  changed_when: false
   listen: sat_package_update
 
-# Fallback to SSL port when non-SSL check was skipped or failed
-- name: Wait for LINSTOR satellite on SSL port
+- name: Wait for LINSTOR satellite port
   ansible.builtin.wait_for:
     host: localhost
-    port: 3367
-    delay: 5
-    timeout: 15
-  when: _sat_non_ssl_port is not succeeded
+    port: "{{ 3367 if (_sat_toml.content | default('') | b64decode) is search('type.*ssl') else 3366 }}"
+    timeout: 30
   listen: sat_package_update

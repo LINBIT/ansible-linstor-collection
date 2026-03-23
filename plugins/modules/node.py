@@ -584,7 +584,12 @@ def main():
                                   if existing_netif else None) or 3366
             modify_port = port
             if modify_port is None:
-                modify_port = 3367 if com_type == 'SSL' else 3366
+                existing_type = get_node_type_str(existing_node).upper()
+                is_satellite = existing_type == 'SATELLITE'
+                if com_type == 'SSL':
+                    modify_port = 3367 if is_satellite else 3371
+                else:
+                    modify_port = 3366 if is_satellite else 3370
             if com_type.upper() != existing_com_type.upper() or modify_port != existing_stlt_port:
                 if not module.check_mode:
                     replies = lin.netinterface_modify(

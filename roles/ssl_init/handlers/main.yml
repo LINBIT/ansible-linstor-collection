@@ -11,10 +11,11 @@
     state: restarted
   listen: restart_linstor_satellite_ssl
 
-- name: Wait for LINSTOR satellite after SSL restart
+# Only wait for port here. ONLINE verification happens after node registration
+# and controller restart at the end of initialize-ssl.yml.
+- name: Wait for LINSTOR satellite SSL port
   ansible.builtin.wait_for:
     host: localhost
-    port: "{{ ssl_init_satellite_port if ssl_init_satellite | bool else 3366 }}"
-    delay: 5
-    timeout: 20
+    port: "{{ ssl_init_satellite_port }}"
+    timeout: 30
   listen: restart_linstor_satellite_ssl

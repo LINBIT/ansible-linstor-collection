@@ -72,9 +72,6 @@
       tags:
         - linstor
         - linstor_cluster_membership
-  vars:
-    cluster_membership_com_type: "{{ 'SSL' if cluster_init_ssl | bool else 'Plain' }}"
-    cluster_membership_port: "{{ 3367 if cluster_init_ssl | bool else 3366 }}"
 
 - name: Install LINSTOR Gateway
   tags:
