@@ -37,7 +37,7 @@
   vars:
     node_type: "{{ 'Combined' if 'linstor_satellites' in group_names else 'Controller' }}"
     _sat_ssl: "{{ (_cluster_membership_sat_toml.content | default('') | b64decode) is search('type.*ssl') }}"
-    _ctrl_ssl: "{{ (_cluster_membership_ctrl_toml.content | default('') | b64decode) is search('keystore') }}"
+    _ctrl_ssl: "{{ (_cluster_membership_ctrl_toml.content | default('') | b64decode) is regex_search('(?m)^\\s*keystore\\s*=') }}"
     _is_ssl: "{{ _sat_ssl if 'linstor_satellites' in group_names else _ctrl_ssl }}"
     _cluster_membership_com_type: >-
       {{ cluster_membership_com_type | default(
