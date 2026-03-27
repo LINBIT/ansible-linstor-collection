@@ -352,6 +352,22 @@ def main():
                     module, replies,
                     'set properties on storage pool %s/%s' % (node, name))
 
+            # Read back the pool to confirm capacity is reported.
+            # storage_pool_create() returns only an acknowledgement;
+            # this list call triggers a synchronous capacity query to the
+            # satellite, ensuring the free space tracker is populated
+            # before downstream roles (e.g. ha_database) run autoplace.
+            created_pool = get_storage_pool(lin, node, name)
+            if created_pool:
+                fs = getattr(created_pool, 'free_space', None)
+                free_cap = getattr(fs, 'free_capacity', None) if fs else None
+                total_cap = getattr(fs, 'total_capacity', None) if fs else None
+                module.exit_json(
+                    changed=True, name=name, node=node,
+                    driver=driver, driver_pool=driver_pool,
+                    free_capacity=free_cap,
+                    total_capacity=total_cap,
+                    properties=get_sp_props(created_pool))
             module.exit_json(
                 changed=True, name=name, node=node,
                 driver=driver, driver_pool=driver_pool,

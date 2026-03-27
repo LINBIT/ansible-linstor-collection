@@ -169,10 +169,6 @@
     - _storage_pool_is_diskful | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
 
-# Wait for any satellite restarts to complete before registering pools
-- name: Flush handlers before registering storage pools
-  ansible.builtin.meta: flush_handlers
-
 # --- Register pools with LINSTOR ---
 
 - name: Create LINSTOR storage pool

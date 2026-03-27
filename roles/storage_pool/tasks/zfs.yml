@@ -42,7 +42,6 @@
     pool_properties: "{{ item.zpool_properties | default(storage_pool_defaults.zpool_properties) }}"
     state: present
     force: true
-  notify: storage_pool_restart_satellite
   loop: >-
     {{ _pools_to_create
        | selectattr('_type', 'in', ['zfs', 'zfsthin'])

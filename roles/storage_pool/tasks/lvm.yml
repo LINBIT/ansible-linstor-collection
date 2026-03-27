@@ -17,7 +17,6 @@
        | subelements('physical_devices') }}
   loop_control:
     label: "{{ item.0.name }} - {{ item.1 }}"
-  notify: storage_pool_restart_satellite
   when:
     (item.0.vg not in ansible_facts['lvm']['vgs']) or
     (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
@@ -29,7 +28,6 @@
     pv_options: "{{ item.pv_create_options | default(storage_pool_defaults.pv_create_options) }}"
     remove_extra_pvs: false
     state: present
-  notify: storage_pool_restart_satellite
   loop: >-
     {{ _pools_to_create
        | selectattr('_type', 'in', ['lvm', 'lvmthin'])
@@ -51,7 +49,6 @@
     _custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
     _stripe_opts: "{{ ('-i ' ~ (item.physical_devices | length | string) ~ ' -I 64') if item.physical_devices | length > 1 else '' }}"
     _lv_opts: "{{ _custom_opts or _stripe_opts }}"
-  notify: storage_pool_restart_satellite
   loop: >-
     {{ _pools_to_create
        | selectattr('_type', 'equalto', 'lvmthin')
