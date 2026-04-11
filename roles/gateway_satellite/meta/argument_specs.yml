@@ -57,7 +57,7 @@ argument_specs:
           - Compile and install SCST iSCSI target from source as a LIO alternative.
       linstor_gateway_scst_version:
         type: str
-        default: "3.9.x"
+        default: "3.10.x"
         description:
           - SCST git tag to build from source.
           - Only used when C(linstor_gateway_scst=true).

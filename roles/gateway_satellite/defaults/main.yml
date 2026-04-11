@@ -20,7 +20,7 @@ linstor_gateway_firewall_ports: >-
 
 # SCST iSCSI target - compile and install from source
 linstor_gateway_scst: false
-linstor_gateway_scst_version: '3.9.x'
+linstor_gateway_scst_version: '3.10.x'
 
 # Node hostname for LINSTOR node properties.
 # Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
