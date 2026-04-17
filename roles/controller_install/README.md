@@ -18,6 +18,7 @@ Role Variables
 | Variable | Default | Description |
 |---|---|---|
 | `controller_install_package_state` | `latest` | Package state for LINSTOR controller packages; set `present` to skip upgrades |
+| `controller_install_gui` | `true` | Install the `linstor-gui` web UI alongside `linstor-controller`; set `false` to skip |
 | `controller_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR controller ports; set `false` to skip |
 | `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
 

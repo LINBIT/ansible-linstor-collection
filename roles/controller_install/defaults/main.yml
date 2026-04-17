@@ -5,6 +5,8 @@ controller_port: 3370
 
 controller_install_package_state: present
 
+controller_install_gui: true
+
 controller_install_firewall_rules: true
 
 controller_install_firewall_ports:

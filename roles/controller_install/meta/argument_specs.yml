@@ -21,6 +21,12 @@ argument_specs:
         description:
           - Package state for LINSTOR controller packages.
           - Set C(present) to skip upgrades.
+      controller_install_gui:
+        type: bool
+        default: true
+        description:
+          - Install the C(linstor-gui) web UI alongside C(linstor-controller).
+          - Set C(false) to skip the GUI package.
       controller_install_firewall_rules:
         type: bool
         default: true

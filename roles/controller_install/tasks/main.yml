@@ -8,14 +8,16 @@
 
 - name: Install LINSTOR controller packages
   ansible.builtin.package:
-    name:
-      - linstor-controller
-      - linstor-gui
+    name: "{{ _controller_install_packages_list }}"
     state: "{{ controller_install_package_state }}"
-  register: _controller_install_packages
+  vars:
+    _controller_install_packages_list: >-
+      {{ ['linstor-controller']
+         + (['linstor-gui'] if controller_install_gui | bool else []) }}
   when:
     - not _controller_install_check.stat.exists
       or controller_install_package_state != 'present'
+  register: _controller_install_packages
 
 - name: Configure LINSTOR controller
   ansible.builtin.include_tasks: configure-controller.yml
