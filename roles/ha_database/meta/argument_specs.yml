@@ -36,6 +36,13 @@ argument_specs:
         default: 3
         description:
           - Maximum number of combined controller nodes allowed.
+      ha_database_allow_2_replica:
+        type: bool
+        default: false
+        description:
+          - Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist.
+          - Role fails by default and asks the operator to promote a third node to combined for full data redundancy.
+          - Set C(true) to opt in; ignored when only 2 diskful satellites exist.
       ha_database_tiebreaker_node:
         type: str
         default: ""

@@ -21,17 +21,15 @@
     quiet: true
   run_once: true # noqa: run-once[task]
 
-- name: Check that diskful clusters with 3+ nodes use 3 combined nodes
+- name: Require 3 combined nodes or explicit opt-in for 2-replica topology
   ansible.builtin.assert:
     that:
       - _ha_db_combined_nodes | length >= 3
-    fail_msg: >
-      Clusters with 3 or more diskful satellites should use 3 combined nodes.
-      Found {{ groups['linstor_diskful_satellites'] | length }} diskful satellites
-      but only {{ _ha_db_combined_nodes | length }} combined nodes.
+        or ha_database_allow_2_replica | bool
+        or groups['linstor_diskful_satellites'] | length == 2
+    fail_msg: "3+ diskful satellites: use 3 combined nodes, or set ha_database_allow_2_replica=true and rerun playbook"
     quiet: true
   run_once: true # noqa: run-once[task]
-  when: groups['linstor_diskful_satellites'] | length >= 3
 
 - name: Validate ha_database_vip format
   ansible.builtin.assert:

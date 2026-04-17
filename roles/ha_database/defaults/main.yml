@@ -11,6 +11,8 @@ ha_database_filesystem_blocksize: 4096
 
 ha_database_max_controllers: 3
 
+ha_database_allow_2_replica: false
+
 # TieBreaker node for 2-node combined configurations. Only used when exactly 2 combined
 # controller and satellite nodes exist. When empty, a satellite is chosen at random.
 # Set to an inventory hostname to pin the TieBreaker to a specific node.
