@@ -10,12 +10,24 @@
     path: /etc/lvm/lvm.conf
   register: _lvm_check
 
+- name: Detect whether LVM uses devices file
+  ansible.builtin.command:
+    cmd: lvmconfig --type full devices/use_devicesfile
+  register: _lvm_devicesfile_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: _lvm_check.stat.exists
+
 - name: Modify lvm.conf global filter for DRBD devices
   ansible.builtin.lineinfile:
     path: /etc/lvm/lvm.conf
     line: 'global_filter = [ "r|^/dev/drbd|", "r|^/dev/mapper/[lL]instor|" ]'
     regexp: 'global_filter'
-  when: _lvm_check.stat.exists
+    insertafter: '^devices \{'
+  when:
+    - _lvm_check.stat.exists
+    - "'use_devicesfile=1' not in (_lvm_devicesfile_check.stdout | default(''))"
 
 - name: Flush handlers for satellite_install
   ansible.builtin.meta: flush_handlers
