@@ -51,4 +51,8 @@ galaxy_info:
     - iscsi
     - ha
 
-dependencies: []
+dependencies:
+  - role: linbit.drbd_reactor.reactor_install
+    vars:
+      reactor_install_drbd: false
+      reactor_install_resource_agents_upstream: true

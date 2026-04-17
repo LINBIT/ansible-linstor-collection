@@ -14,13 +14,20 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
-- name: Install DRBD Reactor
-  ansible.builtin.include_role:
-    name: linbit.drbd_reactor.reactor_install
-  vars:
-    reactor_install_drbd: false # skip DRBD install, already present
-    reactor_install_resource_agents_upstream: true
-  when: "'drbd-reactor.service' not in ansible_facts.services"
+# DRBD Reactor is a hard dependency declared in meta/main.yml so that
+# reactor_install (package + service enable + OCF agents) always runs
+# even when drbd-reactor.service is already present from another path.
+# Previous dynamic include was skipped when drbd-reactor was already
+# installed, which silently left OCF agents off and the service
+# disabled on nodes that had reactor from another source.
+#
+# - name: Install DRBD Reactor
+#   ansible.builtin.include_role:
+#     name: linbit.drbd_reactor.reactor_install
+#   vars:
+#     reactor_install_drbd: false
+#     reactor_install_resource_agents_upstream: true
+#   when: "'drbd-reactor.service' not in ansible_facts.services"
 
 # Skip linstor_diskless_satellites as Reactor should not promote (6s delay)
 - name: Install HA dependencies
