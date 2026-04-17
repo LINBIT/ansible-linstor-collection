@@ -13,11 +13,6 @@ ha_database_max_controllers: 3
 
 ha_database_allow_2_replica: false
 
-# TieBreaker node for 2-node combined configurations. Only used when exactly 2 combined
-# controller and satellite nodes exist. When empty, a satellite is chosen at random.
-# Set to an inventory hostname to pin the TieBreaker to a specific node.
-ha_database_tiebreaker_node: ""
-
 # Virtual IP address for the HA controller (for example "10.0.0.100/24").
 # When set, DRBD Reactor manages an IPaddr2 resource that floats with the
 # active controller. The VIP is stored as an Aux/ha_database_vip controller

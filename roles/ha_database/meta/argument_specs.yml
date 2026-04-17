@@ -43,13 +43,6 @@ argument_specs:
           - Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist.
           - Role fails by default and asks the operator to promote a third node to combined for full data redundancy.
           - Set C(true) to opt in; ignored when only 2 diskful satellites exist.
-      ha_database_tiebreaker_node:
-        type: str
-        default: ""
-        description:
-          - Pin the TieBreaker to a specific satellite (inventory hostname).
-          - Only used with exactly 2 combined nodes.
-          - When empty, a satellite is chosen at random.
       ha_database_vip:
         type: str
         default: ""

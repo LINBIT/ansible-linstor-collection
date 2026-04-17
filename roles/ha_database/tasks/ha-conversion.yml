@@ -3,27 +3,6 @@
 - name: Validate inventory topology for HA database
   ansible.builtin.include_tasks: ha-readiness.yml
 
-# Only valid for 2 combined nodes + TieBreaker satellite topology
-- name: Select TieBreaker satellite for HA database quorum
-  ansible.builtin.set_fact:
-    _ha_db_tiebreaker: >-
-      {{ ha_database_tiebreaker_node | default(_ha_db_random_satellite, true) }}
-  vars:
-    _ha_db_random_satellite: >-
-      {{ (groups['linstor_satellites'] | difference(groups['linstor_controllers']) | shuffle | first) | default('', true) }}
-  when: _ha_db_combined_nodes | length == 2
-  run_once: true # noqa: run-once[task]
-
-- name: Build HA database placement node list
-  ansible.builtin.set_fact:
-    _ha_db_placement_nodes: >-
-      {%- if _ha_db_tiebreaker | default('') != '' -%}
-        {{ _ha_db_combined_nodes + [_ha_db_tiebreaker] }}
-      {%- else -%}
-        {{ _ha_db_combined_nodes }}
-      {%- endif -%}
-  run_once: true # noqa: run-once[task]
-
 - name: Gather service facts
   ansible.builtin.service_facts:
 
@@ -34,10 +13,9 @@
     reactor_install_drbd: false # skip DRBD install, already present
     reactor_install_resource_agents_upstream: true
   when:
-    - inventory_hostname in _ha_db_placement_nodes
+    - inventory_hostname in _ha_db_combined_nodes
     - "'drbd-reactor.service' not in ansible_facts.services"
 
-# LINSTOR node properties (informational aux prop on combined nodes)
 - name: Set ControllerIsHA on combined controller nodes
   linbit.linstor.node:
     name: "{{ linstor_hostname }}"
@@ -47,40 +25,42 @@
   throttle: 1
   when: inventory_hostname in _ha_db_combined_nodes
 
-- name: Tag nodes for HA database placement
-  linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
-    aux_properties:
-      ha-database-node: "True"
-  delegate_to: "{{ _ha_db_primary_node }}"
-  throttle: 1
-  when: inventory_hostname in _ha_db_placement_nodes
-
-# If storage_pool is omitted, LINSTOR auto-selects from available pools
 - name: Create HA database resource group
   linbit.linstor.resource_group:
     name: "{{ ha_database_rg }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
-    place_count: "{{ _ha_db_combined_nodes | length }}"
-    replicas_on_same:
-      - "Aux/ha-database-node=True"
     drbd_options: "{{ ha_database_drbd_options }}"
   run_once: true  # noqa: run-once[task]
 
-- name: Create resource for HA database
+# Diskful placement on every combined node. With 2 combined nodes and majority
+# quorum, LINSTOR auto-quorum adds a diskless TieBreaker on another satellite.
+- name: Place HA database resource on combined nodes
   linbit.linstor.resource:
     name: "{{ ha_database_res }}"
-    mode: spawn
+    mode: manual
     resource_group: "{{ ha_database_rg }}"
-    size: "{{ ha_database_res_size }}"
+    sizes:
+      - "{{ ha_database_res_size }}"
+    nodes: "{{ _ha_db_combined_nodes | map('community.general.dict_kv', 'node') | list }}"
+    storage_pool: "{{ ha_database_pool | default(omit, true) }}"
   run_once: true  # noqa: run-once[task]
+
+- name: Wait for HA database resource to be UpToDate on all diskful nodes
+  ansible.builtin.command:
+    cmd: drbdadm dstate {{ ha_database_res }}
+  register: _ha_db_drbd_dstate
+  until: _ha_db_drbd_dstate.stdout.count('UpToDate') == _ha_db_combined_nodes | length
+  retries: 30
+  delay: 2
+  changed_when: false
+  when: inventory_hostname in _ha_db_combined_nodes
 
 # Database migration
 - name: Ensure DRBD Reactor is stopped
   ansible.builtin.systemd:
     name: drbd-reactor.service
     state: stopped
-  when: inventory_hostname in _ha_db_placement_nodes
+  when: inventory_hostname in _ha_db_combined_nodes
 
 - name: Stop the LINSTOR controller service
   ansible.builtin.systemd:
@@ -149,7 +129,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: inventory_hostname in _ha_db_placement_nodes
+  when: inventory_hostname in _ha_db_combined_nodes
 
 # Start linstor-controller.service via DRBD Reactor
 - name: Enable and start DRBD Reactor on primary node
@@ -183,7 +163,7 @@
     state: restarted
     enabled: true
   when:
-    - inventory_hostname in _ha_db_placement_nodes
+    - inventory_hostname in _ha_db_combined_nodes
     - inventory_hostname != _ha_db_primary_node
 
 # Mark migration as completed (cluster-wide property)
@@ -195,7 +175,7 @@
       {%- else -%}
         {{ {'ClusterIsHA': 'True'} }}
       {%- endif -%}
-  when: inventory_hostname in _ha_db_placement_nodes
+  when: inventory_hostname in _ha_db_combined_nodes
   run_once: true # noqa: run-once[task]
 
 # Update linstor-client.conf to use VIP on all cluster nodes
