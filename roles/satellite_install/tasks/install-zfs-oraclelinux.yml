@@ -40,7 +40,7 @@
 - name: Install UEK kernel headers and DKMS prerequisites
   ansible.builtin.dnf:
     name:
-      - "kernel-uek-devel-{{ ansible_facts['kernel'] }}"
+      - kernel-uek-devel
       - dkms
       - zfs-dkms
     state: present
