@@ -2,8 +2,11 @@
 ---
 # vars file for linstor_satellite
 
+# thin-provisioning-tools is Recommends-only on Debian/Ubuntu; install
+# explicitly in case the target has APT::Install-Recommends "false".
 _satellite_install_prereqs: >-
   {{
     ['cryptsetup', 'socat', 'lvm2', 'thin-send-recv', 'zstd']
+    + (['thin-provisioning-tools'] if ansible_facts['os_family'] | lower == 'debian' else [])
     + (['zfsutils-linux'] if ansible_facts['distribution'] | lower == 'ubuntu' else [])
   }}
