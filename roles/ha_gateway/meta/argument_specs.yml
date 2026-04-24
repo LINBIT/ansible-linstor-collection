@@ -45,7 +45,7 @@ argument_specs:
           - Default iSCSI target port.
       ha_gateway_iscsi_iqn_base:
         type: str
-        default: iqn.2019-08.com.linbit
+        default: iqn.2026-06.com.linbit
         description:
           - Default IQN base when C(iqn) is not set on a target.
       ha_gateway_nfs_port:
@@ -85,7 +85,7 @@ argument_specs:
           - Default NVMe-oF target port.
       ha_gateway_nvmeof_nqn_base:
         type: str
-        default: "nqn.2014-08.io.linbit"
+        default: "nqn.2026-06.io.linbit:nvme"
         description:
           - Default NQN base when C(nqn) is not set on a target.
           - Auto-generates C(nqn_base:name) for targets without an explicit C(nqn).

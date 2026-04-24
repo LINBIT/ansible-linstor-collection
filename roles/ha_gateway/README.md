@@ -61,12 +61,12 @@ See `defaults/main.yml`.
 | `ha_gateway_filesystem_blocksize` | `4096` | Filesystem block size; forces 4K for cross-node 4Kn sector compatibility |
 | `ha_gateway_drbd_options` | see defaults | DRBD resource options for HA operation |
 | `ha_gateway_iscsi_port` | `3260` | Default iSCSI target port |
-| `ha_gateway_iscsi_iqn_base` | `iqn.2019-08.com.linbit` | Default IQN base when `iqn` is not set on target |
+| `ha_gateway_iscsi_iqn_base` | `iqn.2026-06.com.linbit` | Default IQN base when `iqn` is not set on target |
 | `ha_gateway_nfs_port` | `2049` | NFS service port |
 | `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0"]` | Default client CIDRs for NFS exports |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
-| `ha_gateway_nvmeof_nqn_base` | `nqn.2014-08.io.linbit` | Default NQN base when `nqn` is not set on target |
+| `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on target. Must include `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
 | `linstor_hostname` | auto-detected | Node hostname for LINSTOR; forces short hostnames on Proxmox VE |
 
 Resource Naming
@@ -76,9 +76,9 @@ LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI c
 
 | Protocol | LINSTOR resource name | Example |
 |---|---|---|
-| iSCSI | WWN (last colon-separated part of IQN) | `iqn.2019-08.com.linbit:web` → `web` |
+| iSCSI | WWN (last colon-separated part of IQN) | `iqn.2026-06.com.linbit:web` → `web` |
 | NFS | target name as-is | `name: shared` → `shared` |
-| NVMe-oF | NQN subsystem (last colon-separated part of NQN) | `nqn.2014-08.io.linbit:fast` → `fast` |
+| NVMe-oF | NQN subsystem (last colon-separated part of NQN) | `nqn.2026-06.io.linbit:nvme:fast` → `fast` |
 
 When `iqn` or `nqn` is omitted, defaults `ha_gateway_iscsi_iqn_base:{name}` / `ha_gateway_nvmeof_nqn_base:{name}` are used, so the WWN/subsystem becomes `{name}`.
 Because the resource namespace is shared across protocols (no per-protocol prefix), an iSCSI target `name: data` collides with an NFS export `name: data`. The role asserts uniqueness across all targets.
@@ -212,7 +212,7 @@ With `group_vars/all/ha-gateway.yaml`:
 # LINSTOR auto-creates a TieBreaker on a third satellite for quorum
 linstor_iscsi_targets:
   - name: web
-    iqn: iqn.2026-03.com.linbit:web
+    iqn: iqn.2026-06.com.linbit:web
     service_ips:
       - 192.168.222.240/24
     volumes:
@@ -277,7 +277,7 @@ NVMe-oF target with 3 diskful replicas (inherent quorum, no dedicated TieBreaker
 # group_vars/all/ha-3-replica-nvmeof.yaml
 linstor_nvmeof_targets:
   - name: critical
-    nqn: nqn.2026-03.io.linbit:nvme-critical
+    nqn: nqn.2026-06.io.linbit:nvme:critical
     service_ips:
       - 192.168.222.243/24
     volumes:
@@ -365,7 +365,7 @@ iSCSI target with CHAP authentication and initiator ACLs:
 # group_vars/all/ha-iscsi-chap.yaml
 linstor_iscsi_targets:
   - name: secure
-    iqn: iqn.2026-03.com.linbit:secure
+    iqn: iqn.2026-06.com.linbit:secure
     service_ips:
       - 192.168.222.245/24
     # multi-LUN
@@ -378,8 +378,8 @@ linstor_iscsi_targets:
     username: admin
     password: s3cret
     allowed_initiators:
-      - iqn.2026-03.com.linbit:initiator1
-      - iqn.2026-03.com.linbit:initiator2
+      - iqn.2026-06.com.linbit:initiator1
+      - iqn.2026-06.com.linbit:initiator2
 ```
 
 Remove targets by setting `state: absent`:
