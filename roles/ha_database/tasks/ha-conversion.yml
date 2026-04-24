@@ -12,21 +12,30 @@
     reactor_install_resource_agents_upstream: false
   when: inventory_hostname in _ha_db_combined_nodes
 
+# For Proxmox - linstor_hostname is not visible to other nodes without set_fact
+- name: Set linstor_hostname fact on combined nodes
+  ansible.builtin.set_fact:
+    linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"
+  when: inventory_hostname in _ha_db_combined_nodes
+
 # Only necessary when using ha_database_vip
 - name: Check for IPaddr2 resource agent
   ansible.builtin.stat:
     path: "{{ _ha_db_ipaddr2_path }}"
-  register: _ha_db_ipaddr2_check
   when:
-    - inventory_hostname in _ha_db_combined_nodes
     - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_combined_nodes
+  register: _ha_db_ipaddr2_check
 
-- name: Install OCF resource agents for ha_database_vip (IPaddr2)
+- name: Install IPaddr2 OCF resource agent for virtual IP address
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.resource_agents_upstream
+  vars:
+    resource_agents_upstream_list:
+      - IPaddr2
   when:
-    - inventory_hostname in _ha_db_combined_nodes
     - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_combined_nodes
     - not (_ha_db_ipaddr2_check.stat.exists | default(false))
 
 - name: Set ControllerIsHA on combined controller nodes
@@ -45,8 +54,8 @@
     drbd_options: "{{ ha_database_drbd_options }}"
   run_once: true  # noqa: run-once[task]
 
-# Diskful placement on every combined node. With 2 combined nodes and majority
-# quorum, LINSTOR auto-quorum adds a diskless TieBreaker on another satellite.
+# 3 combined nodes - diskful placement on every combined node
+# 2 combined nodes - auto-quorum adds a diskless TieBreaker automatically
 - name: Place HA database resource on combined nodes
   linbit.linstor.resource:
     name: "{{ ha_database_res }}"
@@ -54,19 +63,19 @@
     resource_group: "{{ ha_database_rg }}"
     sizes:
       - "{{ ha_database_res_size }}"
-    nodes: "{{ _ha_db_combined_nodes | map('community.general.dict_kv', 'node') | list }}"
+    nodes: "{{ _ha_db_placement_nodes }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Wait for HA database resource to be UpToDate on all diskful nodes
   ansible.builtin.command:
     cmd: drbdadm dstate {{ ha_database_res }}
+  when: inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_drbd_dstate
   until: _ha_db_drbd_dstate.stdout.count('UpToDate') == _ha_db_combined_nodes | length
   retries: 30
   delay: 2
   changed_when: false
-  when: inventory_hostname in _ha_db_combined_nodes
 
 # Database migration
 - name: Ensure DRBD Reactor is stopped
@@ -99,11 +108,11 @@
   when: inventory_hostname in _ha_db_combined_nodes
 
 - name: Promote HA database resource
-  ansible.builtin.shell: |
-    drbdadm primary {{ ha_database_res }}
+  ansible.builtin.command:
+    cmd: drbdadm primary {{ ha_database_res }}
+  when: inventory_hostname == _ha_db_primary_node
   register: _ha_db_conversion_promote_result
   changed_when: _ha_db_conversion_promote_result.rc == 0
-  when: inventory_hostname == _ha_db_primary_node
 
 - name: Create new filesystem for HA database
   community.general.filesystem:
@@ -153,15 +162,15 @@
     enabled: true
   when: inventory_hostname == _ha_db_primary_node
 
-- name: Verify linstor_db resource has promoted successfuly
+- name: Verify linstor_db resource has promoted successfully
   ansible.builtin.command:
     cmd: drbd-reactorctl status {{ ha_database_res }}
+  when: inventory_hostname == _ha_db_primary_node
   register: _ha_db_reactor_status
   until: "'currently active on this node' in _ha_db_reactor_status.stdout"
   retries: 10
   delay: 3
   changed_when: false
-  when: inventory_hostname == _ha_db_primary_node
 
 - name: Wait for LINSTOR controller to be ready
   ansible.builtin.wait_for:
