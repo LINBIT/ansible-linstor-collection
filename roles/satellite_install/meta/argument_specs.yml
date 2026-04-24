@@ -24,17 +24,13 @@ argument_specs:
           - Set C(false) to skip firewall configuration.
       satellite_install_zfs:
         type: bool
-        default: true
-        description:
-          - Install ZFS utilities on Debian OS family nodes.
-          - Debian family includes Debian, Ubuntu, and Proxmox VE.
-      satellite_install_zfs_all_distros:
-        type: bool
         default: false
         description:
-          - Install ZFS on RedHat and SUSE OS family nodes.
-          - LINBIT does not support ZFS on non-Debian family operating systems.
-          - Use for testing purposes or at your own risk.
+          - Install ZFS on Debian (non-Ubuntu, non-Proxmox), RedHat, and SUSE family nodes.
+          - Ubuntu always installs C(zfsutils-linux) as a prerequisite, regardless of this setting (userspace only, no DKMS).
+          - Proxmox VE ships with ZFS and needs no additional packages.
+          - Disabled by default because the RedHat and SUSE paths involve DKMS or kmod package installs that can be slow and kernel-sensitive.
+          - LINBIT does not support ZFS on non-Debian family operating systems, use for testing purposes or at your own risk.
       satellite_install_packages:
         type: list
         elements: str
