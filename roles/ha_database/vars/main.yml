@@ -6,3 +6,11 @@ _ha_db_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
   {%- elif ha_database_filesystem == 'xfs' -%}
     -b size={{ ha_database_filesystem_blocksize }}
   {%- endif -%}
+
+# OCF IPaddr2 path for ha_database_vip; SUSE uses /usr/lib, others /lib.
+_ha_db_ipaddr2_path: >-
+  {%- if ansible_facts['os_family'] | lower == 'suse' -%}
+    /usr/lib/ocf/resource.d/heartbeat/IPaddr2
+  {%- else -%}
+    /lib/ocf/resource.d/heartbeat/IPaddr2
+  {%- endif -%}

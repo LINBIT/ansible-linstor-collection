@@ -3,18 +3,31 @@
 - name: Validate inventory topology for HA database
   ansible.builtin.include_tasks: ha-readiness.yml
 
-- name: Gather service facts
-  ansible.builtin.service_facts:
-
+# DRBD Reactor package (idempotent); OCF agents handled separately below
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
     name: linbit.drbd_reactor.reactor_install
   vars:
     reactor_install_drbd: false # skip DRBD install, already present
-    reactor_install_resource_agents_upstream: true
+    reactor_install_resource_agents_upstream: false
+  when: inventory_hostname in _ha_db_combined_nodes
+
+# Only necessary when using ha_database_vip
+- name: Check for IPaddr2 resource agent
+  ansible.builtin.stat:
+    path: "{{ _ha_db_ipaddr2_path }}"
+  register: _ha_db_ipaddr2_check
   when:
     - inventory_hostname in _ha_db_combined_nodes
-    - "'drbd-reactor.service' not in ansible_facts.services"
+    - ha_database_vip | default('') != ''
+
+- name: Install OCF resource agents for ha_database_vip (IPaddr2)
+  ansible.builtin.include_role:
+    name: linbit.drbd_reactor.resource_agents_upstream
+  when:
+    - inventory_hostname in _ha_db_combined_nodes
+    - ha_database_vip | default('') != ''
+    - not (_ha_db_ipaddr2_check.stat.exists | default(false))
 
 - name: Set ControllerIsHA on combined controller nodes
   linbit.linstor.node:
