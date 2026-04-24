@@ -6,18 +6,28 @@ _ra_base: >-
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
 
-# Normalized resource names per protocol (strip existing prefix, re-add with dash)
+# Gateway-compatible resource definition names per protocol
+# iSCSI: WWN = last colon-separated part of IQN (user-supplied or defaulted)
+# NFS:   target name as-is
+# NVMe-oF: subsystem = last colon-separated part of NQN (user-supplied or defaulted)
 _ha_gw_iscsi_names: >-  # noqa: var-naming[no-role-prefix]
-  {{ linstor_iscsi_targets | default([]) | map(attribute='name')
-     | map('regex_replace', '^iscsi[-_]', '') | map('regex_replace', '^', 'iscsi-') | list }}
+  {%- set result = [] -%}
+  {%- for t in linstor_iscsi_targets | default([]) -%}
+    {%- set ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ t.name) -%}
+    {%- set _ = result.append(ident.split(':') | last) -%}
+  {%- endfor -%}
+  {{ result }}
 
 _ha_gw_nfs_names: >-  # noqa: var-naming[no-role-prefix]
-  {{ linstor_nfs_exports | default([]) | map(attribute='name')
-     | map('regex_replace', '^nfs[-_]', '') | map('regex_replace', '^', 'nfs-') | list }}
+  {{ linstor_nfs_exports | default([]) | map(attribute='name') | list }}
 
 _ha_gw_nvmeof_names: >-  # noqa: var-naming[no-role-prefix]
-  {{ linstor_nvmeof_targets | default([]) | map(attribute='name')
-     | map('regex_replace', '^nvmeof[-_]', '') | map('regex_replace', '^', 'nvmeof-') | list }}
+  {%- set result = [] -%}
+  {%- for t in linstor_nvmeof_targets | default([]) -%}
+    {%- set ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ t.name) -%}
+    {%- set _ = result.append(ident.split(':') | last) -%}
+  {%- endfor -%}
+  {{ result }}
 
 _ha_gw_all_resource_names: >-  # noqa: var-naming[no-role-prefix]
   {{ _ha_gw_iscsi_names + _ha_gw_nfs_names + _ha_gw_nvmeof_names }}

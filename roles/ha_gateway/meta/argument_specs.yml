@@ -5,8 +5,10 @@ argument_specs:
     short_description: Create HA iSCSI, NFS, and NVMe-oF targets with DRBD Reactor
     description:
       - Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
+      - Interoperable with the LINSTOR Gateway CLI.
+      - Resources created by this role appear in C(linstor-gateway iscsi list), C(linstor-gateway nfs list), and C(linstor-gateway nvme list).
       - Processes C(linstor_iscsi_targets), C(linstor_nfs_exports), and C(linstor_nvmeof_targets) inventory variables.
-      - Resource names are auto-prefixed by protocol (C(iscsi-), C(nfs-), C(nvmeof-)).
+      - LINSTOR resource names follow the Gateway scheme, iSCSI WWN, NFS name, NVMe-oF subsystem.
       - Requires C(linbit.linstor.gateway_satellite) on all satellite nodes before use.
     options:
       ha_gateway_storage_pool:

@@ -2,7 +2,7 @@ ha_gateway
 ==========
 
 Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
-This is an Ansible-only implementation of [LINSTOR Gateway](https://github.com/LINBIT/linstor-gateway).
+This is an Ansible-only implementation of [LINSTOR Gateway](https://github.com/LINBIT/linstor-gateway), interoperable with the `linstor-gateway` CLI: resources created by this role show up in `linstor-gateway iscsi list`, `linstor-gateway nfs list`, and `linstor-gateway nvme list`, and that CLI can inspect or remove them.
 
 This role processes three inventory variables (`linstor_iscsi_targets`, `linstor_nfs_exports`, `linstor_nvmeof_targets`) through a shared task flow:
 
@@ -10,12 +10,11 @@ This role processes three inventory variables (`linstor_iscsi_targets`, `linstor
 1. Place LINSTOR resources (manual or autoplace)
 1. Format partitions
 1. Set DRBD resource options
-1. Deploy promoter TOML configs to `/etc/drbd-reactor.d/`
+1. Push promoter TOML configs to LINSTOR as external files and attach them to each resource definition
 
-Resource names are auto-prefixed by protocol: `name: web` becomes `iscsi-web`, `nfs-web`, or `nvmeof-web` in LINSTOR depending on the target type.
 Targets with explicit `nodes` use manual placement; targets without `nodes` use LINSTOR autoplace.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
-Setting `state: absent` on a target removes the promoter config and deletes the LINSTOR resource.
+Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
 
 Requirements
 ------------
@@ -73,19 +72,20 @@ See `defaults/main.yml`.
 Resource Naming
 ---------------
 
-The role auto-prefixes resource names by protocol to avoid collisions and enable protocol-aware placement constraints:
+LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI can recognize them:
 
-| Protocol | Prefix | Example: `name: web` | LINSTOR resource |
-|---|---|---|---|
-| iSCSI | `iscsi-` | `name: web` | `iscsi-web` |
-| NFS | `nfs-` | `name: shared` | `nfs-shared` |
-| NVMe-oF | `nvmeof-` | `name: fast` | `nvmeof-fast` |
+| Protocol | LINSTOR resource name | Example |
+|---|---|---|
+| iSCSI | WWN (last colon-separated part of IQN) | `iqn.2019-08.com.linbit:web` → `web` |
+| NFS | target name as-is | `name: shared` → `shared` |
+| NVMe-oF | NQN subsystem (last colon-separated part of NQN) | `nqn.2014-08.io.linbit:fast` → `fast` |
 
-Names that already include the protocol prefix are normalized rather than double-prefixed.
-For example, `name: iscsi-web` and `name: web` both produce the LINSTOR resource `iscsi-web`.
-A prefix separator of either `-` or `_` is recognized: `name: iscsi_web` also normalizes to `iscsi-web`.
+When `iqn` or `nqn` is omitted, defaults `ha_gateway_iscsi_iqn_base:{name}` / `ha_gateway_nvmeof_nqn_base:{name}` are used, so the WWN/subsystem becomes `{name}`.
+Because the resource namespace is shared across protocols (no per-protocol prefix), an iSCSI target `name: data` collides with an NFS export `name: data`. The role asserts uniqueness across all targets.
 
-DRBD device paths, mount paths, and promoter configs all use the prefixed name (for example `/dev/drbd/by-res/nfs-shared/0`).
+Promoter config files are stored in LINSTOR as external files with the path pattern `/etc/drbd-reactor.d/linstor-gateway-{protocol}-{name}.toml`. The LINSTOR controller distributes them to every satellite holding a replica of the attached resource definition. This filename pattern is what makes the resources visible to `linstor-gateway <protocol> list`.
+
+DRBD device paths follow the resource name, for example `/dev/drbd/by-res/shared/0`.
 
 iSCSI Targets
 -------------
@@ -94,7 +94,7 @@ Each entry in `linstor_iscsi_targets`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | Target name (prefixed with `iscsi-` in LINSTOR) |
+| `name` | yes | | Target name (WWN portion of IQN; see Resource Naming) |
 | `service_ips` | yes | | List of VIPs in CIDR notation (iSCSI portals) |
 | `volumes` | yes | | List of volume definitions (`size` key) |
 | `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
@@ -117,7 +117,7 @@ Each entry in `linstor_nfs_exports`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | Export name (prefixed with `nfs-` in LINSTOR) |
+| `name` | yes | | Export name (becomes the LINSTOR resource name; see Resource Naming) |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `exports` | yes | | List of export definitions (see below) |
 | `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
@@ -133,7 +133,7 @@ Each entry in `exports`:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `size` | yes | | Export volume size (for example `50G`) |
-| `path` | no | `/` | Path under `/srv/gateway-exports/<resource_name>/`; clients mount via the full server path (for example `mount -t nfs <VIP>:/srv/gateway-exports/nfs-shared/data /mnt`) |
+| `path` | no | `/` | Path under `/srv/gateway-exports/<resource_name>/`; clients mount via the full server path (for example `mount -t nfs <VIP>:/srv/gateway-exports/shared/data /mnt`) |
 | `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client CIDRs |
 | `export_options` | no | `ha_gateway_nfs_options` | NFS export options |
 | `fstype` | no | service-level `fstype` | Filesystem for this volume |
@@ -150,7 +150,7 @@ Each entry in `linstor_nvmeof_targets`:
 
 | Key | Required | Default | Description |
 |---|---|---|---|
-| `name` | yes | | Target name (prefixed with `nvmeof-` in LINSTOR) |
+| `name` | yes | | Target name (NQN subsystem; see Resource Naming) |
 | `nqn` | no | `{{ nqn_base }}:{{ name }}` | NVMe Qualified Name; auto-generated from `ha_gateway_nvmeof_nqn_base` and target name if omitted |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `volumes` | yes | | List of volume definitions (`size` key) |
@@ -208,7 +208,7 @@ Example Playbook
 With `group_vars/all/ha-gateway.yaml`:
 
 ```yaml
-# iSCSI target with 2 replicas (default) -> LINSTOR resource "iscsi-web"
+# iSCSI target with 2 replicas (default) -> LINSTOR resource "web" (= IQN WWN)
 # LINSTOR auto-creates a TieBreaker on a third satellite for quorum
 linstor_iscsi_targets:
   - name: web
@@ -222,7 +222,7 @@ linstor_iscsi_targets:
       - node-1
       - node-2
 
-# NFS export with 2 replicas -> LINSTOR resource "nfs-shared"
+# NFS export with 2 replicas -> LINSTOR resource "shared"
 linstor_nfs_exports:
   - name: shared
     service_ips:
@@ -236,7 +236,7 @@ linstor_nfs_exports:
       - node-4
       - node-5
 
-# NVMe-oF target with 2 replicas -> LINSTOR resource "nvmeof-fast"
+# NVMe-oF target with 2 replicas -> LINSTOR resource "fast" (= NQN subsystem)
 # NQN auto-generated from ha_gateway_nvmeof_nqn_base when omitted
 linstor_nvmeof_targets:
   - name: fast

@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: MIT
-#
-# Shared target preparation logic for ha_gateway.
 # Included from main.yml with vars: _protocol, _targets, _toml_template, _toml_prefix, _sizes_key
-#
-# Resource names are auto-prefixed: {{ _toml_prefix }}-{{ name }}
-# (e.g. name: web with iSCSI becomes iscsi-web in LINSTOR)
 ---
 - name: "Reset protocol state - {{ _protocol }}"
   ansible.builtin.set_fact:
@@ -30,7 +25,16 @@
       {%- for t in _targets -%}
         {%- if t.state is not defined or t.state == 'present' -%}
           {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
-          {%- set _ = result.append(t | combine({'name': clean})) -%}
+          {%- if _protocol == 'iSCSI' -%}
+            {%- set _ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ clean) -%}
+            {%- set rd = _ident.split(':') | last -%}
+          {%- elif _protocol == 'NVMe-oF' -%}
+            {%- set _ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ clean) -%}
+            {%- set rd = _ident.split(':') | last -%}
+          {%- else -%}
+            {%- set rd = clean -%}
+          {%- endif -%}
+          {%- set _ = result.append(t | combine({'name': clean, '_rd_name': rd})) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ result }}
@@ -39,7 +43,16 @@
       {%- for t in _targets -%}
         {%- if t.state is defined and t.state == 'absent' -%}
           {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
-          {%- set _ = result.append(t | combine({'name': clean})) -%}
+          {%- if _protocol == 'iSCSI' -%}
+            {%- set _ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ clean) -%}
+            {%- set rd = _ident.split(':') | last -%}
+          {%- elif _protocol == 'NVMe-oF' -%}
+            {%- set _ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ clean) -%}
+            {%- set rd = _ident.split(':') | last -%}
+          {%- else -%}
+            {%- set rd = clean -%}
+          {%- endif -%}
+          {%- set _ = result.append(t | combine({'name': clean, '_rd_name': rd})) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ result }}
@@ -108,7 +121,7 @@
 
 - name: "Spawn resource definitions from resource groups (explicit nodes) - {{ _protocol }}"
   linbit.linstor.resource:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     mode: spawn
     resource_group: "{{ _target.resource_group }}"
     definitions_only: true
@@ -118,7 +131,7 @@
   loop: "{{ _gw_explicit | selectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_defs
@@ -128,32 +141,13 @@
 - name: "Build manual placement list - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_placements: >-
-      {%- set rg_pc = {} -%}
-      {%- for r in _gw_rg_check.results | default([]) -%}
-        {%- set _ = rg_pc.update({r._target.name: (r.place_count | default(2)) | int}) -%}
-      {%- endfor -%}
-      {%- set result = [] -%}
-      {%- for t in _gw_explicit -%}
-        {%- set has_rg = t.resource_group is defined -%}
-        {%- set pc = rg_pc.get(t.name, (t.place_count | default(ha_gateway_place_count)) | int) if has_rg else (t.place_count | default(ha_gateway_place_count)) | int -%}
-        {%- set vol_sizes = [ha_gateway_tickle_dir_size] + t[_sizes_key] | map(attribute='size') | list -%}
-        {%- set sp = t.storage_pool | default(ha_gateway_storage_pool) | default('', true) -%}
-        {%- set node_entries = [] -%}
-        {%- for n in t.nodes -%}
-          {%- set is_diskless = loop.index0 >= pc -%}
-          {%- set _ = node_entries.append({
-            'node': hostvars[n]['linstor_hostname'] | default(n),
-            'diskless': is_diskless,
-            'storage_pool': sp if (not has_rg and not is_diskless) else ''
-          }) -%}
-        {%- endfor -%}
-        {%- set _ = result.append({
-          'resource_name': _toml_prefix ~ '-' ~ t.name,
-          'nodes': node_entries,
-          'sizes': vol_sizes if not has_rg else []
-        }) -%}
-      {%- endfor -%}
-      {{ result }}
+      {{ _gw_explicit | linbit.linstor.gateway_placement(
+           _gw_rg_check.results | default([]),
+           ha_gateway_place_count,
+           ha_gateway_storage_pool,
+           hostvars,
+           _sizes_key,
+           ha_gateway_tickle_dir_size) }}
   run_once: true  # noqa: run-once[task]
   when: _gw_explicit | length > 0
 
@@ -178,7 +172,7 @@
 
 - name: "Spawn LINSTOR resources from resource groups (autoplace) - {{ _protocol }}"
   linbit.linstor.resource:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     mode: spawn
     resource_group: "{{ _target.resource_group }}"
     sizes: >-
@@ -187,7 +181,7 @@
   loop: "{{ _gw_autoplace | selectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_rg
@@ -196,18 +190,18 @@
 
 - name: "Autoplace LINSTOR resources - {{ _protocol }}"
   linbit.linstor.resource:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     mode: autoplace
     sizes: >-
       {{ [ha_gateway_tickle_dir_size]
          + _target[_sizes_key] | map(attribute='size') | list }}
     place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
     storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
-    do_not_place_with_regex: "{{ '^' ~ _toml_prefix ~ '-' if _sizes_key == 'exports' and _gw_present | length > 1 else omit }}"
+    do_not_place_with_regex: "{{ _gw_present | map(attribute='_rd_name') | join('|') if _sizes_key == 'exports' and _gw_present | length > 1 else omit }}"
   loop: "{{ _gw_autoplace | rejectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_auto
@@ -216,12 +210,12 @@
 
 - name: "Query resource placement - {{ _protocol }}"
   linbit.linstor.resource:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     state: query
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_query
@@ -230,47 +224,14 @@
 - name: "Resolve target node lists - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_resolved: >-
-      {%- set _inv_map = {} -%}
-      {%- for host in groups.get('linstor_satellites', []) -%}
-        {%- set lh = hostvars[host]['linstor_hostname'] | default(host) -%}
-        {%- set _ = _inv_map.update({lh: host}) -%}
-      {%- endfor -%}
-      {%- set resolved = [] -%}
-      {%- for result in _gw_query.results | default([]) -%}
-        {%- set t = result._target -%}
-        {%- if t.nodes | default([]) | length > 0 -%}
-          {%- set _ = resolved.append(t) -%}
-        {%- else -%}
-          {%- set diskful = [] -%}
-          {%- set diskless_nodes = [] -%}
-          {%- for ln in result.nodes -%}
-            {%- set inv_name = _inv_map.get(ln, ln) -%}
-            {%- set node_flags = result.flags.get(ln, []) -%}
-            {%- if 'DRBD_DISKLESS' in node_flags or 'TIE_BREAKER' in node_flags -%}
-              {%- set _ = diskless_nodes.append(inv_name) -%}
-            {%- else -%}
-              {%- set _ = diskful.append(inv_name) -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {%- set _ = resolved.append(t | combine({'nodes': diskful + diskless_nodes})) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ resolved }}
+      {{ _gw_query.results | default([])
+         | linbit.linstor.gateway_resolve_satellites(groups.get('linstor_satellites', []), hostvars) }}
   run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
 
 - name: "Build resolved satellite list - {{ _protocol }}"
   ansible.builtin.set_fact:
-    _gw_satellites: >-
-      {%- set nodes = [] -%}
-      {%- for t in _gw_resolved | default([]) -%}
-        {%- for n in t.nodes -%}
-          {%- if n not in nodes -%}
-            {%- set _ = nodes.append(n) -%}
-          {%- endif -%}
-        {%- endfor -%}
-      {%- endfor -%}
-      {{ nodes }}
+    _gw_satellites: "{{ _gw_resolved | default([]) | map(attribute='nodes') | flatten | unique | list }}"
   run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
 
@@ -295,11 +256,11 @@
 
 - name: "Wait for DRBD devices - {{ _protocol }}"
   ansible.builtin.wait_for:
-    path: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _target.name }}/0"
+    path: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
   when: >-
@@ -309,12 +270,12 @@
 - name: "Format portblock tickle_dir partition - {{ _protocol }}"
   community.general.filesystem:
     fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
-    dev: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _target.name }}/0"
+    dev: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
   when: >-
@@ -324,12 +285,12 @@
 - name: Format NFS export partitions
   community.general.filesystem:
     fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
-    dev: "/dev/drbd/by-res/{{ _toml_prefix }}-{{ _export.0.name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
+    dev: "/dev/drbd/by-res/{{ _export.0._rd_name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export
-    label: "{{ _toml_prefix }}-{{ _export.0.name }}:{{ _export.1.path | default('/') }}"
+    label: "{{ _export.0._rd_name }}:{{ _export.1.path | default('/') }}"
   delegate_to: "{{ _export.0.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
   when: >-
@@ -338,49 +299,66 @@
 
 - name: "Set DRBD resource options - {{ _protocol }}"
   linbit.linstor.resource_definition:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     drbd_options:
       resource: "{{ ha_gateway_drbd_options }}"
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
 
-# --- Deploy on satellites (pre-flight, TOML) ---
-
-- name: "Deploy promoter configs to satellites - {{ _protocol }}"
+- name: "Run satellite pre-flight checks - {{ _protocol }}"
   ansible.builtin.include_tasks: deploy-target.yml
   when:
     - _gw_present | length > 0
     - inventory_hostname in (_gw_satellites | default([]))
 
-# --- Remove absent targets ---
+- name: "Push promoter config as LINSTOR external file - {{ _protocol }}"
+  linbit.linstor.file:
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    content: "{{ lookup('ansible.builtin.template', _toml_template) }}"
+    deploy_to:
+      - "{{ _target._rd_name }}"
+  loop: "{{ _gw_resolved | default([]) }}"
+  loop_control:
+    loop_var: _target
+    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
 
-- name: "Remove promoter config for absent targets - {{ _protocol }}"
-  ansible.builtin.file:
-    path: "/etc/drbd-reactor.d/{{ _toml_prefix }}-{{ _target.name }}.toml"
+- name: "Wait for promoter config to reach satellites - {{ _protocol }}"
+  ansible.builtin.wait_for:
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    timeout: 60
+  loop: "{{ _gw_resolved | default([]) }}"
+  loop_control:
+    loop_var: _target
+    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
+  when:
+    - inventory_hostname in (_gw_satellites | default([]))
+    - inventory_hostname in _target.nodes
+
+- name: "Remove promoter config external file for absent targets - {{ _protocol }}"
+  linbit.linstor.file:
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
     state: absent
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
-  when: inventory_hostname in (_target.nodes | default(groups['linstor_satellites']))
-  notify: reload_drbd_reactor
-
-- name: "Flush handlers to reload DRBD Reactor before resource deletion - {{ _protocol }}"
-  ansible.builtin.meta: flush_handlers
-  when: _gw_absent | length > 0
+    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
 
 - name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
   linbit.linstor.resource_definition:
-    name: "{{ _toml_prefix }}-{{ _target.name }}"
+    name: "{{ _target._rd_name }}"
     state: absent
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
-    label: "{{ _toml_prefix }}-{{ _target.name }}"
+    label: "{{ _target._rd_name }}"
   delegate_to: "{{ groups['linstor_controllers'][0] }}"
   run_once: true  # noqa: run-once[task]
   retries: 5
