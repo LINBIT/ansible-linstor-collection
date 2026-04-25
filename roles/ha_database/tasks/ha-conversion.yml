@@ -12,12 +12,6 @@
     reactor_install_resource_agents_upstream: false
   when: inventory_hostname in _ha_db_combined_nodes
 
-# For Proxmox - linstor_hostname is not visible to other nodes without set_fact
-- name: Set linstor_hostname fact on combined nodes
-  ansible.builtin.set_fact:
-    linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"
-  when: inventory_hostname in _ha_db_combined_nodes
-
 # Only necessary when using ha_database_vip
 - name: Check for IPaddr2 resource agent
   ansible.builtin.stat:
@@ -40,7 +34,7 @@
 
 - name: Set ControllerIsHA on combined controller nodes
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     aux_properties:
       ControllerIsHA: "True"
   delegate_to: "{{ _ha_db_primary_node }}"

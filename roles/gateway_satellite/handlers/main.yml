@@ -28,7 +28,7 @@
 
 - name: Wait for satellite to be ONLINE after restart
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     state: query
   register: _gw_satellite_status
   until: _gw_satellite_status.connection_status | default('') == 'ONLINE'

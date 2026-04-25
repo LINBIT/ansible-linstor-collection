@@ -16,7 +16,7 @@ ssl_init_key_algorithm: EC
 ssl_init_ca_curve: secp384r1
 ssl_init_node_curve: prime256v1
 ssl_init_rsa_key_size: 4096
-ssl_init_cert_ou: "{{ linstor_hostname }}"
+ssl_init_cert_ou: "{{ inventory_hostname }}"
 ssl_init_cert_o: ""
 ssl_init_cert_c: ""
 
@@ -38,7 +38,3 @@ ssl_init_satellite_protocol: "TLSv1.3"
 # Controller addresses for linstor-client.conf (same default as client_install)
 linstor_controller_addresses:
   "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
-
-# Node hostname for certificate DN and cross-node trust.
-# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
-linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"

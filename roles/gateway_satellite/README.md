@@ -29,7 +29,6 @@ Role Variables
 | `linstor_gateway_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `linstor_gateway_scst` | `false` | LIO alternative. Compile and install SCST iSCSI target from source |
 | `linstor_gateway_scst_version` | `3.10.x` | SCST git tag to build from source; only used when `linstor_gateway_scst=true` |
-| `linstor_hostname` | auto-detected | Node hostname for LINSTOR. Forces short hostnames on Proxmox VE, unaltered otherwise |
 
 Dependencies
 ------------

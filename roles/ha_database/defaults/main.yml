@@ -34,7 +34,3 @@ ha_database_drbd_options:
     on-no-quorum: io-error
     on-no-data-accessible: io-error
     on-suspended-primary-outdated: force-secondary
-
-# Node hostname for LINSTOR API calls
-# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package)
-linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"

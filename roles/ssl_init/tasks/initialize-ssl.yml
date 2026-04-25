@@ -90,7 +90,7 @@
 # when the registration actually changed.
 - name: Update node network interface to SSL
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     com_type: SSL
   register: _ssl_init_netif_update
   failed_when: false
@@ -132,7 +132,7 @@
 # On fresh clusters nodes may not exist yet (cluster_membership runs after ssl_init).
 - name: Verify node is ONLINE over SSL
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     state: query
   register: _ssl_init_node_status
   failed_when:

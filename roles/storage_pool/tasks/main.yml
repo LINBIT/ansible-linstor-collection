@@ -25,7 +25,7 @@
 - name: Check if storage pool exists
   linbit.linstor.storage_pool:
     name: "{{ _pool.name }}"
-    node: "{{ linstor_hostname }}"
+    node: "{{ inventory_hostname }}"
     state: query
   loop: "{{ _my_pools }}"
   loop_control:
@@ -178,7 +178,7 @@
 - name: Create LINSTOR storage pool
   linbit.linstor.storage_pool:
     name: "{{ item.name }}"
-    node: "{{ linstor_hostname }}"
+    node: "{{ inventory_hostname }}"
     driver: "{{ item._type }}"
     driver_pool: "{{ _sp_driver_pool | trim }}"
     properties: "{{ _sp_properties }}"

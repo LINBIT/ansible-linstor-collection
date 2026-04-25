@@ -29,7 +29,7 @@
 # Combined nodes detect SSL from satellite TOML. Pure controllers detect from controller TOML (HTTPS keystore).
 - name: Register LINSTOR controller node
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     ip: "{{ replication_ip }}"
     node_type: "{{ node_type }}"
     com_type: "{{ _cluster_membership_com_type }}"
@@ -50,7 +50,7 @@
 # Initialize pure satellites only
 - name: Register LINSTOR satellite node
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     ip: "{{ replication_ip }}"
     node_type: Satellite
     com_type: "{{ _cluster_membership_com_type }}"

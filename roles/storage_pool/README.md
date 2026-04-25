@@ -79,12 +79,6 @@ A dict providing fallback values for omitted keys in each pool item.
 Override this dict to change defaults globally.
 See `defaults/main.yml`.
 
-### Other variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `linstor_hostname` | auto-detected | Node hostname for LINSTOR. Forces short hostnames on Proxmox VE, unaltered otherwise |
-
 Behavior
 --------
 

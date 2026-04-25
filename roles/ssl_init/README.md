@@ -39,7 +39,7 @@ Role Variables
 | `ssl_init_ca_curve` | `secp384r1` | Elliptic curve for the CA key (EC only) |
 | `ssl_init_node_curve` | `prime256v1` | Elliptic curve for node and client keys (EC only) |
 | `ssl_init_rsa_key_size` | `4096` | Key size in bits for RSA keys (RSA only) |
-| `ssl_init_cert_ou` | `{{ linstor_hostname }}` | Organizational unit for the certificate DN |
+| `ssl_init_cert_ou` | `{{ inventory_hostname }}` | Organizational unit for the certificate DN |
 | `ssl_init_cert_o` | `""` | Organization for the certificate DN |
 | `ssl_init_cert_c` | `""` | Country code for the certificate DN |
 | `ssl_init_dir` | `/etc/linstor/ssl` | Directory for SSL keystores and certificates |
@@ -93,7 +93,8 @@ The role asserts that all three files exist before proceeding.
 
 Request certificates from your CA with the following SANs per node:
 
-- `DNS:<linstor_hostname>` (the hostname LINSTOR uses for the node)
+- `DNS:<inventory_hostname>` (the LINSTOR node name)
+- `DNS:<inventory_hostname_short>` (when the inventory entry is an FQDN)
 - `IP:<replication_ip>` (the node's replication network address)
 - `IP:127.0.0.1`
 

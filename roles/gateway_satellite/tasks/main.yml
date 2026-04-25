@@ -67,7 +67,7 @@
 
     - name: Set GatewaySatellite aux property on satellite nodes
       linbit.linstor.node:
-        name: "{{ linstor_hostname }}"
+        name: "{{ inventory_hostname }}"
         aux_properties:
           GatewaySatellite: "True"
       delegate_to: "{{ groups['linstor_controllers'][0] }}"

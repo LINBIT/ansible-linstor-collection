@@ -168,19 +168,9 @@ EXAMPLES = r'''
       {% elif is_controller | bool %}Controller
       {% else %}Satellite{% endif %}
   linbit.linstor.node:
-    name: "{{ hostvars[item].inventory_hostname_short }}"
+    name: "{{ item }}"
     ip: "{{ hostvars[item].replication_ip }}"
     node_type: "{{ node_type | trim }}"
-  loop: "{{ groups['linstor_cluster'] }}"
-  run_once: true  # noqa: run-once[task]
-
-# Proxmox VE requires LINSTOR to use short hostnames (inventory_hostname_short)
-# Assumes a typical 3-node LINSTOR Combined node cluster configuration
-- name: Create Proxmox nodes with short hostnames
-  linbit.linstor.node:
-    name: "{{ hostvars[item].inventory_hostname_short }}"
-    ip: "{{ hostvars[item].replication_ip }}"
-    node_type: Combined
   loop: "{{ groups['linstor_cluster'] }}"
   run_once: true  # noqa: run-once[task]
 

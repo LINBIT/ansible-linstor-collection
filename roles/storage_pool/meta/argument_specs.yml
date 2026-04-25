@@ -23,8 +23,3 @@ argument_specs:
           - Dict providing fallback values for omitted keys in each pool item.
           - Override this dict to change defaults globally.
           - See C(defaults/main.yml) for the full default dict.
-      linstor_hostname:
-        type: str
-        description:
-          - Node hostname for LINSTOR.
-          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.

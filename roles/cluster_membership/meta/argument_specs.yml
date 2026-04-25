@@ -8,11 +8,6 @@ argument_specs:
       - Runs C(linstor node create) for controller, combined, and satellite node types.
       - "Idempotent: nodes already registered are skipped."
     options:
-      linstor_hostname:
-        type: str
-        description:
-          - Node hostname for LINSTOR.
-          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.
       replication_ip:
         type: str
         required: true

@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-# Node hostname for LINSTOR registration.
-# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
-linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"
-
 # Network communication type for node registration (Plain or SSL).
 # Omit to leave the current setting unchanged on existing nodes.
 cluster_membership_com_type:

@@ -56,8 +56,3 @@ argument_specs:
         description:
           - DRBD options applied to the HA database resource group.
           - See C(defaults/main.yml) for the default options.
-      linstor_hostname:
-        type: str
-        description:
-          - Node hostname for LINSTOR.
-          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.

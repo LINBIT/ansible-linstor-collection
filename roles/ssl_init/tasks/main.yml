@@ -11,7 +11,7 @@
 
 - name: Check if satellite SSL is already active
   linbit.linstor.node:
-    name: "{{ linstor_hostname }}"
+    name: "{{ inventory_hostname }}"
     state: query
   register: _ssl_init_satellite_check
   run_once: true

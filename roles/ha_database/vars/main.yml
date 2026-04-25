@@ -18,6 +18,5 @@ _ha_db_ipaddr2_path: >-
 # Placement node list for LINSTOR database
 _ha_db_placement_nodes: >-
   {{ _ha_db_combined_nodes
-     | map('extract', hostvars, 'linstor_hostname')
      | map('community.general.dict_kv', 'node')
      | list }}

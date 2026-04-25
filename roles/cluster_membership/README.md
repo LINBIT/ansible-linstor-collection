@@ -20,7 +20,6 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `linstor_hostname` | auto-detected | Node hostname for LINSTOR. Forces short hostnames on Proxmox VE, unaltered otherwise |
 | `replication_ip` | (required) | Node IP used for DRBD replication traffic; set per host in inventory |
 
 Dependencies

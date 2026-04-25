@@ -77,7 +77,7 @@ argument_specs:
         type: str
         description:
           - Organizational unit for the certificate distinguished name.
-          - Defaults to the node hostname (C(linstor_hostname)).
+          - Defaults to C(inventory_hostname).
       ssl_init_cert_o:
         type: str
         default: ""

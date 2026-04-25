@@ -113,8 +113,3 @@ argument_specs:
           - List of NVMe-oF target definitions.
           - Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to C(ha_gateway_nvmeof_nqn_base:name).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
-      linstor_hostname:
-        type: str
-        description:
-          - Node hostname for LINSTOR.
-          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.

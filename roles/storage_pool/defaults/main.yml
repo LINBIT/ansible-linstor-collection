@@ -19,7 +19,3 @@ storage_pool_defaults:
   zpool_vdev_type: stripe
   zpool_properties: {}
   wipefs_force: false
-
-# Node hostname for LINSTOR storage pool registration.
-# Forces short hostnames on Proxmox VE (detected via PVE kernel or proxmox-ve package).
-linstor_hostname: "{{ ansible_facts | linbit.linstor.pve_hostname(inventory_hostname) }}"

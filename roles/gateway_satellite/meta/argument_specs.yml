@@ -61,8 +61,3 @@ argument_specs:
         description:
           - SCST git tag to build from source.
           - Only used when C(linstor_gateway_scst=true).
-      linstor_hostname:
-        type: str
-        description:
-          - Node hostname for LINSTOR.
-          - Forces short hostnames on Proxmox VE (detected via kernel version), unaltered otherwise.

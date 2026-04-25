@@ -145,7 +145,6 @@
            _gw_rg_check.results | default([]),
            ha_gateway_place_count,
            ha_gateway_storage_pool,
-           hostvars,
            _sizes_key,
            ha_gateway_tickle_dir_size) }}
   run_once: true  # noqa: run-once[task]
@@ -225,7 +224,7 @@
   ansible.builtin.set_fact:
     _gw_resolved: >-
       {{ _gw_query.results | default([])
-         | linbit.linstor.gateway_resolve_satellites(groups.get('linstor_satellites', []), hostvars) }}
+         | linbit.linstor.gateway_resolve_satellites }}
   run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
 
