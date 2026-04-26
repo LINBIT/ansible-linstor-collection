@@ -39,7 +39,8 @@
 {% for export in _exports %}
 {% set _vol = loop.index %}
 {% set _path = export.path | default('/') %}
-{% set _allowed = export.allowed_ips | default(ha_gateway_nfs_allowed_ips) %}
+{# 0.0.0.0/0 is rejected by every mountd we tested (2.3.3-2.8.3); coerce to * #}
+{% set _allowed = (export.allowed_ips | default(ha_gateway_nfs_allowed_ips)) | map('regex_replace', '^0\.0\.0\.0/0$', '*') | list %}
 {% set _options = export.export_options | default(ha_gateway_nfs_options) %}
 {% set _fsid_hash = (_resource ~ ':' ~ _vol | string) | hash('sha1') %}
 {% set _fsid = _fsid_hash[:8] ~ '-' ~ _fsid_hash[8:12] ~ '-' ~ _fsid_hash[12:16] ~ '-' ~ _fsid_hash[16:20] ~ '-' ~ _fsid_hash[20:32] %}

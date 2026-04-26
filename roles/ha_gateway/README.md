@@ -63,7 +63,7 @@ See `defaults/main.yml`.
 | `ha_gateway_iscsi_port` | `3260` | Default iSCSI target port |
 | `ha_gateway_iscsi_iqn_base` | `iqn.2026-06.com.linbit` | Default IQN base when `iqn` is not set on target |
 | `ha_gateway_nfs_port` | `2049` | NFS service port |
-| `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0"]` | Default client CIDRs for NFS exports |
+| `ha_gateway_nfs_allowed_ips` | `["*"]` | Default client host patterns for NFS exports. CIDR, single IP, hostname, or `*` wildcard. `0.0.0.0/0` is rejected by `rpc.mountd` and is auto-coerced to `*` |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
 | `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on target. Must include `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
@@ -133,7 +133,7 @@ Each entry in `exports`:
 |---|---|---|---|
 | `size` | yes | | Export volume size (for example `50G`) |
 | `path` | no | `/` | Path under `/srv/gateway-exports/<resource_name>/`; clients mount via the full server path (for example `mount -t nfs <VIP>:/srv/gateway-exports/shared/data /mnt`) |
-| `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client CIDRs |
+| `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client host patterns (CIDR, IP, hostname, or `*`) |
 | `export_options` | no | `ha_gateway_nfs_options` | NFS export options |
 | `fstype` | no | service-level `fstype` | Filesystem for this volume |
 

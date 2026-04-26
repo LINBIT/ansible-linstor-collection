@@ -23,7 +23,7 @@ ha_gateway_iscsi_iqn_base: iqn.2026-06.com.linbit
 ha_gateway_nfs_port: 2049
 ha_gateway_nfsv4_only: false # currently broken due to upstream nfsserver RA
 ha_gateway_nfs_allowed_ips:
-  - 0.0.0.0/0
+  - "*"
 ha_gateway_nfs_options: rw,all_squash,anonuid=0,anongid=0
 
 # NVMe-oF-specific defaults
