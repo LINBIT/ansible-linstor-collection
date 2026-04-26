@@ -14,7 +14,7 @@
     signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
   register: _satellite_install_contrib_repo
 
-- name: Update apt cache after enabling contrib
+- name: Update apt cache after enabling contrib  # noqa: no-handler
   ansible.builtin.apt:
     update_cache: true
   when: _satellite_install_contrib_repo is changed

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # Only needed when installing from GitHub
-- name: Create linstor-gateway systemd service
+- name: Create linstor-gateway systemd service  # noqa: no-handler
   ansible.builtin.copy:
     src: linstor-gateway.service
     dest: /etc/systemd/system/linstor-gateway.service
