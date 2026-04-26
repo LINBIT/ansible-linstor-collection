@@ -6,12 +6,11 @@ argument_specs:
     description:
       - Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS).
       - >-
-        Generates a private CA, signs per-node certificates with SANs,
-        converts to Java keystores, builds CA-based truststores, and
-        patches LINSTOR configuration files.
+        Generates a private CA, signs per-node certificates with SANs, converts to Java keystores,
+        builds CA-based truststores, and patches LINSTOR configuration files.
       - >-
-        Installs the CA certificate into the operating system trust store
-        for non-Java clients (LINSTOR Gateway, Proxmox plugin).
+        Installs the CA certificate into the operating system trust store for non-Java clients
+        (LINSTOR Gateway, Proxmox plugin).
       - Optionally generates a CA-signed client certificate for REST API mutual TLS authentication.
     options:
       ssl_init_https:

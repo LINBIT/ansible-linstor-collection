@@ -48,7 +48,9 @@ argument_specs:
         elements: dict
         description:
           - Combined list of firewall ports to open.
-          - Computed from C(linstor_gateway_firewall_ports_base) and C(linstor_gateway_firewall_ports_nfsv3) based on C(linstor_gateway_nfsv4_only).
+          - >-
+            Computed from C(linstor_gateway_firewall_ports_base) and C(linstor_gateway_firewall_ports_nfsv3)
+            based on C(linstor_gateway_nfsv4_only).
           - Override directly for full control.
       linstor_gateway_scst:
         type: bool

@@ -4,7 +4,9 @@ argument_specs:
   main:
     short_description: Install the linstor-gateway binary and service
     description:
-      - Install the C(linstor-gateway) daemon, deploy its configuration, open firewall port C(8337/tcp), and start the service.
+      - >-
+        Install the C(linstor-gateway) daemon, deploy its configuration, open firewall port C(8337/tcp),
+        and start the service.
       - On satellite nodes, also installs satellite-side components via C(linbit.linstor.gateway_satellite).
     options:
       linstor_gateway_github_binary:

@@ -5,7 +5,9 @@ argument_specs:
     short_description: Configure HA LINSTOR database with DRBD Reactor
     description:
       - Configure highly available LINSTOR database storage using DRBD replication and DRBD Reactor.
-      - Migrates the LINSTOR database onto a DRBD resource replicated across 2-3 combined controller and satellite nodes.
+      - >-
+        Migrates the LINSTOR database onto a DRBD resource replicated across 2-3 combined controller and
+        satellite nodes.
       - "Idempotent: checks the C(Aux/ClusterIsHA) controller property and skips if conversion is already completed."
       - Silently skips when fewer than 2 combined nodes or fewer than 3 total satellites exist.
     options:

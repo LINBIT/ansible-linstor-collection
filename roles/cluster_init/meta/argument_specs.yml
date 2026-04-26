@@ -6,9 +6,8 @@ argument_specs:
     description:
       - Convenience role that deploys a complete LINSTOR cluster with a single role call.
       - >-
-        Includes the following roles in order: repo configuration,
-        satellite_install, controller_install, cluster_membership, and
-        optionally gateway_install, storage_pool, and ha_database.
+        Includes the following roles in order: repo configuration, satellite_install, controller_install,
+        cluster_membership, and optionally gateway_install, storage_pool, and ha_database.
     options:
       cluster_init_repo_access:
         type: str
@@ -18,7 +17,9 @@ argument_specs:
           - public
           - none
         description:
-          - "Repo access type: C(customer) for LINBIT portal, C(public) for Proxmox and open-source, or C(none) for self-managed repos."
+          - >-
+            Repo access type: C(customer) for LINBIT portal, C(public) for Proxmox and open-source, or
+            C(none) for self-managed repos.
       cluster_init_linstor_gateway:
         type: bool
         default: false

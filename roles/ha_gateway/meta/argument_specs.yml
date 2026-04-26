@@ -6,7 +6,9 @@ argument_specs:
     description:
       - Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
       - Interoperable with the LINSTOR Gateway CLI.
-      - Resources created by this role appear in C(linstor-gateway iscsi list), C(linstor-gateway nfs list), and C(linstor-gateway nvme list).
+      - >-
+        Resources created by this role appear in C(linstor-gateway iscsi list), C(linstor-gateway nfs list),
+        and C(linstor-gateway nvme list).
       - Processes C(linstor_iscsi_targets), C(linstor_nfs_exports), and C(linstor_nvmeof_targets) inventory variables.
       - LINSTOR resource names follow the Gateway scheme, iSCSI WWN, NFS name, NVMe-oF subsystem.
       - Requires C(linbit.linstor.gateway_satellite) on all satellite nodes before use.
@@ -111,5 +113,7 @@ argument_specs:
         default: []
         description:
           - List of NVMe-oF target definitions.
-          - Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to C(ha_gateway_nvmeof_nqn_base:name).
+          - >-
+            Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to
+            C(ha_gateway_nvmeof_nqn_base:name).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
