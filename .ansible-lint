@@ -1,7 +1,4 @@
 ---
 skip_list:
-  # linstor_gateway_satellite and linstor_gateway_install share a common
-  # linstor_gateway_ variable prefix intentionally. Enforcing the full role
-  # name as prefix (e.g. linstor_gateway_satellite_portblock_ra_url) is
-  # impractical and works against the shared-variable design.
+  # Allow short variable (typically underscored) names for long role names
   - var-naming[no-role-prefix]
