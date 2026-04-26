@@ -40,10 +40,17 @@
     - groups.get('linstor_controllers', []) | length > 0
     - inventory_hostname in groups.get('linstor_satellites', [])
 
+- name: Gather service facts before NFS disable
+  ansible.builtin.service_facts:
+  listen: disable_and_stop_nfs
+  when: ansible_facts['os_family'] | lower == 'debian'
+
 - name: Disable and stop NFS (Debian)
   ansible.builtin.systemd_service:
     name: nfs-server.service
     enabled: false
-  failed_when: false  # nfs-server.service may not exist on all Debian variants
   listen: disable_and_stop_nfs
-  when: ansible_facts['os_family'] | lower == 'debian'
+  when:
+    - ansible_facts['os_family'] | lower == 'debian'
+    - "'nfs-server.service' in ansible_facts.services"
+    - ansible_facts.services['nfs-server.service'].status != 'not-found'
