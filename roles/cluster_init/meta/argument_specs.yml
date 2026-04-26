@@ -5,7 +5,10 @@ argument_specs:
     short_description: Deploy a complete LINSTOR cluster
     description:
       - Convenience role that deploys a complete LINSTOR cluster with a single role call.
-      - "Includes the following roles in order: repo configuration, satellite_install, controller_install, cluster_membership, and optionally gateway_install, storage_pool, and ha_database."
+      - >-
+        Includes the following roles in order: repo configuration,
+        satellite_install, controller_install, cluster_membership, and
+        optionally gateway_install, storage_pool, and ha_database.
     options:
       cluster_init_repo_access:
         type: str

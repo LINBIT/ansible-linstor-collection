@@ -44,6 +44,6 @@
   ansible.builtin.systemd_service:
     name: nfs-server.service
     enabled: false
-  ignore_errors: true # for now, come back to Debian family nuances
+  failed_when: false  # nfs-server.service may not exist on all Debian variants
   listen: disable_and_stop_nfs
   when: ansible_facts['os_family'] | lower == 'debian'
