@@ -14,7 +14,33 @@
     signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
   register: _satellite_install_contrib_repo
 
-- name: Update apt cache after enabling contrib  # noqa: no-handler
+- name: Enable Debian backports repository for ZFS
+  ansible.builtin.deb822_repository:
+    name: debian-backports
+    uris: http://deb.debian.org/debian
+    suites: "{{ ansible_facts['distribution_release'] }}-backports"
+    components: contrib
+    signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+  register: _satellite_install_backports_repo
+
+- name: Update apt cache after enabling repos  # noqa: no-handler
   ansible.builtin.apt:
     update_cache: true
-  when: _satellite_install_contrib_repo is changed
+  when:
+    - _satellite_install_contrib_repo is changed
+      or _satellite_install_backports_repo is changed
+
+- name: Install kernel headers for ZFS DKMS
+  ansible.builtin.package:
+    name: "linux-headers-{{ _debian_arch }}"
+    state: present
+  vars:
+    _debian_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+
+- name: Install zfsutils-linux and zfs-dkms from backports
+  ansible.builtin.apt:
+    name:
+      - zfsutils-linux
+      - zfs-dkms
+    state: present
+    default_release: "{{ ansible_facts['distribution_release'] }}-backports"
