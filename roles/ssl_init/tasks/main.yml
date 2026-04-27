@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Gather controller service facts
+  ansible.builtin.service_facts:
+  when: inventory_hostname in groups['linstor_controllers']
+
 # Skip the role when SSL is fully configured on this node AND the cluster is
 # already using SSL. Both checks are needed: the local check catches new nodes
 # that don't have keystores yet, the remote check catches clusters not yet
