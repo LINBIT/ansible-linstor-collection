@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: MIT
 ---
 # Parsed from the public ha_database_vip ("a.b.c.d/24" form).
-_ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"  # noqa: var-naming[no-role-prefix]
-_ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"  # noqa: var-naming[no-role-prefix]
+_ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
+_ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"
 
 # Combined controller and satellite nodes (intersection of inventory groups).
-_ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) }}"  # noqa: var-naming[no-role-prefix]
+_ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) }}"
 
 # Primary controller node: first controller in inventory, hosts the populated database.
-_ha_db_primary_node: "{{ groups['linstor_controllers'][0] }}"  # noqa: var-naming[no-role-prefix]
+_ha_db_primary_node: "{{ groups['linstor_controllers'][0] }}"
 
-_ha_db_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
+_ha_db_mkfs_opts: >-
   {%- if ha_database_filesystem == 'ext4' -%}
     -b {{ ha_database_filesystem_blocksize }}
   {%- elif ha_database_filesystem == 'xfs' -%}

@@ -10,7 +10,7 @@ _ra_base_dir: >-
 # iSCSI: WWN = last colon-separated part of IQN (user-supplied or defaulted)
 # NFS:   target name as-is
 # NVMe-oF: subsystem = last colon-separated part of NQN (user-supplied or defaulted)
-_ha_gw_iscsi_names: >-  # noqa: var-naming[no-role-prefix]
+_ha_gw_iscsi_names: >-
   {%- set result = [] -%}
   {%- for t in linstor_iscsi_targets | default([]) -%}
     {%- set ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ t.name) -%}
@@ -18,10 +18,10 @@ _ha_gw_iscsi_names: >-  # noqa: var-naming[no-role-prefix]
   {%- endfor -%}
   {{ result }}
 
-_ha_gw_nfs_names: >-  # noqa: var-naming[no-role-prefix]
+_ha_gw_nfs_names: >-
   {{ linstor_nfs_exports | default([]) | map(attribute='name') | list }}
 
-_ha_gw_nvmeof_names: >-  # noqa: var-naming[no-role-prefix]
+_ha_gw_nvmeof_names: >-
   {%- set result = [] -%}
   {%- for t in linstor_nvmeof_targets | default([]) -%}
     {%- set ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ t.name) -%}
@@ -29,10 +29,10 @@ _ha_gw_nvmeof_names: >-  # noqa: var-naming[no-role-prefix]
   {%- endfor -%}
   {{ result }}
 
-_ha_gw_all_resource_names: >-  # noqa: var-naming[no-role-prefix]
+_ha_gw_all_resource_names: >-
   {{ _ha_gw_iscsi_names + _ha_gw_nfs_names + _ha_gw_nvmeof_names }}
 
-_ha_gw_mkfs_opts: >- # noqa: var-naming[no-role-prefix]
+_ha_gw_mkfs_opts: >-
   {%- if ha_gateway_fstype == 'ext4' -%}
     -b {{ ha_gateway_filesystem_blocksize }}
   {%- elif ha_gateway_fstype == 'xfs' -%}
