@@ -60,3 +60,13 @@ argument_specs:
             proto: tcp
         description:
           - Ports to open in firewalld or UFW for the LINSTOR satellite.
+      satellite_install_force_reconfigure:
+        type: bool
+        default: false
+        description:
+          - Force re-running the configure phase even when the LINSTOR
+            satellite package install reports unchanged.
+          - Re-asserts firewall ports and the LVM C(global_filter) for DRBD
+            devices in C(/etc/lvm/lvm.conf).
+          - Use for drift correction after the LVM filter is cleared or the
+            satellite TOML drifts out-of-band.

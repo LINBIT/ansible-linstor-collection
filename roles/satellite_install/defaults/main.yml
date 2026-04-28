@@ -14,3 +14,5 @@ satellite_install_firewall_rules: true
 satellite_install_firewall_ports:
   - { port: '3366-3367', proto: tcp }
   - { port: '7000-8000', proto: tcp }
+
+satellite_install_force_reconfigure: false

@@ -20,3 +20,13 @@ argument_specs:
         description:
           - Query the controller for the C(Aux/ha_database_vip) property and use it as the controller address.
           - Set to C(false) to always use C(linstor_controller_addresses).
+      client_install_force_reconfigure:
+        type: bool
+        default: false
+        description:
+          - Force re-running the configure phase even when the LINSTOR client
+            package install reports unchanged.
+          - Re-asserts C(/etc/linstor/) directory, re-queries the controller
+            for the HA VIP, and re-templates C(linstor-client.conf).
+          - Use for drift correction after manual edits to client.conf or
+            after an HA VIP is added to an existing cluster.

@@ -21,6 +21,7 @@ Role Variables
 | `controller_install_gui` | `true` | Install the `linstor-gui` web UI alongside `linstor-controller`; set `false` to skip |
 | `controller_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR controller ports; set `false` to skip |
 | `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
+| `controller_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts firewall ports and controller service state. **Caution:** when set on a running cluster, the active controller is briefly restarted. Use deliberately for drift correction. |
 
 See `defaults/main.yml` for additional variables.
 

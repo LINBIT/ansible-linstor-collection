@@ -13,3 +13,5 @@ client_install_vip_discovery: true
 linstor_client_https: false
 linstor_client_certfile: ""
 linstor_client_keyfile: ""
+
+client_install_force_reconfigure: false

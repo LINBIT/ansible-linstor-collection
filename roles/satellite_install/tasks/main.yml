@@ -6,7 +6,7 @@
     path: /usr/lib/systemd/system/linstor-satellite.service
   register: _satellite_install_check
 
-- name: Install and configure LINSTOR satellite
+- name: Install LINSTOR satellite
   when:
     - "not _satellite_install_check.stat.exists
       or satellite_install_package_state != 'present'"
@@ -27,6 +27,8 @@
       register: _satellite_install_packages
       notify: sat_package_update
 
-    - name: Configure LINSTOR satellite
-      ansible.builtin.include_tasks: configure-satellite.yml
-      when: _satellite_install_packages is changed  # noqa: no-handler
+- name: Configure LINSTOR satellite # noqa: no-handler
+  ansible.builtin.include_tasks: configure-satellite.yml
+  when:
+    (_satellite_install_packages | default({}) is changed) or
+    (satellite_install_force_reconfigure | bool)

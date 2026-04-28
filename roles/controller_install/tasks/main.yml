@@ -19,6 +19,8 @@
       or controller_install_package_state != 'present'
   register: _controller_install_packages
 
-- name: Configure LINSTOR controller
+- name: Configure LINSTOR controller # noqa: no-handler
   ansible.builtin.include_tasks: configure-controller.yml
-  when: _controller_install_packages is changed  # noqa: no-handler
+  when:
+    (_controller_install_packages is changed) or
+    (controller_install_force_reconfigure | bool)

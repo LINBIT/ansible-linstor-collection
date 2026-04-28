@@ -14,6 +14,8 @@
     - not _client_install_check.stat.exists
       or client_install_package_state != 'present'
 
-- name: Configure linstor-client
+- name: Configure linstor-client # noqa: no-handler
   ansible.builtin.include_tasks: configure-client.yml
-  when: _client_install_package is changed # noqa: no-handler
+  when:
+    (_client_install_package is changed) or
+    (client_install_force_reconfigure | bool)

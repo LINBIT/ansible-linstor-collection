@@ -23,6 +23,7 @@ Role Variables
 | `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu, non-Proxmox), RedHat, and SUSE family nodes. Ubuntu and Proxmox VE are unaffected (Ubuntu installs `zfsutils-linux` as a prereq unconditionally; Proxmox VE ships ZFS with the distribution) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
+| `satellite_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts firewall ports and the LVM `global_filter` for DRBD devices. Use for drift correction. |
 
 See `defaults/main.yml` and `vars/` for additional variables.
 
