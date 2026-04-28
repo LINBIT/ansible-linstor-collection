@@ -5,7 +5,7 @@
 ---
 - name: "Check shared resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:
-    path: "{{ _ra_base }}/{{ item }}"
+    path: "{{ _ra_base_dir }}/{{ item }}"
   loop:
     - portblock
     - Filesystem
@@ -16,7 +16,7 @@
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: >-
-      Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
+      Resource agent {{ item.item }} not found at {{ _ra_base_dir }}/{{ item.item }}
       on {{ inventory_hostname }}. Install resource-agents package or
       run gateway_satellite first.
     quiet: true
@@ -26,64 +26,64 @@
 
 - name: "Check iSCSI resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:
-    path: "{{ _ra_base }}/{{ item }}"
+    path: "{{ _ra_base_dir }}/{{ item }}"
+  when: _toml_prefix == 'iscsi'
   loop:
     - iSCSITarget
     - iSCSILogicalUnit
   register: _ra_iscsi
-  when: _toml_prefix == 'iscsi'
 
 - name: "Assert iSCSI resource agents exist - {{ _protocol }}"
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: >-
-      Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
+      Resource agent {{ item.item }} not found at {{ _ra_base_dir }}/{{ item.item }}
       on {{ inventory_hostname }}. Install iSCSI resource agents.
     quiet: true
+  when: _toml_prefix == 'iscsi'
   loop: "{{ _ra_iscsi.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
-  when: _toml_prefix == 'iscsi'
 
 - name: "Check NFS resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:
-    path: "{{ _ra_base }}/{{ item }}"
+    path: "{{ _ra_base_dir }}/{{ item }}"
+  when: _toml_prefix == 'nfs'
   loop:
     - nfsserver
     - exportfs
   register: _ra_nfs
-  when: _toml_prefix == 'nfs'
 
 - name: "Assert NFS resource agents exist - {{ _protocol }}"
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: >-
-      Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
+      Resource agent {{ item.item }} not found at {{ _ra_base_dir }}/{{ item.item }}
       on {{ inventory_hostname }}. Install NFS resource agents.
     quiet: true
+  when: _toml_prefix == 'nfs'
   loop: "{{ _ra_nfs.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
-  when: _toml_prefix == 'nfs'
 
 - name: "Check NVMe-oF resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:
-    path: "{{ _ra_base }}/{{ item }}"
+    path: "{{ _ra_base_dir }}/{{ item }}"
+  when: _toml_prefix == 'nvmeof'
   loop:
     - nvmet-subsystem
     - nvmet-namespace
     - nvmet-port
   register: _ra_nvmeof
-  when: _toml_prefix == 'nvmeof'
 
 - name: "Assert NVMe-oF resource agents exist - {{ _protocol }}"
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: >-
-      Resource agent {{ item.item }} not found at {{ _ra_base }}/{{ item.item }}
+      Resource agent {{ item.item }} not found at {{ _ra_base_dir }}/{{ item.item }}
       on {{ inventory_hostname }}. Install nvmet-cli and NVMe-oF resource agents.
     quiet: true
+  when: _toml_prefix == 'nvmeof'
   loop: "{{ _ra_nvmeof.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
-  when: _toml_prefix == 'nvmeof'

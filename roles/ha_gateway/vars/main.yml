@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # OCF resource agent base path (SUSE uses /usr/lib, others use /lib)
-_ra_base: >-
+_ra_base_dir: >-
   {{ '/usr/lib/ocf/resource.d/heartbeat'
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
