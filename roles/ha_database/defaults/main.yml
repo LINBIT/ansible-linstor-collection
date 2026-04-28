@@ -18,14 +18,6 @@ ha_database_allow_2_replica: false
 # active controller. The VIP is stored as an Aux/ha_database_vip controller
 # property so client_install can discover it. Defaults to /24 if no CIDR given
 ha_database_vip: ""
-_ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
-_ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"
-
-# Combined controller and satellite nodes (intersection of inventory groups)
-_ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(groups['linstor_diskful_satellites']) }}"
-
-# Primary controller node: first controller in inventory, hosts the populated database
-_ha_db_primary_node: "{{ groups['linstor_controllers'][0] }}"
 
 ha_database_drbd_options:
   resource:
