@@ -8,8 +8,8 @@
   ansible.builtin.set_fact:
     _running_controllers: >-
       {{ _running_controllers | default([]) + [item] }}
-  loop: "{{ groups['linstor_controllers'] }}"
   when: hostvars[item].ansible_facts.services['linstor-controller.service'].state | default('') == 'running'
+  loop: "{{ groups['linstor_controllers'] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Set active controller count

@@ -24,8 +24,8 @@
 - name: Build list of active controller nodes
   ansible.builtin.set_fact:
     _active_controllers: "{{ _active_controllers | default([]) + [item] }}"
-  loop: "{{ groups['linstor_controllers'] }}"
   when: hostvars[item].ansible_facts.services['linstor-controller.service'].state | default('') == 'running'
+  loop: "{{ groups['linstor_controllers'] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Set active controller node and count
@@ -116,9 +116,9 @@
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
     com_type: SSL
+  when: ssl_init_satellite | bool
   register: _ssl_init_netif_update
   failed_when: false
-  when: ssl_init_satellite | bool
 
 # Detect HA via reactor TOML; the resource name is the file basename.
 - name: Find DRBD Reactor config managing linstor-controller
@@ -141,11 +141,11 @@
 # other reactors racing to promote during the restart's brief demote window.
 - name: Disable DRBD Reactor management of linstor-controller
   ansible.builtin.command: drbd-reactorctl disable {{ _ssl_init_reactor_resource }}
-  run_once: false
-  changed_when: true
   when:
     - _ssl_init_reactor_resource is defined
     - inventory_hostname in groups['linstor_controllers']
+  run_once: false
+  changed_when: true
 
 - name: Restart active controller for SSL
   ansible.builtin.service:
@@ -165,11 +165,11 @@
 
 - name: Re-enable DRBD Reactor management of linstor-controller
   ansible.builtin.command: drbd-reactorctl enable {{ _ssl_init_reactor_resource }}
-  run_once: false
-  changed_when: true
   when:
     - _ssl_init_reactor_resource is defined
     - inventory_hostname in groups['linstor_controllers']
+  run_once: false
+  changed_when: true
 
 # Now restart satellites so they reconnect to the SSL-enabled controller.
 - name: Restart linstor-satellite for SSL
@@ -194,6 +194,7 @@
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
     state: query
+  when: inventory_hostname in groups['linstor_satellites']
   register: _ssl_init_node_status
   retries: 12
   delay: 5
@@ -204,4 +205,3 @@
     - _ssl_init_node_status.exists | default(false)
     - _ssl_init_node_status.connection_status | default('') != 'ONLINE'
   delegate_to: "{{ _active_controller_node }}"
-  when: inventory_hostname in groups['linstor_satellites']
