@@ -5,20 +5,21 @@
     name: linstor-gateway
     state: present
   failed_when: false
-  notify: restart_linstor_gateway
   register: _gateway_install_package
+  notify: restart_linstor_gateway
 
 - name: Install LINSTOR Gateway from GitHub
   ansible.builtin.get_url:
     url: "{{ linstor_gateway_github_binary }}"
     dest: '/usr/sbin/linstor-gateway'
     mode: '0755'
-  register: _gateway_installed_from_github
   when: _gateway_install_package is failed
+  register: _gateway_installed_from_github
   notify: restart_linstor_gateway
 
 - name: Configure LINSTOR Gateway # noqa: no-handler
   ansible.builtin.include_tasks: configure-gateway.yml
   when:
     (_gateway_install_package is changed) or
-    (_gateway_installed_from_github is changed)
+    (_gateway_installed_from_github is changed) or
+    (gateway_install_force_reconfigure | bool)

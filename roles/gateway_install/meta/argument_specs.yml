@@ -29,3 +29,16 @@ argument_specs:
             proto: tcp
         description:
           - Ports to open in firewalld or UFW for LINSTOR Gateway.
+      gateway_install_force_reconfigure:
+        type: bool
+        default: false
+        description:
+          - Force re-running the configure phase even when the LINSTOR Gateway
+            package install reports unchanged.
+          - Re-asserts directory, C(linstor-gateway.toml) template, firewall
+            ports, and C(linstor-gateway.service) state.
+          - Also re-invokes C(linbit.linstor.gateway_satellite) on satellite
+            hosts, which transitively re-invokes
+            C(linbit.drbd_reactor.reactor_install).
+          - Use for drift correction after manual C(systemctl disable) or
+            out-of-band config edits.
