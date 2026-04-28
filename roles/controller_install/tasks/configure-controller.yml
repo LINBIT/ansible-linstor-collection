@@ -4,31 +4,25 @@
   ansible.builtin.include_tasks: open-firewall.yml
   when: controller_install_firewall_rules | bool
 
-- name: Identify active controller nodes
+- name: Build list of running controller nodes
   ansible.builtin.set_fact:
-    _is_active: >-
-      {{ ansible_facts.services['linstor-controller.service'].state | default('') == 'running' }}
-  when: inventory_hostname in groups['linstor_controllers']
+    _running_controllers: >-
+      {{ _running_controllers | default([]) + [item] }}
+  loop: "{{ groups['linstor_controllers'] }}"
+  when: hostvars[item].ansible_facts.services['linstor-controller.service'].state | default('') == 'running'
+  run_once: true  # noqa: run-once[task]
 
-- name: Count active controller instances
+- name: Set active controller count
   ansible.builtin.set_fact:
-    _active_count: >-
-      {{ groups['linstor_controllers']
-         | map('extract', hostvars, '_is_active')
-         | select('equalto', true)
-         | list
-         | length }}
-  when: inventory_hostname in groups['linstor_controllers']
+    _active_count: "{{ _running_controllers | default([]) | length }}"
+  run_once: true  # noqa: run-once[task]
 
-# Restart the active controller when packages were updated.
-# Works for both standalone (systemd) and HA (DRBD Reactor) clusters.
 - name: Restart LINSTOR controller service when already running and updated
   ansible.builtin.service:
     name: linstor-controller.service
     state: restarted
   when:
-    - inventory_hostname in groups['linstor_controllers']
-    - _is_active | bool
+    - inventory_hostname in (_running_controllers | default([]))
     - _active_count | int == 1
 
 # Fixes Debian auto-start after initial installation
