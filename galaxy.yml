@@ -28,9 +28,9 @@ dependencies:
   ansible.posix: '*'
   ansible.utils: '>=2.0.0'
   community.general: '>=10.4.0'
-  # linbit.common: '*'       # uncomment when published to Ansible Galaxy
-  # linbit.drbd: '*'         # uncomment when published to Ansible Galaxy
-  # linbit.drbd_reactor: '*' # uncomment when published to Ansible Galaxy
+  linbit.common: '*'
+  linbit.drbd: '*'
+  linbit.drbd_reactor: '*'
 repository: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor
 documentation: https://linbit.com/user-guides-and-product-documentation/
 homepage: https://linbit.com
