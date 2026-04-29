@@ -1,10 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-# UEK (Unbreakable Enterprise Kernel) is not supported by the ZFS kmod repo.
-# DKMS builds the ZFS module against the running UEK kernel headers.
-# On EL8, the system GCC (8.x) does not match the compiler used to build UEK (11.x).
-# gcc-toolset-11 provides the matching compiler for DKMS builds.
-# EL9+ ships GCC 11+ as the system default, so no toolset is needed.
+# Oracle UEK uses DKMS (kmod repo has no UEK builds); EL8 needs gcc-toolset-11 to match the UEK build compiler.
 - name: Install EPEL repository
   ansible.builtin.dnf:
     name: epel-release
