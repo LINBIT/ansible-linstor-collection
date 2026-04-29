@@ -11,13 +11,3 @@ License convention (permanent for this collection)
 Ansible's sanity test assumes plugins are GPLv3-licensed.
 This collection is MIT-licensed at the collection level (see top-level `LICENSE` and `galaxy.yml`).
 Per-module GPLv3 headers are not used.
-
-Design choices Ansible's validator disagrees with
--------------------------------------------------
-
-`plugins/modules/backup.py validate-modules:parameter-state-invalid-choice`
-
-The `backup` module uses non-standard `state` values (`info`, `list`, `queued`, `restored`, `shipped`, `aborted`) because it covers many distinct LINSTOR backup operations.
-Ansible's validator expects the standard `{present, absent}` shape.
-Refactoring to match would mean splitting the module or adding a `gather_subset`-style parameter, which is a larger design change rather than a quick fix.
-Defer until a deliberate API decision is made.

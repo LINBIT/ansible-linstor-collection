@@ -130,6 +130,10 @@ notes:
 seealso:
   - module: linbit.linstor.remote
   - module: linbit.linstor.backup
+  - module: linbit.linstor.backup_info
+  - module: linbit.linstor.backup_ship
+  - module: linbit.linstor.backup_restore
+  - module: linbit.linstor.backup_abort
   - name: LINSTOR User's Guide - Scheduled Backups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-scheduled-backups
     description: Scheduled backup concepts in the LINSTOR User's Guide.

@@ -31,6 +31,17 @@ Requires `python-linstor` on the control node (or on the execution target).
 | `volume_group` | Manage volume groups within a resource group |
 | `resource_definition` | Manage resource definitions with inline volume definitions and DRBD options |
 | `resource` | Deploy resources via spawn, autoplace, or manual placement |
+| `snapshot` | Manage snapshots (create, delete, rollback, restore to new resource) |
+| `remote` | Manage remotes for backup shipping (S3, LINSTOR-to-LINSTOR, EBS) |
+| `backup` | Create or delete LINSTOR backups on a remote (`state: present\|absent`) |
+| `backup_info` | Read-only query for backups, backup details, and queue (`kind: query\|list\|info\|queued`) |
+| `backup_ship` | Initiate a backup shipment between clusters or to S3 (event module, not idempotent) |
+| `backup_restore` | Restore a backup to a new resource (idempotent on target RD existence) |
+| `backup_abort` | Abort an in-progress backup operation (event module, not idempotent) |
+| `schedule` | Manage backup schedules (cron-based) with enable and disable |
+| `encryption` | Manage cluster-wide encryption passphrase (create, enter, modify) |
+| `key_value_store` | Manage LINSTOR key-value store instances |
+| `file` | Manage LINSTOR external files (used by `ha_gateway` to push promoter configs) |
 
 All modules issue cluster-wide API calls via the LINSTOR controller.
 For `controller`, `resource_group`, `volume_group`, `resource_definition`, and `resource` in `autoplace` or `spawn` mode, use `run_once: true` or a single-host play (`hosts: linstor_controllers[0]`).

@@ -1,4 +1,8 @@
 plugins/modules/backup.py validate-modules:missing-gplv3-license
+plugins/modules/backup_abort.py validate-modules:missing-gplv3-license
+plugins/modules/backup_info.py validate-modules:missing-gplv3-license
+plugins/modules/backup_restore.py validate-modules:missing-gplv3-license
+plugins/modules/backup_ship.py validate-modules:missing-gplv3-license
 plugins/modules/controller.py validate-modules:missing-gplv3-license
 plugins/modules/encryption.py validate-modules:missing-gplv3-license
 plugins/modules/file.py validate-modules:missing-gplv3-license
@@ -12,4 +16,3 @@ plugins/modules/schedule.py validate-modules:missing-gplv3-license
 plugins/modules/snapshot.py validate-modules:missing-gplv3-license
 plugins/modules/storage_pool.py validate-modules:missing-gplv3-license
 plugins/modules/volume_group.py validate-modules:missing-gplv3-license
-plugins/modules/backup.py validate-modules:parameter-state-invalid-choice

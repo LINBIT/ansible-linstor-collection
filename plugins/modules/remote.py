@@ -120,6 +120,12 @@ notes:
     cluster must have a remote pointing at the other with the peer's
     O(cluster_id) set. Without this, shipping fails with 'Unknown Cluster'."
 seealso:
+  - module: linbit.linstor.backup
+  - module: linbit.linstor.backup_info
+  - module: linbit.linstor.backup_ship
+  - module: linbit.linstor.backup_restore
+  - module: linbit.linstor.backup_abort
+  - module: linbit.linstor.schedule
   - name: LINSTOR User's Guide - Backups
     link: https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-backups
     description: Backup and remote concepts in the LINSTOR User's Guide.

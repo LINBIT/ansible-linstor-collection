@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: MIT
+---
+# Cross-cluster LINSTOR-to-LINSTOR backup shipping test.
+#
+# Run with a combined inventory of two LINSTOR clusters:
+#
+#   ANSIBLE_INVENTORY=stacks/proxmox_linstor/hosts.yaml,stacks/linstor_cluster/hosts.yaml \
+#     ansible-playbook collections/ansible_collections/linbit/linstor/tests/integration/test_backup_ship.yaml
+#
+# Override the source/destination groups by passing extra vars:
+#
+#   -e source_controller=proxmox-0 -e dest_controller=linstor-0
+#
+# The two clusters must have IP-level connectivity. Both stacks ship with
+# 192.168.222.0/24 by default so this works out of the box.
+
+- name: Discover cluster IDs and controller URLs
+  hosts: "{{ source_controller | default('proxmox-0') }}:{{ dest_controller | default('linstor-0') }}"
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read Cluster/LocalID controller property
+      ansible.builtin.command: linstor --machine-readable c lp
+      register: cluster_props_raw
+      changed_when: false
+
+    - name: Parse cluster ID from controller properties
+      ansible.builtin.set_fact:
+        cluster_id: >-
+          {{ (cluster_props_raw.stdout | from_json)[0]
+             | selectattr('key', 'eq', 'Cluster/LocalID')
+             | map(attribute='value') | first }}
+
+    - name: Show cluster ID
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} cluster_id={{ cluster_id }}"
+
+- name: Configure bidirectional LINSTOR remotes
+  hosts: "{{ source_controller | default('proxmox-0') }}"
+  become: true
+  gather_facts: false
+  vars:
+    src_ctrl: "{{ source_controller | default('proxmox-0') }}"
+    dst_ctrl: "{{ dest_controller | default('linstor-0') }}"
+    _src_url: "{{ source_url | default('http://' ~ hostvars[src_ctrl]['replication_ip'] ~ ':3370') }}"
+    _dst_url: "{{ dest_url | default('http://' ~ hostvars[dst_ctrl]['replication_ip'] ~ ':3370') }}"
+  tasks:
+    - name: "Source: create remote pointing at destination cluster"
+      linbit.linstor.remote:
+        name: "remote-to-{{ dst_ctrl }}"
+        type: linstor
+        url: "{{ _dst_url }}"
+        cluster_id: "{{ hostvars[dst_ctrl]['cluster_id'] }}"
+      run_once: true  # noqa: run-once[task]
+
+- name: Configure reverse remote on destination cluster
+  hosts: "{{ dest_controller | default('linstor-0') }}"
+  become: true
+  gather_facts: false
+  vars:
+    src_ctrl: "{{ source_controller | default('proxmox-0') }}"
+    dst_ctrl: "{{ dest_controller | default('linstor-0') }}"
+    _src_url: "{{ source_url | default('http://' ~ hostvars[src_ctrl]['replication_ip'] ~ ':3370') }}"
+  tasks:
+    - name: "Dest: create remote pointing at source cluster"
+      linbit.linstor.remote:
+        name: "remote-to-{{ src_ctrl }}"
+        type: linstor
+        url: "{{ _src_url }}"
+        cluster_id: "{{ hostvars[src_ctrl]['cluster_id'] }}"
+      run_once: true  # noqa: run-once[task]
+
+- name: Create source resource and ship it
+  hosts: "{{ source_controller | default('proxmox-0') }}"
+  become: true
+  gather_facts: false
+  vars:
+    src_ctrl: "{{ source_controller | default('proxmox-0') }}"
+    dst_ctrl: "{{ dest_controller | default('linstor-0') }}"
+    test_rg: test-ship-rg
+    test_rd: test-ship-res
+    src_pool: "{{ source_pool | default('pve-storage') }}"
+    dst_pool: "{{ dest_pool | default('sp0') }}"
+  tasks:
+    - name: "Source: create resource group"
+      linbit.linstor.resource_group:
+        name: "{{ test_rg }}"
+        place_count: 2
+        storage_pool: "{{ src_pool }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Source: spawn the resource (auto-creates RD + autoplaces)"
+      linbit.linstor.resource:
+        name: "{{ test_rd }}"
+        resource_group: "{{ test_rg }}"
+        mode: spawn
+        sizes:
+          - 100M
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Source: precheck queue (should be empty)"
+      linbit.linstor.backup_info:
+        remote: "remote-to-{{ dst_ctrl }}"
+        kind: queued
+        resource: "{{ test_rd }}"
+      register: precheck
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Source: ship to destination"
+      linbit.linstor.backup_ship:
+        remote: "remote-to-{{ dst_ctrl }}"
+        src_resource: "{{ test_rd }}"
+        dst_resource: "{{ test_rd }}"
+        dst_storage_pool: "{{ dst_pool }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Source: queue should now show shipment"
+      linbit.linstor.backup_info:
+        remote: "remote-to-{{ dst_ctrl }}"
+        kind: queued
+        resource: "{{ test_rd }}"
+      register: postship
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Source: dump queue states for debugging"
+      ansible.builtin.debug:
+        msg:
+          precheck_queue: "{{ precheck.queue }}"
+          postship_queue: "{{ postship.queue }}"
+
+- name: Wait for resource to land on destination
+  hosts: "{{ dest_controller | default('linstor-0') }}"
+  become: true
+  gather_facts: false
+  vars:
+    test_rd: test-ship-res
+  tasks:
+    - name: "Dest: poll resource_definition list until target appears"
+      ansible.builtin.command: >-
+        linstor --machine-readable resource-definition list -r {{ test_rd }}
+      register: dest_rd_check
+      until: (dest_rd_check.stdout | from_json)[0] | default([]) | length > 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: "Dest: dump resource_definition info"
+      ansible.builtin.debug:
+        msg: "{{ (dest_rd_check.stdout | from_json)[0][0] }}"
+
+- name: Cleanup test resources and remotes
+  hosts: "{{ source_controller | default('proxmox-0') }}:{{ dest_controller | default('linstor-0') }}"
+  become: true
+  gather_facts: false
+  vars:
+    src_ctrl: "{{ source_controller | default('proxmox-0') }}"
+    dst_ctrl: "{{ dest_controller | default('linstor-0') }}"
+    test_rg: test-ship-rg
+    test_rd: test-ship-res
+  tasks:
+    - name: Discover snapshots for the test resource
+      ansible.builtin.command: >-
+        linstor --machine-readable snapshot list -r {{ test_rd }}
+      register: snap_list
+      changed_when: false
+      failed_when: false
+
+    - name: Delete each snapshot before removing the resource definition
+      ansible.builtin.command: >-
+        linstor snapshot delete {{ test_rd }} {{ item.name }}
+      loop: "{{ (snap_list.stdout | from_json)[0] | default([]) }}"
+      loop_control:
+        label: "{{ item.name | default('<no-name>') }}"
+      changed_when: true
+      failed_when: false
+
+    - name: Remove resource definition
+      linbit.linstor.resource_definition:
+        name: "{{ test_rd }}"
+        state: absent
+
+    - name: Remove resource group
+      linbit.linstor.resource_group:
+        name: "{{ test_rg }}"
+        state: absent
+
+    - name: Remove remote pointing at peer
+      linbit.linstor.remote:
+        name: "remote-to-{{ dst_ctrl if inventory_hostname == src_ctrl else src_ctrl }}"
+        state: absent
