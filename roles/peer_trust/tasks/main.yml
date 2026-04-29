@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Peer trust: read peer CA cert from peer controller"
+  ansible.builtin.slurp:
+    src: "{{ peer_trust_remote_ca_path }}"
+  delegate_to: "{{ peer_trust_peer_host }}"
+  register: _peer_trust_ca_blob
+
+- name: "Peer trust: import peer CA into local Java truststore"
+  community.general.java_cert:
+    cert_content: "{{ _peer_trust_ca_blob.content | b64decode }}"
+    cert_alias: "{{ peer_trust_alias }}"
+    keystore_path: "{{ peer_trust_keystore_path }}"
+    keystore_pass: "{{ peer_trust_keystore_password }}"
+    state: present
+  notify: peer_trust_restart_linstor_controller

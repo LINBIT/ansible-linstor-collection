@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Trust a peer LINSTOR cluster's CA for cross-cluster backup shipping
+    description:
+      - >-
+        Imports a peer LINSTOR cluster's CA certificate into the local Java
+        truststore so that cross-cluster backup shipping over HTTPS can verify
+        the peer controller's certificate.
+      - >-
+        Idempotent on alias: re-running with the same C(peer_trust_alias)
+        and unchanged peer cert is a no-op and does not restart
+        C(linstor-controller).
+      - >-
+        Run this role on every controller node in the local cluster that may
+        initiate a backup_ship to the peer.
+    options:
+      peer_trust_peer_host:
+        type: str
+        required: true
+        description:
+          - Inventory hostname of a controller in the peer cluster, used as
+            C(delegate_to) target to read the peer's CA certificate.
+      peer_trust_alias:
+        type: str
+        required: true
+        description:
+          - Alias under which the peer CA cert is stored in the local Java
+            truststore. Must be unique across all imported peer CAs.
+      peer_trust_remote_ca_path:
+        type: str
+        default: /etc/linstor/ssl/ca.crt
+        description:
+          - Path on the peer controller where the cluster's CA certificate
+            is stored.
+      peer_trust_keystore_path:
+        type: str
+        default: /etc/ssl/certs/java/cacerts
+        description:
+          - Path to the Java truststore on the local controller. Default
+            matches the system-wide cacerts location on Debian, Ubuntu, and
+            most RHEL family distributions.
+      peer_trust_keystore_password:
+        type: str
+        default: changeit
+        description:
+          - Password for the local Java truststore. The default C(changeit)
+            matches the OpenJDK system-wide cacerts default.

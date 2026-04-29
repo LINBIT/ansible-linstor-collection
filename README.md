@@ -11,6 +11,8 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 | `satellite_install` | Installs the LINSTOR satellite and DRBD |
 | `controller_install` | Installs the LINSTOR controller and GUI |
 | `client_install` | Installs the LINSTOR CLI client |
+| `ssl_init` | Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS), including private CA, per-node certs, and Java keystores |
+| `peer_trust` | Trust a peer LINSTOR cluster's CA in the local Java truststore for cross-cluster backup shipping over HTTPS |
 | `gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
 | `gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
 | `storage_pool` | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |

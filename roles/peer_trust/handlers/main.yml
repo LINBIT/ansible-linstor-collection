@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Restart linstor-controller after peer CA import
+  ansible.builtin.systemd:
+    name: linstor-controller
+    state: restarted
+  listen: peer_trust_restart_linstor_controller

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+peer_trust_keystore_path: /etc/ssl/certs/java/cacerts
+peer_trust_keystore_password: changeit
+peer_trust_remote_ca_path: /etc/linstor/ssl/ca.crt
+# peer_trust_peer_host:    required (no default)
+# peer_trust_alias:        required (no default)

@@ -99,6 +99,16 @@ options:
       - AWS availability zone.
       - Required for C(type=ebs).
     type: str
+  force_recreate:
+    description:
+      - When C(true) and the remote already exists, delete and recreate it
+        instead of attempting an in-place modify.
+      - Workaround for stale C(marked for deletion) state that LINSTOR can
+        leave a remote in after a cancelled or failed backup shipment.
+        See the C(notes) section.
+      - Has no effect when C(state=absent) or when the remote does not exist.
+    type: bool
+    default: false
   controllers:
     description:
       - Comma-separated list of LINSTOR controller URIs.
@@ -119,6 +129,14 @@ notes:
   - "LINSTOR-to-LINSTOR backup shipping requires bidirectional remotes: each
     cluster must have a remote pointing at the other with the peer's
     O(cluster_id) set. Without this, shipping fails with 'Unknown Cluster'."
+  - "Stale C(marked for deletion) state: when a backup shipment is cancelled
+    or fails mid-flight, LINSTOR can leave the remote in an internal state
+    that blocks new shipments with the message 'marked for deletion and
+    therefore not allowed to start a new restore'. The LINSTOR REST API
+    does not expose this flag (only C(remote_name) and C(url) are returned),
+    so the module cannot detect the condition. Pass O(force_recreate=true)
+    to delete and recreate the remote, or restart C(linstor-controller)
+    on the affected cluster."
 seealso:
   - module: linbit.linstor.backup
   - module: linbit.linstor.backup_info
@@ -194,6 +212,15 @@ EXAMPLES = r'''
   linbit.linstor.remote:
     name: remote-s3-backup
     state: absent
+  run_once: true  # noqa: run-once[task]
+
+- name: Force-recreate a remote stuck in marked-for-deletion state
+  linbit.linstor.remote:
+    name: remote-dr-site
+    type: linstor
+    url: linstor://dr-controller.example.com
+    cluster_id: "{{ dr_cluster_id }}"
+    force_recreate: true
   run_once: true  # noqa: run-once[task]
 '''
 
@@ -329,6 +356,7 @@ def main():
         passphrase=dict(type='str', no_log=True),
         cluster_id=dict(type='str'),
         availability_zone=dict(type='str'),
+        force_recreate=dict(type='bool', default=False),
     ))
 
     module = AnsibleModule(
@@ -404,6 +432,18 @@ def main():
                 module.exit_json(
                     changed=False, name=name, type=existing_type)
 
+            # Force recreate: delete the existing remote and fall through to
+            # the create branch below.
+            if module.params['force_recreate']:
+                if module.check_mode:
+                    module.exit_json(changed=True, name=name, type=remote_type)
+                replies = lin.remote_delete(name)
+                check_api_response(module, replies,
+                                   'delete remote %s for force_recreate' % name)
+                existing_type = None
+                existing_remote = None
+
+        if existing_type is not None:
             # Check if modify is needed
             needs_modify = False
             if remote_type == 's3':
