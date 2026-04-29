@@ -32,4 +32,3 @@ repository: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor
 documentation: https://linbit.com/user-guides-and-product-documentation/
 homepage: https://linbit.com
 issues: https://gitlab.at.linbit.com/ansible-collections/linbit.linstor/-/issues
-requires_ansible: '>=2.16.0'
