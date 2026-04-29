@@ -45,12 +45,16 @@ argument_specs:
         type: bool
         default: false
         description:
-          - Force re-running the configure phase even when the LINSTOR
+          - >-
+            Force re-running the configure phase even when the LINSTOR
             controller package install reports unchanged.
-          - Re-asserts firewall ports and controller service state
-            (HA-aware: restart, stop, or start as appropriate).
-          - Note: when set on a running cluster, the C(Restart LINSTOR
-            controller service when already running and updated) task fires
-            unconditionally, briefly restarting the active controller.
-          - Use deliberately for drift correction; not recommended on
+          - >-
+            Re-asserts firewall ports and controller service state
+            (HA-aware restart, stop, or start as appropriate).
+          - >-
+            On a running cluster, the C(Restart LINSTOR controller service
+            when already running and updated) task fires unconditionally,
+            briefly restarting the active controller.
+          - >-
+            Use deliberately for drift correction; not recommended on
             production clusters without an outage window.

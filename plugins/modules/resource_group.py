@@ -515,7 +515,6 @@ def main():
                 storage_pool=module.params.get('storage_pool'),
                 properties=current_props)
 
-
         if module.check_mode:
             module.exit_json(
                 changed=True, name=name,
