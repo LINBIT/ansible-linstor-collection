@@ -4,23 +4,26 @@ name: linstor
 version: 0.9.5
 readme: README.md
 authors:
-- Ryan Ronnander <rronnander@linbit.com>
-- Matt Kereczman <matt@linbit.com>
-- Michael Troutman <michael@linbit.com>
-- Devin Vance <devin@linbit.com>
-description: Ansible roles and modules for deploying and managing LINSTOR storage clusters, including controller, satellite, client, and LINSTOR Gateway components
+  - Ryan Ronnander <rronnander@linbit.com>
+  - Matt Kereczman <matt@linbit.com>
+  - Michael Troutman <michael@linbit.com>
+  - Devin Vance <devin@linbit.com>
+description: >-
+  Ansible roles and modules for deploying and managing LINSTOR storage
+  clusters, including controller, satellite, client, and LINSTOR Gateway
+  components
 license:
-- MIT
+  - MIT
 tags:
-- linbit
-- linstor
-- storage
-- gateway
-- nfs
-- iscsi
-- nvmeof
-- ha
-- drbd
+  - linbit
+  - linstor
+  - storage
+  - gateway
+  - nfs
+  - iscsi
+  - nvmeof
+  - ha
+  - drbd
 dependencies:
   ansible.posix: '*'
   ansible.utils: '>=2.0.0'

@@ -19,7 +19,7 @@
         - test-multivol-res
         - test-manual-res
         - test-rd-vols
-      ignore_errors: true
+      failed_when: false
 
     - name: "Pre-cleanup: remove leftover VGs"
       linbit.linstor.volume_group:
@@ -27,7 +27,7 @@
         volume_nr: "{{ item }}"
         state: absent
       loop: [0, 1]
-      ignore_errors: true
+      failed_when: false
 
     - name: "Pre-cleanup: remove leftover RGs"
       linbit.linstor.resource_group:
@@ -38,7 +38,7 @@
         - test-rg-simple
         - test-rg
         - test-rg-drbd
-      ignore_errors: true
+      failed_when: false
 
     # =================================================================
     # linstor_node

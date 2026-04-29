@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: MIT
+---
+stages:
+  - lint
+  - test
+
+variables:
+  COLLECTION_NAMESPACE: linbit
+  COLLECTION_NAME: linstor
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Place the project under ansible_collections/<ns>/<name>/ as ansible-test
+# requires. Symlinks do not work here because ansible-test calls
+# os.getcwd() which resolves to the real path.
+.collection_path: &collection_path
+  - mkdir -p /tmp/ansible/ansible_collections/${COLLECTION_NAMESPACE}
+  - cp -r "$CI_PROJECT_DIR" /tmp/ansible/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}
+  - rm -rf /tmp/ansible/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}/.cache
+  - cd /tmp/ansible/ansible_collections/${COLLECTION_NAMESPACE}/${COLLECTION_NAME}
+  - export ANSIBLE_COLLECTIONS_PATH=/tmp/ansible
+
+# linstor's roles reference linbit.drbd and linbit.drbd_reactor in
+# meta/main.yml, which ansible-lint syntax-check tries to resolve.
+# Clone the dep collections so the references resolve in CI.
+.fetch_linbit_deps: &fetch_linbit_deps
+  - git clone --depth 1
+      "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.at.linbit.com/ansible-collections/linbit.drbd.git"
+      /tmp/ansible/ansible_collections/linbit/drbd
+  - git clone --depth 1
+      "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.at.linbit.com/ansible-collections/linbit.drbd_reactor.git"
+      /tmp/ansible/ansible_collections/linbit/drbd_reactor
+  - git clone --depth 1
+      "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.at.linbit.com/ansible-collections/linbit.common.git"
+      /tmp/ansible/ansible_collections/linbit/common
+
+cache:
+  paths:
+    - .cache/pip
+
+ansible-lint:
+  stage: lint
+  image: python:3.13-slim
+  before_script:
+    - apt-get -qq update && apt-get -qq install -y git
+    - *collection_path
+    - *fetch_linbit_deps
+    - pip install --quiet 'ansible-core>=2.20,<2.21' 'ansible-lint>=25.5.0'
+  script:
+    - ansible-lint
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+antsibull-docs:
+  stage: lint
+  image: python:3.13-slim
+  before_script:
+    - *collection_path
+    - pip install --quiet 'ansible-core>=2.20,<2.21' antsibull-docs
+  script:
+    - antsibull-docs lint-collection-docs --plugin-docs --validate-collection-refs self .
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+.sanity_template: &sanity_template
+  stage: test
+  before_script:
+    - apt-get -qq update && apt-get -qq install -y git
+    - *collection_path
+    - pip install --quiet "ansible-core${ANSIBLE_CORE_SPEC}"
+  script:
+    - ansible-test sanity
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+sanity:ansible-2.16:
+  <<: *sanity_template
+  image: python:3.12-slim
+  variables:
+    ANSIBLE_CORE_SPEC: ">=2.16,<2.17"
+
+sanity:ansible-2.18:
+  <<: *sanity_template
+  image: python:3.13-slim
+  variables:
+    ANSIBLE_CORE_SPEC: ">=2.18,<2.19"
+
+sanity:ansible-2.20:
+  <<: *sanity_template
+  image: python:3.13-slim
+  variables:
+    ANSIBLE_CORE_SPEC: ">=2.20,<2.21"
