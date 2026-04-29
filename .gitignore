@@ -16,3 +16,6 @@ __pycache__/
 # OS
 .DS_Store
 tests/output/
+
+# Centralized in linbit/ai-assistants; symlinked locally
+CLAUDE.md
