@@ -10,9 +10,4 @@ gateway_install_firewall_rules: true
 gateway_install_firewall_ports:
   - { port: '8337', proto: tcp }
 
-# Force re-running configure-gateway.yml even when the package install reports
-# unchanged. Re-asserts directory, TOML template, firewall ports, the
-# linstor-gateway service state, and re-invokes linbit.linstor.gateway_satellite
-# on satellite hosts (which transitively re-invokes linbit.drbd_reactor.reactor_install).
-# Use for drift correction after manual systemctl disable or out-of-band edits.
 gateway_install_force_reconfigure: false
