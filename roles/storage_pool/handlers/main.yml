@@ -1,6 +1,2 @@
 # SPDX-License-Identifier: MIT
 ---
-# No handlers: the storage_pool module's post-create readback
-# (storage_pool_list_raise) confirms the satellite has reported capacity
-# before the role returns. A satellite restart after LVM/ZFS backend
-# creation is not required.

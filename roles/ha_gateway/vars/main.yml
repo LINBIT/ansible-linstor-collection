@@ -6,10 +6,6 @@ _ra_base_dir: >-
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
 
-# Gateway-compatible resource definition names per protocol
-# iSCSI: WWN = last colon-separated part of IQN (user-supplied or defaulted)
-# NFS:   target name as-is
-# NVMe-oF: subsystem = last colon-separated part of NQN (user-supplied or defaulted)
 _ha_gw_iscsi_names: >-
   {%- set result = [] -%}
   {%- for t in linstor_iscsi_targets | default([]) -%}

@@ -13,10 +13,6 @@ ha_database_max_controllers: 3
 
 ha_database_allow_2_replica: false
 
-# Virtual IP address for the HA controller (for example "10.0.0.100/24")
-# When set, DRBD Reactor manages an IPaddr2 resource that floats with the
-# active controller. The VIP is stored as an Aux/ha_database_vip controller
-# property so client_install can discover it. Defaults to /24 if no CIDR given
 ha_database_vip: ""
 
 ha_database_drbd_options:
