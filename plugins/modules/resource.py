@@ -74,6 +74,7 @@ options:
       - Mutually exclusive with C(node).
     type: list
     elements: dict
+    default: []
   storage_pool:
     description: Storage pool to use for placement.
     type: str

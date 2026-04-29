@@ -51,6 +51,13 @@ options:
     type: list
     elements: str
     default: []
+  controllers:
+    description:
+      - Comma-separated list of LINSTOR controller URIs.
+      - If omitted, reads from C(LS_CONTROLLERS) env, then
+        C(/etc/linstor/linstor-client.conf), then falls back to
+        C(linstor://localhost).
+    type: str
 extends_documentation_fragment: []
 requirements:
   - python-linstor

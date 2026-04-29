@@ -431,7 +431,7 @@ def main():
         timestamp=dict(type='str'),
         all_linstor=dict(type='bool', default=False),
         all_local_cluster=dict(type='bool', default=False),
-        s3_key=dict(type='str'),
+        s3_key=dict(type='str', no_log=False),
         dryrun=dict(type='bool'),
         keep_snaps=dict(type='bool'),
         target_node=dict(type='str'),
