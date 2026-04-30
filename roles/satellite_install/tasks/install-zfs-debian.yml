@@ -29,6 +29,10 @@
   when:
     - _satellite_install_contrib_repo is changed
       or _satellite_install_backports_repo is changed
+  register: _satellite_install_apt_update
+  until: _satellite_install_apt_update is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install kernel headers for ZFS DKMS
   ansible.builtin.package:

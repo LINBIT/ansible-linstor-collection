@@ -15,6 +15,9 @@
     mode: '0755'
   when: _gateway_install_package is failed
   register: _gateway_installed_from_github
+  until: _gateway_installed_from_github is succeeded
+  retries: 3
+  delay: 10
   notify: restart_linstor_gateway
 
 - name: Configure LINSTOR Gateway # noqa: no-handler
