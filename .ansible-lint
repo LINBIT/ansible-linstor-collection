@@ -1,4 +1,8 @@
 ---
+# Skip galaxy fetches for declared linbit.* deps (collections not yet
+# published to Galaxy; resolved locally via vagrant_files make clone).
+# Mirrors the --offline flag used in .gitlab-ci.yml.
+offline: true
 skip_list:
   # Allow short variable (typically underscored) names for long role names
   - var-naming[no-role-prefix]
