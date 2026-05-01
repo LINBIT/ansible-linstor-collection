@@ -62,6 +62,18 @@
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
   run_once: true  # noqa: run-once[task]
 
+- name: Wait for HA database resource to be Connected with all peers
+  ansible.builtin.command:
+    cmd: drbdadm cstate {{ ha_database_res }}
+  when: inventory_hostname in _ha_db_combined_nodes
+  register: _ha_db_drbd_cstate
+  until:
+    - _ha_db_drbd_cstate.stdout_lines | length > 0
+    - _ha_db_drbd_cstate.stdout_lines | reject('equalto', 'Connected') | list | length == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
 - name: Wait for HA database resource to be UpToDate on all diskful nodes
   ansible.builtin.command:
     cmd: drbdadm dstate {{ ha_database_res }}
@@ -182,6 +194,28 @@
   when:
     - inventory_hostname in _ha_db_combined_nodes
     - inventory_hostname != _ha_db_primary_node
+
+- name: Verify all DRBD peer connections are still Established after HA pivot
+  ansible.builtin.command:
+    cmd: drbdadm cstate {{ ha_database_res }}
+  when: inventory_hostname in _ha_db_combined_nodes
+  register: _ha_db_drbd_cstate_post
+  until:
+    - _ha_db_drbd_cstate_post.stdout_lines | length > 0
+    - _ha_db_drbd_cstate_post.stdout_lines | reject('equalto', 'Connected') | list | length == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Verify HA database resource is still UpToDate everywhere after HA pivot
+  ansible.builtin.command:
+    cmd: drbdadm dstate {{ ha_database_res }}
+  when: inventory_hostname in _ha_db_combined_nodes
+  register: _ha_db_drbd_dstate_post
+  until: _ha_db_drbd_dstate_post.stdout.count('UpToDate') == _ha_db_combined_nodes | length
+  retries: 30
+  delay: 2
+  changed_when: false
 
 # Mark migration as completed (cluster-wide property)
 - name: Record aux prop to mark migration as completed
