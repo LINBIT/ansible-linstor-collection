@@ -2,8 +2,13 @@
 ---
 # defaults file for client_install
 client_install_package_state: present
-linstor_controller_addresses:
-  "{{ groups['linstor_controllers'] | map('extract', hostvars, 'replication_ip') | list | flatten }}"
+linstor_controller_addresses: >-
+  {%- set addrs = [] -%}
+  {%- for host in groups['linstor_controllers'] -%}
+    {%- set hv = hostvars[host] -%}
+    {%- set _ = addrs.append(hv.get('linstor_ip', hv.get('replication_ip', hv.get('ansible_host', 'localhost')))) -%}
+  {%- endfor -%}
+  {{ addrs }}
 
 # Automatically discover HA VIP from controller aux properties on subsequent runs.
 # Set to false to skip VIP discovery and always use linstor_controller_addresses.

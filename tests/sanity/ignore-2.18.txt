@@ -8,6 +8,7 @@ plugins/modules/encryption.py validate-modules:missing-gplv3-license
 plugins/modules/file.py validate-modules:missing-gplv3-license
 plugins/modules/key_value_store.py validate-modules:missing-gplv3-license
 plugins/modules/node.py validate-modules:missing-gplv3-license
+plugins/modules/node_interface.py validate-modules:missing-gplv3-license
 plugins/modules/remote.py validate-modules:missing-gplv3-license
 plugins/modules/resource.py validate-modules:missing-gplv3-license
 plugins/modules/resource_definition.py validate-modules:missing-gplv3-license

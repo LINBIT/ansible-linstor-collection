@@ -7,3 +7,7 @@ cluster_membership_com_type:
 # Network port for node registration.
 # Omit to leave the current setting unchanged on existing nodes.
 cluster_membership_port:
+
+# Replication network interface name (registered when replication_ip differs from linstor_ip).
+# When set, node-level PrefNic is set to this interface so DRBD replication uses it.
+cluster_membership_replication_netif: replication

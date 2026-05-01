@@ -20,7 +20,31 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `replication_ip` | (required) | Node IP used for DRBD replication traffic; set per host in inventory |
+| `linstor_ip` | falls back to `replication_ip`, then `ansible_host` | LINSTOR node registration IP; becomes the `default` net interface |
+| `replication_ip` | unset | Optional dedicated DRBD replication IP; when different from the registration IP, registers a `replication` net interface and sets node-level `PrefNic` |
+| `cluster_membership_replication_netif` | `replication` | Name for the optional dedicated DRBD net interface |
+| `cluster_membership_com_type` | unset | Override `Plain` or `SSL` for node registration; auto-detected from satellite/controller TOML when unset |
+| `cluster_membership_port` | unset | Override registration port; defaults to standard LINSTOR ports based on node type and SSL state |
+
+Network interfaces
+------------------
+
+Two deployment patterns are supported:
+
+**Single-network** (default): set only `replication_ip` (or omit it and rely on `ansible_host`).
+The node registers with that IP as the `default` interface, which carries both LINSTOR management traffic and DRBD replication.
+
+**PrefNic-separated**: set `linstor_ip` to the address LINSTOR registers with, and `replication_ip` to a different address for DRBD replication.
+The role registers a second net interface named `replication` (configurable via `cluster_membership_replication_netif`) and sets node-level `PrefNic` so DRBD routes through it.
+LINSTOR management traffic stays on the `default` interface (`linstor_ip`).
+
+The `replication` interface is registered as an IP-only NIC (no port or communication type).
+This is intentional: it makes the interface a DRBD-only path (used via `PrefNic`), not a satellite-connection candidate.
+LINSTOR's reconnect logic only considers interfaces with a satellite port and encryption type, so omitting them keeps the controller from autonomously moving the satellite connection onto the replication interface.
+
+The role does not explicitly designate a satellite connection.
+LINSTOR sets it automatically: every node has exactly one satellite connection, and at `linstor node create` time the `default` interface (the only candidate) gets the role.
+For SSL clusters, `ssl_init` adds both `linstor_ip` and `replication_ip` to the node certificate's SAN list when both are set.
 
 Dependencies
 ------------

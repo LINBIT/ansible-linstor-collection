@@ -8,9 +8,23 @@ argument_specs:
       - Runs C(linstor node create) for controller, combined, and satellite node types.
       - "Idempotent: nodes already registered are skipped."
     options:
+      linstor_ip:
+        type: str
+        required: false
+        description:
+          - LINSTOR node registration IP. Becomes the C(default) net interface.
+          - Carries LINSTOR management traffic and (when no
+            C(replication_ip) is set) DRBD replication.
+          - Falls back to C(replication_ip), then C(ansible_host).
+          - Set per host in inventory.
       replication_ip:
         type: str
-        required: true
+        required: false
         description:
-          - Node IP used for DRBD replication traffic.
+          - Optional dedicated DRBD replication IP.
+          - When set and different from the resolved LINSTOR registration IP,
+            a second net interface named C(replication) is registered and
+            node-level C(PrefNic) is set so DRBD routes through it.
+          - When unset (or equal to the registration IP), DRBD uses the
+            C(default) interface.
           - Set per host in inventory.
