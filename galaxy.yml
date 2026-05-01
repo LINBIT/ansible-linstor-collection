@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 namespace: linbit
 name: linstor
-version: 0.9.5
+version: 0.9.6
 readme: README.md
 authors:
   - Ryan Ronnander <rronnander@linbit.com>
@@ -27,7 +27,7 @@ tags:
 dependencies:
   ansible.posix: '*'
   ansible.utils: '>=2.0.0'
-  community.general: '>=10.4.0'
+  community.general: '>=10.4.0,<12.6.0'
   linbit.common: '*'
   linbit.drbd: '*'
   linbit.drbd_reactor: '*'
