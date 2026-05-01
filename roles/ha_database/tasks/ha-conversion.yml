@@ -45,6 +45,7 @@
   linbit.linstor.resource_group:
     name: "{{ ha_database_rg }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
+    place_count: "{{ _ha_db_combined_nodes | length }}"
     drbd_options: "{{ ha_database_drbd_options }}"
   run_once: true  # noqa: run-once[task]
 
