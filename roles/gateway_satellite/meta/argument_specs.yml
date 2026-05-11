@@ -8,19 +8,20 @@ argument_specs:
       - Installs supplemental packages and patches C(linstor_satellite.toml).
       - Includes C(linbit.drbd_reactor.reactor_install) for DRBD Reactor and OCF resource agents.
     options:
-      linstor_gateway_firewall_rules:
+      gateway_satellite_firewall_rules:
         type: bool
         default: true
         description:
           - Manage firewall rules for LINSTOR Gateway satellite ports.
           - Set C(false) to skip firewall configuration.
-      linstor_gateway_nfsv4_only:
+      gateway_satellite_nfsv4_only:
         type: bool
-        default: true
+        default: false
         description:
           - Skip opening NFSv3-only firewall ports (rpcbind 111, mountd 20048).
-          - Set to C(false) to allow NFSv3 clients.
-      linstor_gateway_firewall_ports_base:
+          - Defaults to C(false) to match C(ha_gateway_nfsv4_only) so the firewall matches what the nfsserver RA actually serves.
+          - Set to C(true) once the upstream nfsserver RA NFSv4-only path is reliable.
+      gateway_satellite_firewall_ports_base:
         type: list
         elements: dict
         default:
@@ -32,7 +33,7 @@ argument_specs:
             proto: tcp
         description:
           - Firewall ports for nfsd, iSCSI, and NVMe-oF (always open).
-      linstor_gateway_firewall_ports_nfsv3:
+      gateway_satellite_firewall_ports_nfsv3:
         type: list
         elements: dict
         default:
@@ -42,24 +43,26 @@ argument_specs:
             proto: tcp
         description:
           - Additional firewall ports for NFSv3 (rpcbind and mountd).
-          - Only opened when C(linstor_gateway_nfsv4_only=false).
-      linstor_gateway_firewall_ports:
+          - Only opened when C(gateway_satellite_nfsv4_only=false).
+      gateway_satellite_firewall_ports:
         type: list
         elements: dict
         description:
           - Combined list of firewall ports to open.
           - >-
-            Computed from C(linstor_gateway_firewall_ports_base) and C(linstor_gateway_firewall_ports_nfsv3)
-            based on C(linstor_gateway_nfsv4_only).
+            Computed from C(gateway_satellite_firewall_ports_base) and C(gateway_satellite_firewall_ports_nfsv3)
+            based on C(gateway_satellite_nfsv4_only).
           - Override directly for full control.
-      linstor_gateway_scst:
+      gateway_satellite_scst:
         type: bool
         default: false
         description:
           - Compile and install SCST iSCSI target from source as a LIO alternative.
-      linstor_gateway_scst_version:
+          - Upstream repo - U(https://github.com/SCST-project/scst).
+      gateway_satellite_scst_version:
         type: str
         default: "3.10.x"
         description:
           - SCST git tag to build from source.
-          - Only used when C(linstor_gateway_scst=true).
+          - Tags listed at U(https://github.com/SCST-project/scst/tags).
+          - Only used when C(gateway_satellite_scst=true).

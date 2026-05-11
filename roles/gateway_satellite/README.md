@@ -23,12 +23,11 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `linstor_gateway_portblock_ra_url` | ClusterLabs v4.16.0 | URL to fetch the portblock resource agent |
-| `linstor_gateway_portblock_fix` | `true` | Overwrite and pin the portblock RA to fix iptables issues |
-| `linstor_gateway_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway satellite ports; set `false` to skip |
-| `linstor_gateway_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
-| `linstor_gateway_scst` | `false` | LIO alternative. Compile and install SCST iSCSI target from source |
-| `linstor_gateway_scst_version` | `3.10.x` | SCST git tag to build from source; only used when `linstor_gateway_scst=true` |
+| `gateway_satellite_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway satellite ports; set `false` to skip |
+| `gateway_satellite_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
+| `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048). Matches `ha_gateway_nfsv4_only` default. |
+| `gateway_satellite_scst` | `false` | LIO alternative. Compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
+| `gateway_satellite_scst_version` | `3.10.x` | SCST git tag to build from source (see [tags](https://github.com/SCST-project/scst/tags)); only used when `gateway_satellite_scst=true` |
 
 Dependencies
 ------------

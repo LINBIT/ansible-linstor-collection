@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # Install SCST iSCSI target from source.
-# Triggered when linstor_gateway_scst=true.
+# Triggered when gateway_satellite_scst=true.
 
 - name: Check if SCST kernel module is already loaded
   ansible.builtin.stat:
@@ -19,7 +19,7 @@
     - name: Checkout SCST repo
       ansible.builtin.git: # noqa: latest[git]
         repo: 'https://github.com/SCST-project/scst.git'
-        version: "{{ linstor_gateway_scst_version }}"
+        version: "{{ gateway_satellite_scst_version }}"
         dest: /tmp/scst
 
     - name: Build and install SCST (RHEL)

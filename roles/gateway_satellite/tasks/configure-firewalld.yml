@@ -6,4 +6,4 @@
     permanent: true
     immediate: true
     state: enabled
-  loop: "{{ linstor_gateway_firewall_ports }}"
+  loop: "{{ gateway_satellite_firewall_ports }}"

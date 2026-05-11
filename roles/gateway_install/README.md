@@ -69,7 +69,7 @@ Standalone LINSTOR Gateway install against an existing LINSTOR cluster:
         name: linbit.linstor.gateway_install
 ```
 
-To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
+To use SCST as the iSCSI target backend, add `gateway_satellite_scst: true`:
 
 ```yaml
 - name: Install LINSTOR Gateway
@@ -81,7 +81,7 @@ To use SCST as the iSCSI target backend, add `linstor_gateway_scst: true`:
       ansible.builtin.import_role:
         name: linbit.linstor.gateway_install
       vars:
-        linstor_gateway_scst: true
+        gateway_satellite_scst: true
 ```
 
 License

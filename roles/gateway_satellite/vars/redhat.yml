@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # vars file for gateway_satellite
-linstor_gateway_supplemental_packages:
+gateway_satellite_supplemental_packages:
   - iptables # for portblock
   - nvmetcli
   - nfs-utils

@@ -5,4 +5,4 @@
     rule: allow
     port: "{{ item.port | regex_replace('-', ':') }}"
     proto: "{{ item.proto }}"
-  loop: "{{ linstor_gateway_firewall_ports }}"
+  loop: "{{ gateway_satellite_firewall_ports }}"
