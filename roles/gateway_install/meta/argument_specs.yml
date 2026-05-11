@@ -9,12 +9,6 @@ argument_specs:
         and start the service.
       - On satellite nodes, also installs satellite-side components via C(linbit.linstor.gateway_satellite).
     options:
-      linstor_gateway_github_binary:
-        type: str
-        default: "https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64"
-        description:
-          - GitHub download URL for the linstor-gateway binary.
-          - Used as fallback when the package is unavailable.
       gateway_install_firewall_rules:
         type: bool
         default: true

@@ -2,9 +2,6 @@
 ---
 # defaults file for gateway_install
 
-# Only amd64 linstor-gateway builds exist currently
-linstor_gateway_github_binary: 'https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64'
-
 gateway_install_firewall_rules: true
 
 gateway_install_firewall_ports:

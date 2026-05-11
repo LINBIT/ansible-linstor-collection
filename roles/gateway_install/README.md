@@ -27,7 +27,6 @@ Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `linstor_gateway_github_binary` | latest amd64 release | GitHub download URL, used as fallback when package is unavailable |
 | `gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
 | `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 | `gateway_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts directory, `linstor-gateway.toml`, firewall ports, and `linstor-gateway.service` state. Also re-invokes `linbit.linstor.gateway_satellite` on satellite hosts, which transitively re-invokes `linbit.drbd_reactor.reactor_install`. Use for drift correction. |

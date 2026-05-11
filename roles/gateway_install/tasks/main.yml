@@ -8,9 +8,10 @@
   register: _gateway_install_package
   notify: restart_linstor_gateway
 
+# Currently only shipping amd64 builds for GitHub
 - name: Install LINSTOR Gateway from GitHub
   ansible.builtin.get_url:
-    url: "{{ linstor_gateway_github_binary }}"
+    url: 'https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64'
     dest: '/usr/sbin/linstor-gateway'
     mode: '0755'
   when: _gateway_install_package is failed
