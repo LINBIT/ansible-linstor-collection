@@ -6,7 +6,7 @@
     auto_import_keys: true
     state: present
 
-- name: Install ZFS packages
+- name: Install ZFS packages (Zypper)
   community.general.zypper:
     name: zfs
     state: present

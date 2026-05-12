@@ -41,7 +41,7 @@
   vars:
     _debian_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
 
-- name: Install zfsutils-linux and zfs-dkms from backports
+- name: Install ZFS packages (APT)
   ansible.builtin.apt:
     name:
       - zfsutils-linux

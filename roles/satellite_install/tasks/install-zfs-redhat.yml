@@ -21,7 +21,7 @@
     cmd: dnf config-manager --enable zfs-kmod
   changed_when: false
 
-- name: Install ZFS packages
+- name: Install ZFS packages (DNF)
   ansible.builtin.dnf:
     name:
       - kernel-devel
