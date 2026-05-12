@@ -66,12 +66,12 @@ argument_specs:
         type: list
         elements: str
         default:
-          - "*"
+          - "0.0.0.0/0.0.0.0"
         description:
           - >-
-            Default client host patterns for NFS exports. Accepts CIDRs (for example C(192.168.0.0/16)),
-            single IPs, hostnames, or the C(*) wildcard. C(0.0.0.0/0) is rejected by every C(rpc.mountd)
-            version we tested (2.3.3-2.8.3) and is auto-coerced to C(*) at template time.
+            Default client CIDRs for NFS exports. C(rpc.mountd) rejects C(0.0.0.0/0); the dotted-mask form
+            C(0.0.0.0/0.0.0.0) is the equivalent that mountd accepts and that C(linstor-gateway) parses.
+            Any literal C(0.0.0.0/0) in inventory is auto-corrected to C(0.0.0.0/0.0.0.0) at template time.
       ha_gateway_nfs_options:
         type: str
         default: "rw,all_squash,anonuid=0,anongid=0"
