@@ -1,8 +1,3 @@
-{# Controller address fallback: linstor_ip → replication_ip → ansible_host → localhost #}
 [linstor]
-{% set addrs = [] -%}
-{% for node in groups['linstor_controllers'] -%}
-  {% set hv = hostvars[node] -%}
-  {% set _ = addrs.append(hv.get('linstor_ip', hv.get('replication_ip', hv.get('ansible_host', 'localhost')))) -%}
-{% endfor -%}
+{%- set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') %}
 controllers = [ {{ addrs | map('regex_replace', '^(.*)$', '"\1"') | join(', ') }} ]

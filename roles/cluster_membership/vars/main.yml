@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: MIT
 ---
 _cluster_membership_linstor_ip: >-
-  {{ linstor_ip | default(replication_ip | default(ansible_host)) }}
+  {{ hostvars[inventory_hostname] | linbit.linstor.linstor_addr }}
