@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: key_value_store
 short_description: Manage LINSTOR key-value store
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Reads, sets, and deletes entries in a LINSTOR key-value store instance.
   - LINSTOR key-value stores are named dictionaries of string key-value pairs

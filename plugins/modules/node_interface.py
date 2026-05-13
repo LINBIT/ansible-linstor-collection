@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: node_interface
 short_description: Manage LINSTOR node network interfaces
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes network interfaces on LINSTOR nodes.
   - Idempotent. If the interface already exists, only changed attributes are updated.

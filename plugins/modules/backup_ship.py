@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: backup_ship
 short_description: Ship a LINSTOR backup between clusters or remotes
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Initiates a LINSTOR backup shipment to a remote cluster or S3 remote.
   - Each invocation initiates a new shipment and reports C(changed=true).

@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: snapshot
 short_description: Manage LINSTOR snapshots
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, deletes, rolls back, restores, or queries LINSTOR snapshots.
   - Idempotent for C(state=present), C(state=absent), and C(state=restored).

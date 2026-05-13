@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: volume_group
 short_description: Manage LINSTOR volume groups
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR volume groups within a resource group.
   - Idempotent. If the volume group already exists, only property changes are applied.

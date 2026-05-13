@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: file
 short_description: Manage LINSTOR external files
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, updates, or deletes LINSTOR external files stored in the
     controller and optionally attached to resource definitions.

@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: remote
 short_description: Manage LINSTOR remotes for backup shipping
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR remotes used as backup shipping targets.
   - Supports S3-compatible, LINSTOR-to-LINSTOR, and EBS remote types.

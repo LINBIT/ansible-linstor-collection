@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: backup_restore
 short_description: Restore a LINSTOR backup to a new resource
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Restores a LINSTOR backup from a remote into a new resource definition.
   - Idempotent on the existence of O(target_resource); if the target

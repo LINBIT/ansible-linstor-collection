@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource_definition
 short_description: Manage LINSTOR resource definitions
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR resource definitions.
   - Supports inline volume definitions and DRBD options.

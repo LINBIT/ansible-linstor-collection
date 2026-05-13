@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: backup
 short_description: Create or delete LINSTOR backups on a remote
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates or deletes LINSTOR backups on a remote.
   - C(state=present) creates a new S3 backup and is NOT idempotent;

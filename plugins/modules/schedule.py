@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: schedule
 short_description: Manage LINSTOR backup schedules
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR backup schedules.
   - Optionally enables or disables a schedule for a specific remote and

@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource
 short_description: Deploy LINSTOR resources
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Deploys or removes LINSTOR resources via spawn, autoplace, or manual placement.
   - Idempotent. If the resource definition already exists, the module returns

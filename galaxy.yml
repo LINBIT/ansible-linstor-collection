@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 namespace: linbit
 name: linstor
-version: 0.9.6
+version: 0.9.7
 readme: README.md
 authors:
   - Ryan Ronnander <rronnander@linbit.com>

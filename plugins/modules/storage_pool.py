@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: storage_pool
 short_description: Manage LINSTOR storage pools
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR storage pools on cluster nodes.
   - Idempotent. If the pool already exists on the node, only property changes are applied.

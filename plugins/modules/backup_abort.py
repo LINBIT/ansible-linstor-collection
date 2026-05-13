@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: backup_abort
 short_description: Abort an in-progress LINSTOR backup operation
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Aborts an in-progress backup operation on a remote.
   - This module is NOT idempotent; it always invokes the abort API and

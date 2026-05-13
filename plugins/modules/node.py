@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: node
 short_description: Manage LINSTOR cluster nodes
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR cluster nodes.
   - Idempotent. If the node already exists, only property changes are applied.

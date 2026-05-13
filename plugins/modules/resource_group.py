@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource_group
 short_description: Manage LINSTOR resource groups
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR resource groups.
   - Supports placement rules, DRBD options, and arbitrary properties.

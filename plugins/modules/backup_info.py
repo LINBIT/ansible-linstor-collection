@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: backup_info
 short_description: Query LINSTOR backups, backup details, and queue status
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Returns information about LINSTOR backups stored on a remote.
   - Always read-only; C(changed) is always C(false).

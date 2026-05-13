@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: encryption
 short_description: Manage LINSTOR encryption passphrase
-version_added: "0.10.0"
+version_added: "0.9.7"
 description:
   - Creates, enters, or modifies the LINSTOR cluster-wide encryption passphrase.
   - This is a singleton module (no C(name) parameter) similar to
