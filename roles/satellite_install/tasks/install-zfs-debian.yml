@@ -4,6 +4,10 @@
   ansible.builtin.package:
     name: gpg
     state: present
+  register: _satellite_install_gpg
+  until: _satellite_install_gpg is succeeded
+  retries: 3
+  delay: 10
 
 - name: Enable Debian contrib repository for ZFS
   ansible.builtin.deb822_repository:
@@ -40,6 +44,10 @@
     state: present
   vars:
     _debian_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
+  register: _satellite_install_kernel_headers
+  until: _satellite_install_kernel_headers is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install ZFS packages (APT)
   ansible.builtin.apt:
@@ -48,3 +56,7 @@
       - zfs-dkms
     state: present
     default_release: "{{ ansible_facts['distribution_release'] }}-backports"
+  register: _satellite_install_zfs_apt
+  until: _satellite_install_zfs_apt is succeeded
+  retries: 3
+  delay: 10

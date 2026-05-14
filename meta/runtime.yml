@@ -1,3 +1,25 @@
 # SPDX-License-Identifier: MIT
 ---
 requires_ansible: '>=2.16.0'
+
+action_groups:
+  linbit.linstor:
+    - backup
+    - backup_abort
+    - backup_info
+    - backup_restore
+    - backup_ship
+    - controller
+    - encryption
+    - file
+    - key_value_store
+    - node
+    - node_interface
+    - remote
+    - resource
+    - resource_definition
+    - resource_group
+    - schedule
+    - snapshot
+    - storage_pool
+    - volume_group

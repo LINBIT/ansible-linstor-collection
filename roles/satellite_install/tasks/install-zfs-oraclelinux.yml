@@ -5,12 +5,20 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
+  register: _satellite_install_epel
+  until: _satellite_install_epel is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install ZFS repository
   ansible.builtin.dnf:
     name: "https://zfsonlinux.org/epel/zfs-release-3-0{{ ansible_facts['distribution_version'] | regex_replace('^(\\d+).*', '.el\\1') }}.noarch.rpm"
     state: present
     disable_gpg_check: true
+  register: _satellite_install_zfs_repo
+  until: _satellite_install_zfs_repo is succeeded
+  retries: 3
+  delay: 10
 
 - name: Disable ZFS kmod repository
   ansible.builtin.command:
@@ -32,6 +40,10 @@
     name: gcc-toolset-11
     state: present
   when: ansible_facts['distribution_major_version'] == '8'
+  register: _satellite_install_gcc_toolset
+  until: _satellite_install_gcc_toolset is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install UEK kernel headers and DKMS prerequisites
   ansible.builtin.dnf:
@@ -40,18 +52,20 @@
       - dkms
       - zfs-dkms
     state: present
+  register: _satellite_install_uek_devel
+  until: _satellite_install_uek_devel is succeeded
+  retries: 3
+  delay: 10
 
 - name: Build ZFS DKMS module with GCC toolset (EL8)
   ansible.builtin.shell:
     cmd: source /opt/rh/gcc-toolset-11/enable && dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
-  args:
     creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
   when: ansible_facts['distribution_major_version'] == '8'
 
 - name: Build ZFS DKMS module (EL9+)
   ansible.builtin.command:
     cmd: dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
-  args:
     creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
   when: ansible_facts['distribution_major_version'] != '8'
 
@@ -59,3 +73,7 @@
   ansible.builtin.dnf:
     name: zfs
     state: present
+  register: _satellite_install_zfs_utils
+  until: _satellite_install_zfs_utils is succeeded
+  retries: 3
+  delay: 10

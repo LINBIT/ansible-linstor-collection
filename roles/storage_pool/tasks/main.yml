@@ -27,12 +27,16 @@
     name: "{{ _pool.name }}"
     node: "{{ inventory_hostname }}"
     state: query
+  when: _storage_pool_is_diskful | bool
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   loop: "{{ _my_pools }}"
   loop_control:
     loop_var: _pool
     label: "{{ _pool.name }}"
   register: _storage_pool_checks
-  when: _storage_pool_is_diskful | bool
 
 # Build enriched list with computed _type for downstream filtering.
 # Using a loop with set_fact so each host builds its own list in parallel.
@@ -48,13 +52,13 @@
          [_check._pool | combine({
            '_type': _check._pool.type | default(storage_pool_defaults.type)
          })] }}
+  when:
+    - _storage_pool_is_diskful | bool
+    - not (_check.exists | default(false))
   loop: "{{ _storage_pool_checks.results | default([]) }}"
   loop_control:
     loop_var: _check
     label: "{{ _check._pool.name }}"
-  when:
-    - _storage_pool_is_diskful | bool
-    - not (_check.exists | default(false))
 
 # --- Validation ---
 
@@ -63,78 +67,78 @@
     that: item.name is defined and item.name | length > 0
     fail_msg: "Each storage pool must have a 'name' key"
     quiet: true
+  when: _storage_pool_is_diskful | bool
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
-  when: _storage_pool_is_diskful | bool
 
 - name: Assert pool type is valid
   ansible.builtin.assert:
     that: item._type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk']
     fail_msg: "storage pool type '{{ item._type }}' is not a valid LINSTOR storage pool driver"
     quiet: true
+  when: _storage_pool_is_diskful | bool
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
-  when: _storage_pool_is_diskful | bool
 
 - name: Assert physical_devices is set
   ansible.builtin.assert:
     that: item.physical_devices is defined and item.physical_devices | length > 0
     fail_msg: "physical_devices must be set for type '{{ item._type }}'"
     quiet: true
-  loop: "{{ _pools_to_create | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
   when:
     - _storage_pool_is_diskful | bool
     - item._type not in ['file', 'filethin']
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Assert vg is set
   ansible.builtin.assert:
     that: item.vg is defined and item.vg | length > 0
     fail_msg: "vg must be set for type '{{ item._type }}'"
     quiet: true
-  loop: "{{ _pools_to_create | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
   when:
     - _storage_pool_is_diskful | bool
     - item._type in ['lvm', 'lvmthin']
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Assert zpool is set
   ansible.builtin.assert:
     that: item.zpool is defined and item.zpool | length > 0
     fail_msg: "zpool must be set for type '{{ item._type }}'"
     quiet: true
-  loop: "{{ _pools_to_create | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
   when:
     - _storage_pool_is_diskful | bool
     - item._type in ['zfs', 'zfsthin']
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Assert vg_thinpool is set
   ansible.builtin.assert:
     that: (item.vg_thinpool | default(storage_pool_defaults.vg_thinpool)) | length > 0
     fail_msg: "vg_thinpool must be set for type 'lvmthin'"
     quiet: true
-  loop: "{{ _pools_to_create | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
   when:
     - _storage_pool_is_diskful | bool
     - item._type == 'lvmthin'
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 # --- ZFS prerequisites ---
 
 - name: Check for ZFS
   ansible.builtin.stat:
     path: "{{ _storage_pool_zfs_path }}"
-  register: _storage_pool_zfs_check
   when:
     - _storage_pool_is_diskful | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
+  register: _storage_pool_zfs_check
 
 - name: Halt if ZFS is not installed
   ansible.builtin.fail:
@@ -202,9 +206,13 @@
           if item._type in ['zfs', 'zfsthin'] and (item.zfs_create_options
           | default(storage_pool_defaults.zfs_create_options)) | trim != '' else {})
       }}
+  when: _storage_pool_is_diskful | bool
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
   retries: 3
   delay: 5
-  when: _storage_pool_is_diskful | bool

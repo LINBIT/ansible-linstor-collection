@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: MIT
 ---
 # defaults file for client_install
+linstor_controller_vip: "{{ linstor_ha_vip.split('/')[0] if linstor_ha_vip | default('') else '' }}"
+
 client_install_package_state: present
-linstor_controller_addresses: "{{ query('linbit.linstor.group_addresses', 'linstor_controllers') }}"
+linstor_controller_addresses: >-
+  {{ [linstor_controller_vip] if linstor_controller_vip | default('')
+     else query('linbit.linstor.group_addresses', 'linstor_controllers') }}
 
 # Automatically discover HA VIP from controller aux properties on subsequent runs.
 # Set to false to skip VIP discovery and always use linstor_controller_addresses.

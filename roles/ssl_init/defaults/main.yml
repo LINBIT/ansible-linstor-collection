@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
+linstor_controller_vip: "{{ linstor_ha_vip.split('/')[0] if linstor_ha_vip | default('') else '' }}"
+
 # Feature toggles (both default to true: if the role runs, encrypt everything)
 ssl_init_https: true
 ssl_init_satellite: true
@@ -22,6 +24,9 @@ ssl_init_cert_c: ""
 
 # Paths
 ssl_init_dir: /etc/linstor/ssl
+# Local directory on the Ansible control node for the CA key, CA cert, and
+# signed node certs. Persists across runs so new nodes can be signed later.
+ssl_init_local_dir: "{{ lookup('env', 'HOME') }}/.config/linstor/ssl"
 
 # Passwords (vault-ready)
 ssl_init_keystore_password: linstor

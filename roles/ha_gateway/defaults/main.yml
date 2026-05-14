@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
 # Shared defaults for all gateway protocols
+linstor_controller_vip: "{{ linstor_ha_vip.split('/')[0] if linstor_ha_vip | default('') else '' }}"
+
 ha_gateway_storage_pool: ""
 ha_gateway_place_count: 2
 ha_gateway_tickle_dir_size: 64M

@@ -4,12 +4,20 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
+  register: _satellite_install_epel
+  until: _satellite_install_epel is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install ZFS repository
   ansible.builtin.dnf:
     name: "https://zfsonlinux.org/epel/zfs-release-3-0{{ ansible_facts['distribution_version'] | regex_replace('^(\\d+).*', '.el\\1') }}.noarch.rpm"
     state: present
     disable_gpg_check: true
+  register: _satellite_install_zfs_repo
+  until: _satellite_install_zfs_repo is succeeded
+  retries: 3
+  delay: 10
 
 - name: Disable ZFS DKMS repository
   ansible.builtin.command:
@@ -27,3 +35,7 @@
       - kernel-devel
       - zfs
     state: present
+  register: _satellite_install_zfs_dnf
+  until: _satellite_install_zfs_dnf is succeeded
+  retries: 3
+  delay: 10

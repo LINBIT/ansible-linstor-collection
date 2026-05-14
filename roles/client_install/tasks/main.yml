@@ -9,10 +9,13 @@
   ansible.builtin.package:
     name: linstor-client
     state: "{{ client_install_package_state }}"
-  register: _client_install_package
   when:
     - not _client_install_check.stat.exists
       or client_install_package_state != 'present'
+  register: _client_install_package
+  until: _client_install_package is succeeded
+  retries: 3
+  delay: 10
 
 - name: Configure linstor-client # noqa: no-handler
   ansible.builtin.include_tasks: configure-client.yml

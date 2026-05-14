@@ -55,7 +55,10 @@
         name: "{{ inventory_hostname }}"
         aux_properties:
           GatewaySatellite: "True"
-      delegate_to: "{{ groups['linstor_controllers'][0] }}"
+      delegate_to: localhost
+      become: false
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers

@@ -18,6 +18,9 @@
     - not _controller_install_check.stat.exists
       or controller_install_package_state != 'present'
   register: _controller_install_packages
+  until: _controller_install_packages is succeeded
+  retries: 3
+  delay: 10
 
 - name: Configure LINSTOR controller # noqa: no-handler
   ansible.builtin.include_tasks: configure-controller.yml

@@ -14,12 +14,16 @@
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
     state: query
-  register: _ssl_init_satellite_check
-  run_once: true
-  failed_when: false
   when:
     - ssl_init_satellite | bool
     - _ssl_init_local_check.stat.exists
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _ssl_init_satellite_check
+  run_once: true  # noqa: run-once[task]
+  failed_when: false
 
 - name: Set SSL already configured fact
   ansible.builtin.set_fact:

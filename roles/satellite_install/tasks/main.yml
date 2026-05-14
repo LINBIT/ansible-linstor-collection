@@ -19,12 +19,19 @@
       ansible.builtin.package:
         name: "{{ _satellite_install_prereqs }}"
         state: present
+      register: _satellite_install_prereqs_result
+      until: _satellite_install_prereqs_result is succeeded
+      retries: 3
+      delay: 10
 
     - name: Install LINSTOR satellite
       ansible.builtin.package:
         name: linstor-satellite
         state: "{{ satellite_install_package_state }}"
       register: _satellite_install_packages
+      until: _satellite_install_packages is succeeded
+      retries: 3
+      delay: 10
       notify: sat_package_update
 
 - name: Configure LINSTOR satellite # noqa: no-handler

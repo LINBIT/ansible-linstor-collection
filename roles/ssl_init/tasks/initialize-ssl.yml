@@ -5,6 +5,18 @@
   ansible.builtin.package:
     name: openssl
     state: present
+  register: _ssl_init_openssl_install
+  until: _ssl_init_openssl_install is succeeded
+  retries: 3
+  delay: 10
+
+- name: Verify openssl is available on the Ansible control node
+  ansible.builtin.command:
+    cmd: openssl version
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
 
 - name: Assert at least one SSL feature is enabled
   ansible.builtin.assert:
@@ -89,6 +101,12 @@
   ansible.builtin.include_tasks: build-truststores.yml
   when: ssl_init_satellite | bool
 
+- name: Gather OS facts for trust store installation
+  ansible.builtin.setup:
+    gather_subset:
+      - min
+  when: ansible_facts['os_family'] is not defined
+
 - name: Install CA certificate into OS trust store
   ansible.builtin.include_tasks: install-ca-cert.yml
 
@@ -117,6 +135,10 @@
     name: "{{ inventory_hostname }}"
     com_type: SSL
   when: ssl_init_satellite | bool
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ssl_init_netif_update
   failed_when: false
 
@@ -195,6 +217,10 @@
     name: "{{ inventory_hostname }}"
     state: query
   when: inventory_hostname in groups['linstor_satellites']
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ssl_init_node_status
   retries: 12
   delay: 5
@@ -204,4 +230,3 @@
   failed_when:
     - _ssl_init_node_status.exists | default(false)
     - _ssl_init_node_status.connection_status | default('') != 'ONLINE'
-  delegate_to: "{{ _active_controller_node }}"

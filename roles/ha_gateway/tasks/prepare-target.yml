@@ -86,7 +86,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target.name }}:{{ _target.resource_group }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_rg_check
 
@@ -132,7 +135,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_defs
 
@@ -147,8 +153,8 @@
            ha_gateway_storage_pool,
            _sizes_key,
            ha_gateway_tickle_dir_size) }}
-  run_once: true  # noqa: run-once[task]
   when: _gw_explicit | length > 0
+  run_once: true  # noqa: run-once[task]
 
 # All nodes placed in a single batch API call per resource.
 # Nodes beyond place_count are placed as diskless (explicit TieBreaker).
@@ -163,7 +169,10 @@
   loop_control:
     loop_var: _placement
     label: "{{ _placement.resource_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_manual_place
 
@@ -181,7 +190,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_rg
 
@@ -201,7 +213,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_spawn_auto
 
@@ -211,28 +226,31 @@
   linbit.linstor.resource:
     name: "{{ _target._rd_name }}"
     state: query
+  when: _gw_present | length > 0
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   register: _gw_query
-  when: _gw_present | length > 0
 
 - name: "Resolve target node lists - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_resolved: >-
       {{ _gw_query.results | default([])
          | linbit.linstor.gateway_resolve_satellites }}
-  run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
+  run_once: true  # noqa: run-once[task]
 
 - name: "Build resolved satellite list - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_satellites: "{{ _gw_resolved | default([]) | map(attribute='nodes') | flatten | unique | list }}"
-  run_once: true  # noqa: run-once[task]
   when: _gw_present | length > 0
+  run_once: true  # noqa: run-once[task]
 
 - name: Validate resolved NFS exports have non-overlapping nodes
   ansible.builtin.assert:
@@ -246,55 +264,55 @@
   vars:
     _all_nfs_nodes: >-
       {{ _gw_resolved | map(attribute='nodes') | flatten }}
-  run_once: true  # noqa: run-once[task]
   when:
     - _sizes_key == 'exports'
     - _gw_resolved | default([]) | length > 1
+  run_once: true  # noqa: run-once[task]
 
 # --- Wait, format, DRBD options ---
 
 - name: "Wait for DRBD devices - {{ _protocol }}"
   ansible.builtin.wait_for:
     path: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: "Format portblock tickle_dir partition - {{ _protocol }}"
   community.general.filesystem:
     fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
     dev: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: Format NFS export partitions
   community.general.filesystem:
     fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
     dev: "/dev/drbd/by-res/{{ _export.0._rd_name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
+  when: >-
+    _gw_spawn_defs is changed or _gw_manual_place is changed
+    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export
     label: "{{ _export.0._rd_name }}:{{ _export.1.path | default('/') }}"
   delegate_to: "{{ _export.0.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
-  when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
 
 - name: "Set DRBD resource options - {{ _protocol }}"
   linbit.linstor.resource_definition:
@@ -305,7 +323,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Run satellite pre-flight checks - {{ _protocol }}"
@@ -324,20 +345,23 @@
   loop_control:
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Wait for promoter config to reach satellites - {{ _protocol }}"
   ansible.builtin.wait_for:
     path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
     timeout: 60
+  when:
+    - inventory_hostname in (_gw_satellites | default([]))
+    - inventory_hostname in _target.nodes
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
-  when:
-    - inventory_hostname in (_gw_satellites | default([]))
-    - inventory_hostname in _target.nodes
 
 - name: "Remove promoter config external file for absent targets - {{ _protocol }}"
   linbit.linstor.file:
@@ -347,7 +371,10 @@
   loop_control:
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
@@ -358,7 +385,10 @@
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
   retries: 5
   delay: 5

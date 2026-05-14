@@ -1,53 +1,76 @@
 # SPDX-License-Identifier: MIT
 ---
-# Generate a CA-signed client certificate for mTLS authentication.
-# Runs on first controller only, then distributes to all cluster nodes.
-- name: Generate client private key
+# Generate a CA-signed client certificate on the Ansible control node for
+# mTLS authentication. The client key never leaves the control node.
+# Controllers receive only the public client cert to build their truststore.
+
+- name: Generate client private key on control node
   ansible.builtin.command:
     cmd: >-
       openssl genpkey
       -algorithm {{ ssl_init_key_algorithm }}
       -pkeyopt {{ 'ec_paramgen_curve:' + ssl_init_node_curve if ssl_init_key_algorithm == 'EC' else 'rsa_keygen_bits:' + ssl_init_rsa_key_size | string }}
-      -out {{ ssl_init_dir }}/client.key
-    creates: "{{ ssl_init_dir }}/client.key"
+      -out {{ ssl_init_local_dir }}/client.key
+    creates: "{{ ssl_init_local_dir }}/client.key"
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
 
-- name: Set client key permissions
-  ansible.builtin.file:
-    path: "{{ ssl_init_dir }}/client.key"
-    owner: root
-    group: root
-    mode: '0600'
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Generate client certificate signing request
+- name: Generate client certificate signing request on control node
   ansible.builtin.command:
     cmd: >-
       openssl req -new
-      -key {{ ssl_init_dir }}/client.key
-      -out {{ ssl_init_dir }}/client.csr
+      -key {{ ssl_init_local_dir }}/client.key
+      -out {{ ssl_init_local_dir }}/client.csr
       -subj "/CN=linstor-client{{ '/O=' + ssl_init_cert_o if ssl_init_cert_o else '' }}{{ '/C=' + ssl_init_cert_c if ssl_init_cert_c else '' }}"
-    creates: "{{ ssl_init_dir }}/client.csr"
+    creates: "{{ ssl_init_local_dir }}/client.csr"
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
 
-- name: Sign client certificate with CA
+- name: Sign client certificate with CA on control node
   ansible.builtin.command:
     cmd: >-
       openssl x509 -req
-      -in {{ ssl_init_dir }}/client.csr
-      -CA {{ ssl_init_dir }}/ca.crt
-      -CAkey {{ ssl_init_dir }}/ca.key
+      -in {{ ssl_init_local_dir }}/client.csr
+      -CA {{ ssl_init_local_dir }}/ca.crt
+      -CAkey {{ ssl_init_local_dir }}/ca.key
       -CAcreateserial
-      -out {{ ssl_init_dir }}/client.pem
+      -out {{ ssl_init_local_dir }}/client.pem
       -days {{ ssl_init_cert_validity_days }}
-    creates: "{{ ssl_init_dir }}/client.pem"
+    creates: "{{ ssl_init_local_dir }}/client.pem"
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
 
-- name: Create client truststore and import client certificate
+- name: Remove client CSR from control node
+  ansible.builtin.file:
+    path: "{{ ssl_init_local_dir }}/client.csr"
+    state: absent
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+# Distribute client cert + key to all cluster nodes so admins SSH-ing in
+# can use the linstor CLI with mTLS. Controllers additionally get a truststore
+# to verify incoming client connections.
+- name: Distribute client certificate to all cluster nodes
+  ansible.builtin.copy:
+    src: "{{ ssl_init_local_dir }}/client.pem"
+    dest: "{{ ssl_init_dir }}/client.pem"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Distribute client key to all cluster nodes
+  ansible.builtin.copy:
+    src: "{{ ssl_init_local_dir }}/client.key"
+    dest: "{{ ssl_init_dir }}/client.key"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Build client truststore on controller nodes
   ansible.builtin.command:
     cmd: >-
       keytool -importcert -noprompt
@@ -56,61 +79,4 @@
       -alias linstor-client
       -file {{ ssl_init_dir }}/client.pem
     creates: "{{ ssl_init_dir }}/truststore_client.jks"
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Remove client CSR
-  ansible.builtin.file:
-    path: "{{ ssl_init_dir }}/client.csr"
-    state: absent
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Fetch client PEM from first controller
-  ansible.builtin.fetch:
-    src: "{{ ssl_init_dir }}/client.pem"
-    dest: /tmp/linstor-ssl-certs/client.pem
-    flat: true
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Fetch client key from first controller
-  ansible.builtin.fetch:
-    src: "{{ ssl_init_dir }}/client.key"
-    dest: /tmp/linstor-ssl-certs/client.key
-    flat: true
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Fetch client truststore from first controller
-  ansible.builtin.fetch:
-    src: "{{ ssl_init_dir }}/truststore_client.jks"
-    dest: /tmp/linstor-ssl-certs/truststore_client.jks
-    flat: true
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Distribute client PEM to all cluster nodes
-  ansible.builtin.copy:
-    src: /tmp/linstor-ssl-certs/client.pem
-    dest: "{{ ssl_init_dir }}/client.pem"
-    owner: root
-    group: root
-    mode: '0600'
-
-- name: Distribute client key to all cluster nodes
-  ansible.builtin.copy:
-    src: /tmp/linstor-ssl-certs/client.key
-    dest: "{{ ssl_init_dir }}/client.key"
-    owner: root
-    group: root
-    mode: '0600'
-
-- name: Distribute client truststore to all controllers
-  ansible.builtin.copy:
-    src: /tmp/linstor-ssl-certs/truststore_client.jks
-    dest: "{{ ssl_init_dir }}/truststore_client.jks"
-    owner: root
-    group: root
-    mode: '0600'
   when: inventory_hostname in groups['linstor_controllers']

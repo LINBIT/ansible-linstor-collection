@@ -6,8 +6,12 @@
   linbit.linstor.controller:
     state: query
   when: _ha_db_combined_nodes | length >= 2
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ha_db_conversion_check
-  run_once: true # noqa: run-once[task]
+  run_once: true  # noqa: run-once[task]
 
 - name: Determine if HA database conversion is needed
   ansible.builtin.set_fact:

@@ -15,17 +15,21 @@
 - name: Check for existing linstor-client.conf
   ansible.builtin.stat:
     path: /etc/linstor/linstor-client.conf
-  register: _client_install_conf
   when: client_install_vip_discovery | bool
+  register: _client_install_conf
 
 - name: Query controller for HA VIP property
   linbit.linstor.controller:
     state: query
-  register: _client_install_controller_props
-  ignore_errors: true
   when:
     - client_install_vip_discovery | bool
     - _client_install_conf.stat.exists
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _client_install_controller_props
+  ignore_errors: true
 
 - name: Set controller addresses from HA VIP if available
   ansible.builtin.set_fact:

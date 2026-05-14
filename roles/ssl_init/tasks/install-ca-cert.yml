@@ -4,7 +4,7 @@
 # This allows non-Java clients (linstor-gateway, Proxmox plugin) to
 # verify the LINSTOR controller's HTTPS certificate.
 - name: Install CA certificate into Debian/Ubuntu trust store
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] | lower == 'debian'
   block:
     - name: Copy CA certificate to Debian trust directory
       ansible.builtin.copy:
@@ -23,7 +23,7 @@
       changed_when: true
 
 - name: Install CA certificate into RedHat trust store
-  when: ansible_os_family == 'RedHat'
+  when: ansible_facts['os_family'] | lower == 'redhat'
   block:
     - name: Copy CA certificate to RedHat trust directory
       ansible.builtin.copy:
@@ -42,7 +42,7 @@
       changed_when: true
 
 - name: Install CA certificate into SUSE trust store
-  when: ansible_os_family == 'Suse'
+  when: ansible_facts['os_family'] | lower == 'suse'
   block:
     - name: Copy CA certificate to SUSE trust directory
       ansible.builtin.copy:

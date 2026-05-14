@@ -1,17 +1,16 @@
 # SPDX-License-Identifier: MIT
 ---
-# Generate a private CA on the first controller node.
-# The CA certificate and key are fetched to the Ansible controller
-# for distribution to other nodes during certificate signing.
-- name: Create SSL directory on first controller
+# Generate a private CA on the Ansible control node.
+# The CA key never leaves the control node -- node certs are signed here
+# and only the signed cert + node key are pushed to managed nodes.
+- name: Create local SSL directory on control node
   ansible.builtin.file:
-    path: "{{ ssl_init_dir }}"
+    path: "{{ ssl_init_local_dir }}"
     state: directory
-    owner: root
-    group: root
     mode: '0700'
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
 
 - name: Generate CA private key
   ansible.builtin.command:
@@ -19,47 +18,24 @@
       openssl genpkey
       -algorithm {{ ssl_init_key_algorithm }}
       -pkeyopt {{ 'ec_paramgen_curve:' + ssl_init_ca_curve if ssl_init_key_algorithm == 'EC' else 'rsa_keygen_bits:' + ssl_init_rsa_key_size | string }}
-      -out {{ ssl_init_dir }}/ca.key
-    creates: "{{ ssl_init_dir }}/ca.key"
+      -out {{ ssl_init_local_dir }}/ca.key
+    creates: "{{ ssl_init_local_dir }}/ca.key"
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Set CA key permissions
-  ansible.builtin.file:
-    path: "{{ ssl_init_dir }}/ca.key"
-    owner: root
-    group: root
-    mode: '0600'
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
 
 - name: Generate self-signed CA certificate
   ansible.builtin.command:
     cmd: >-
       openssl req -new -x509
-      -key {{ ssl_init_dir }}/ca.key
-      -out {{ ssl_init_dir }}/ca.crt
+      -key {{ ssl_init_local_dir }}/ca.key
+      -out {{ ssl_init_local_dir }}/ca.crt
       -days {{ ssl_init_ca_validity_days }}
       -subj "/CN={{ ssl_init_ca_name }}{{ '/O=' + ssl_init_cert_o if ssl_init_cert_o else '' }}{{ '/C=' + ssl_init_cert_c if ssl_init_cert_c else '' }}"
       -addext "basicConstraints=critical,CA:TRUE,pathlen:0"
       -addext "keyUsage=critical,keyCertSign,cRLSign"
       -addext "subjectKeyIdentifier=hash"
-    creates: "{{ ssl_init_dir }}/ca.crt"
+    creates: "{{ ssl_init_local_dir }}/ca.crt"
   run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Fetch CA certificate to Ansible controller
-  ansible.builtin.fetch:
-    src: "{{ ssl_init_dir }}/ca.crt"
-    dest: /tmp/linstor-ssl-certs/ca.crt
-    flat: true
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
-
-- name: Fetch CA key to Ansible controller
-  ansible.builtin.fetch:
-    src: "{{ ssl_init_dir }}/ca.key"
-    dest: /tmp/linstor-ssl-certs/ca.key
-    flat: true
-  run_once: true
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false

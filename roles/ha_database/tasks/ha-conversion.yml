@@ -37,9 +37,12 @@
     name: "{{ inventory_hostname }}"
     aux_properties:
       ControllerIsHA: "True"
-  delegate_to: "{{ _ha_db_primary_node }}"
-  throttle: 1
   when: inventory_hostname in _ha_db_combined_nodes
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  throttle: 1
 
 - name: Create HA database resource group
   linbit.linstor.resource_group:
@@ -47,6 +50,10 @@
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
     place_count: "{{ _ha_db_combined_nodes | length }}"
     drbd_options: "{{ ha_database_drbd_options }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
 # 3 combined nodes - diskful placement on every combined node
@@ -60,6 +67,10 @@
       - "{{ ha_database_res_size }}"
     nodes: "{{ _ha_db_placement_nodes }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Wait for HA database resource to be Connected with all peers
@@ -227,7 +238,11 @@
         {{ {'ClusterIsHA': 'True'} }}
       {%- endif -%}
   when: inventory_hostname in _ha_db_combined_nodes
-  run_once: true # noqa: run-once[task]
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  run_once: true  # noqa: run-once[task]
 
 # Update linstor-client.conf to use VIP on all cluster nodes
 - name: Update linstor-client.conf to use HA VIP

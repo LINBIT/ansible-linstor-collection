@@ -19,7 +19,7 @@ The following inventory groups must be defined:
 - `linstor_controllers`: nodes running the LINSTOR controller
 - `linstor_satellites`: nodes running the LINSTOR satellite
 
-`openssl` must be available on all cluster nodes for certificate generation.
+`openssl` must be available on the Ansible control node (for CA and certificate generation) and on all cluster nodes (for PKCS12 keystore conversion).
 
 Java `keytool` must be available on all cluster nodes (installed by the `linstor-controller` and `linstor-satellite` packages) for JKS keystore conversion.
 
@@ -42,7 +42,8 @@ Role Variables
 | `ssl_init_cert_ou` | `{{ inventory_hostname }}` | Organizational unit for the certificate DN |
 | `ssl_init_cert_o` | `""` | Organization for the certificate DN |
 | `ssl_init_cert_c` | `""` | Country code for the certificate DN |
-| `ssl_init_dir` | `/etc/linstor/ssl` | Directory for SSL keystores and certificates |
+| `ssl_init_dir` | `/etc/linstor/ssl` | Directory for SSL keystores and certificates on cluster nodes |
+| `ssl_init_local_dir` | `~/.config/linstor/ssl` | Directory on the Ansible control node for the CA key, CA cert, and signed per-node certs; persists across runs so new nodes can be signed without touching the cluster |
 | `ssl_init_keystore_password` | `linstor` | Password for Java keystores (use Ansible Vault for production) |
 | `ssl_init_truststore_password` | `linstor` | Password for Java truststores (use Ansible Vault for production) |
 | `ssl_init_key_password` | `linstor` | Password for private keys in TOML configuration (use Ansible Vault for production) |
@@ -54,16 +55,26 @@ Firewall ports 3370-3371 (controller) and 3366-3367 (satellite) are managed by t
 
 ### Certificate files
 
-When `ssl_init_generate_certs` is true, the role creates the following files in `ssl_init_dir` on each node:
+When `ssl_init_generate_certs` is true, the role creates the following files on the Ansible control node at `ssl_init_local_dir`:
 
 | File | Purpose |
 |---|---|
-| `ca.crt` | CA certificate (all nodes) |
-| `ca.key` | CA private key (first controller only) |
+| `ca.key` | CA private key — never distributed to cluster nodes |
+| `ca.crt` | CA certificate |
+| `<hostname>/node.key` | Per-node private key |
+| `<hostname>/node.crt` | CA-signed per-node certificate with SANs |
+
+The following files are pushed to each cluster node at `ssl_init_dir`:
+
+| File | Purpose |
+|---|---|
+| `ca.crt` | CA certificate |
 | `node.key` | Node private key |
 | `node.crt` | CA-signed node certificate with SANs |
 | `keystore.jks` | Java keystore containing node key and certificate |
 | `certificates.jks` | Java truststore containing the CA certificate |
+
+After completing the SSL configuration, `~/.config/linstor/linstor-client.conf` is written on the Ansible control node with the `linstors://` controller address and `cafile` pointing to `ssl_init_local_dir/ca.crt`.
 
 The CA certificate is also installed into the operating system trust store:
 
@@ -177,8 +188,8 @@ Use `--limit` for staged rollouts: the role detects which nodes still need SSL a
 ### Adding a new node
 
 When adding a node to an existing CA-secured cluster, run the role again.
-The CA certificate and key persist on the first controller.
-The role signs a new certificate for the new node without affecting existing nodes.
+The CA key persists on the Ansible control node at `ssl_init_local_dir`.
+The role signs a new certificate for the new node without touching any running cluster node or affecting existing nodes.
 
 License
 -------

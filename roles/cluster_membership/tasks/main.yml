@@ -62,6 +62,10 @@
     _cluster_membership_port: >-
       {{ cluster_membership_port | default(omit, true) }}
   when: inventory_hostname in groups['linstor_controllers']
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _cluster_membership_ctrl_register
 
 - name: Register LINSTOR satellite node
@@ -79,6 +83,10 @@
     _cluster_membership_port: >-
       {{ cluster_membership_port | default(omit, true) }}
   when: inventory_hostname not in groups['linstor_controllers']
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
 # When replication_ip is defined and differs from the LINSTOR registration IP,
 # register it as a second net interface (IP only, no port/com_type) and set
@@ -94,6 +102,10 @@
   when:
     - replication_ip is defined
     - replication_ip != _cluster_membership_linstor_ip
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
 - name: Set PrefNic node property to route DRBD over replication interface
   linbit.linstor.node:
@@ -103,6 +115,10 @@
   when:
     - replication_ip is defined
     - replication_ip != _cluster_membership_linstor_ip
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
 # Restart controller when its net interface was changed (e.g. Plain → SSL).
 - name: Restart controller after net interface change
