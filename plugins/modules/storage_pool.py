@@ -228,6 +228,8 @@ DRIVER_MAP = {
     'filethin': 'FILEThin',
     'spdk': 'SPDK',
     'remote_spdk': 'REMOTE_SPDK',
+    'storagespaces': 'STORAGE_SPACES',
+    'storagespaces_thin': 'STORAGE_SPACES_THIN',
 }
 
 
