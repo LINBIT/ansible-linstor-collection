@@ -38,7 +38,7 @@ options:
         supports. See L(LINSTOR User's Guide,
         https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-node-info).
     type: str
-    choices: [lvm, lvmthin, zfs, zfsthin, file, filethin, spdk, remote_spdk]
+    choices: [lvm, lvmthin, zfs, zfsthin, file, filethin, spdk, remote_spdk, storagespaces, storagespaces_thin]
   driver_pool:
     description:
       - Backend storage identifier.
