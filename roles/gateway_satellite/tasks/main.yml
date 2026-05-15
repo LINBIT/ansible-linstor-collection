@@ -8,6 +8,13 @@
   run_once: true  # noqa: run-once[task]
   changed_when: false
 
+- name: Gather OS facts for OS-specific vars
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when: ansible_facts['os_family'] is not defined
+
 - name: Load OS-specific variables for LINSTOR Gateway satellite
   ansible.builtin.include_vars: "{{ item }}"
   with_first_found:

@@ -1,6 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
 # tasks file for linstor-satellite
+- name: Gather OS facts for OS-specific vars
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when: ansible_facts['os_family'] is not defined
+
 - name: Check if linstor-satellite is already installed
   ansible.builtin.stat:
     path: /usr/lib/systemd/system/linstor-satellite.service

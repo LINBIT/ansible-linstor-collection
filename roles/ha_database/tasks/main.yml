@@ -8,6 +8,13 @@
   run_once: true  # noqa: run-once[task]
   changed_when: false
 
+- name: Gather OS facts for OS-specific vars
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when: ansible_facts['os_family'] is not defined
+
 # Idempotency gate: skip if already converted, fewer than 2 combined nodes,
 # or fewer than 3 total satellites (insufficient for quorum)
 - name: Check LINSTOR database to see if HA migration is needed
