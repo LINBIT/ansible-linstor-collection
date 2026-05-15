@@ -23,6 +23,50 @@
   failed_when: false
   changed_when: false
 
+- name: Assert no LINSTOR cluster node hostname is a loopback identifier
+  ansible.builtin.assert:
+    that: _bad_linstor_hostnames | length == 0
+    fail_msg: >-
+      LINSTOR cluster node hostnames {{ _bad_linstor_hostnames }} are loopback
+      identifiers. Use distinct, routable hostnames per node; the linstor
+      client falls back to 'linstor://localhost' when no controller is
+      reachable, which collides with a node literally named localhost and
+      produces confusing failures.
+    quiet: true
+  vars:
+    _all_linstor_nodes: "{{ groups.get('linstor_controllers', []) + groups.get('linstor_satellites', []) }}"
+    _loopback_hostnames:
+      - localhost
+      - localhost.localdomain
+      - ip6-localhost
+      - 127.0.0.1
+      - "::1"
+    _bad_linstor_hostnames: "{{ _all_linstor_nodes | intersect(_loopback_hostnames) }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Gather hostname facts for loopback check
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when: ansible_facts['hostname'] is not defined
+
+- name: Assert OS hostname is not a loopback identifier
+  ansible.builtin.assert:
+    that: (ansible_facts['hostname'] | lower) not in _loopback_hostnames
+    fail_msg: >-
+      OS hostname on {{ inventory_hostname }} reports as
+      '{{ ansible_facts['hostname'] }}', a loopback identifier.
+      The linbit.internal.common role normally sets the hostname from
+      inventory; re-run without --skip-tags common, or set the hostname
+      manually before invoking cluster_membership.
+    quiet: true
+  vars:
+    _loopback_hostnames:
+      - localhost
+      - localhost.localdomain
+      - ip6-localhost
+
 - name: Assert node registration IP is a valid IPv4 address
   ansible.builtin.assert:
     that: (_cluster_membership_linstor_ip | regex_search('^\d+\.\d+\.\d+\.\d+$')) is not none
@@ -31,13 +75,17 @@
       Set linstor_ip or replication_ip in inventory, or ensure ansible_host is an IP address.
     quiet: true
 
-- name: Assert replication_ip is a valid IPv4 address
+- name: Assert node registration IP is not a loopback or unspecified address
   ansible.builtin.assert:
-    that: (replication_ip | regex_search('^\d+\.\d+\.\d+\.\d+$')) is not none
+    that:
+      - not _cluster_membership_linstor_ip.startswith('127.')
+      - _cluster_membership_linstor_ip != '0.0.0.0'
+      - (_cluster_membership_linstor_ip | lower) not in ['::1', '0:0:0:0:0:0:0:1', '::', '0:0:0:0:0:0:0:0']
     fail_msg: >-
-      replication_ip '{{ replication_ip }}' is not a valid IPv4 address.
+      Node registration IP '{{ _cluster_membership_linstor_ip }}' is a
+      loopback or unspecified address. Set linstor_ip or replication_ip
+      in inventory to a routable IP, or fix ansible_host.
     quiet: true
-  when: replication_ip is defined
 
 - name: Assert host is not in both linstor_diskless_satellites and linstor_diskful_satellites
   ansible.builtin.assert:
