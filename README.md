@@ -22,7 +22,7 @@ Installs and configures the full LINSTOR software-defined storage stack: control
 ## Modules
 
 Custom Ansible modules for managing LINSTOR objects declaratively.
-Requires `python-linstor` on the control node (or on the execution target).
+Requires `python-linstor` on the control node (or on the execution target); see `requirements.txt` for the Python dependency, install with `pip install -r requirements.txt`.
 
 | Module | Description |
 |---|---|
