@@ -1,0 +1,690 @@
+# SPDX-License-Identifier: MIT
+---
+# Test LINSTOR Ansible modules against any deployed cluster.
+# Requires the linbit.linstor collection to be installed (via ansible-galaxy
+# or in a path on ANSIBLE_COLLECTIONS_PATH) so the linstor action group
+# resolves for module_defaults.
+# Expects standard LINSTOR inventory groups (linstor_controllers,
+# linstor_satellites, linstor_diskful_satellites).
+# Override the test storage pool with -e test_storage_pool=<name>
+# (defaults to sp0). Works against both plain and SSL clusters:
+#   ansible-playbook ./test_modules_advanced.yaml
+#   ansible-playbook ./test_modules_advanced.yaml -e linstor_ssl=true
+#   ansible-playbook ./test_modules_advanced.yaml -e test_storage_pool=mypool
+#
+# All module tasks run on the Ansible control node (connection: local).
+# The controller URI is injected via module_defaults on the linbit.linstor
+# action group, and switches between linstor:// and linstors:// automatically
+# based on linstor_ssl via the controller_env lookup.
+
+- name: Test LINSTOR modules
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  gather_facts: false
+  connection: local
+  module_defaults:
+    group/linbit.linstor.linstor:
+      controllers: "{{ lookup('linbit.linstor.controller_env') }}"
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    cluster_init_ssl: "{{ linstor_ssl | default(false) | bool }}"
+    _test_rg: test-mod-rg
+    _test_res: test-mod-res
+    _test_defonly: test-defonly-res
+    _test_auto: test-autoplace-res
+    _test_snap: test-mod-snap
+    _test_manual: test-manual-res
+    _test_rd_vols: test-rd-vols
+    _test_storage_pool: "{{ test_storage_pool | default('sp0') }}"
+    _test_kvs: test-mod-kvs
+    _sat1: "{{ groups['linstor_diskful_satellites'][0] }}"
+    _sat2: "{{ groups['linstor_diskful_satellites'][1] }}"
+
+  tasks:
+    # =================================================================
+    # Pre-cleanup: remove any leftover objects from prior runs
+    # =================================================================
+    - name: "Pre-cleanup: remove leftover test resources"
+      linbit.linstor.resource:
+        name: "{{ item }}"
+        state: absent
+      failed_when: false
+      run_once: true  # noqa: run-once[task]
+      loop:
+        - "{{ _test_res }}"
+        - "{{ _test_defonly }}"
+        - "{{ _test_auto }}"
+        - "{{ _test_manual }}"
+        - "{{ _test_rd_vols }}"
+
+    - name: "Pre-cleanup: remove leftover test VGs"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: "{{ item }}"
+        state: absent
+      failed_when: false
+      run_once: true  # noqa: run-once[task]
+      loop: [0, 1]
+
+    - name: "Pre-cleanup: remove leftover test RGs"
+      linbit.linstor.resource_group:
+        name: "{{ item }}"
+        state: absent
+      failed_when: false
+      run_once: true  # noqa: run-once[task]
+      loop:
+        - "{{ _test_rg }}"
+        - test-rg-simple
+
+    - name: "Pre-cleanup: remove leftover test KVS"
+      linbit.linstor.key_value_store:
+        name: "{{ _test_kvs }}"
+        state: absent
+      failed_when: false
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Controller
+    # =================================================================
+    - name: "Controller: read properties"
+      linbit.linstor.controller:
+      register: _ctrl_props
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Controller: show result"
+      ansible.builtin.debug:
+        var: _ctrl_props
+
+    # =================================================================
+    # Node
+    # =================================================================
+    - name: "Node: idempotent on existing satellites"
+      linbit.linstor.node:
+        name: "{{ item }}"
+        ip: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+      register: _node_idem
+      failed_when: _node_idem.changed
+      loop: "{{ groups['linstor_satellites'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Node: set aux property on first satellite"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        aux_properties:
+          test_key: test_value
+      register: _node_aux
+      failed_when: not _node_aux.changed
+
+    - name: "Node: aux property idempotent"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        aux_properties:
+          test_key: test_value
+      register: _node_aux_idem
+      failed_when: _node_aux_idem.changed
+
+    - name: "Node: check_mode reports change for new property"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        aux_properties:
+          test_key: test_value
+          check_key: check_value
+      check_mode: true
+      register: _node_check
+      failed_when: not _node_check.changed
+
+    - name: "Node: check_mode did not apply"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        aux_properties:
+          test_key: test_value
+      register: _node_after_check
+      failed_when: _node_after_check.changed
+
+    - name: "Node: delete aux property"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        delete_properties:
+          - Aux/test_key
+      register: _node_del_prop
+      failed_when: not _node_del_prop.changed
+
+    - name: "Node: delete property idempotent"
+      linbit.linstor.node:
+        name: "{{ _sat1 }}"
+        ip: "{{ hostvars[_sat1]['linstor_ip'] | default(hostvars[_sat1]['ansible_host']) }}"
+        delete_properties:
+          - Aux/test_key
+      register: _node_del_prop_idem
+      failed_when: _node_del_prop_idem.changed
+
+    # =================================================================
+    # Storage pool
+    # =================================================================
+    - name: "SP: absent on non-existent pool is no-op"
+      linbit.linstor.storage_pool:
+        name: test-nonexistent-pool
+        node: "{{ _sat1 }}"
+        state: absent
+      register: _sp_absent_noop
+      failed_when: _sp_absent_noop.changed
+
+    # =================================================================
+    # Resource group — simple (tests property operations, then cleanup)
+    # =================================================================
+    - name: "RG: create simple"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+      register: _rg_simple
+      failed_when: not _rg_simple.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: simple idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+      register: _rg_simple_idem
+      failed_when: _rg_simple_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: set property"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        properties:
+          Aux/test_prop: hello
+      register: _rg_prop
+      failed_when: not _rg_prop.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: property idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        properties:
+          Aux/test_prop: hello
+      register: _rg_prop_idem
+      failed_when: _rg_prop_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: delete property"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        delete_properties:
+          - Aux/test_prop
+      register: _rg_del_prop
+      failed_when: not _rg_del_prop.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: check_mode for delete"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        state: absent
+      check_mode: true
+      register: _rg_check_del
+      failed_when: not _rg_check_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: check_mode did not delete"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+      register: _rg_still_exists
+      failed_when: _rg_still_exists.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete test-rg-simple"
+      linbit.linstor.resource_group:
+        name: test-rg-simple
+        state: absent
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource group — DRBD options (used for spawn/snapshot tests below)
+    # =================================================================
+    - name: "RG: create with DRBD options"
+      linbit.linstor.resource_group:
+        name: "{{ _test_rg }}"
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+      register: _rg_create
+      failed_when: not _rg_create.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RG: DRBD options idempotent"
+      linbit.linstor.resource_group:
+        name: "{{ _test_rg }}"
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            quorum: majority
+            on-no-quorum: io-error
+      register: _rg_idem
+      failed_when: _rg_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Volume group
+    # =================================================================
+    - name: "VG: create volume group"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+      register: _vg_create
+      failed_when: not _vg_create.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "VG: idempotent"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+      register: _vg_idem
+      failed_when: _vg_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "VG: create second VG"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: 1
+      register: _vg2_create
+      failed_when: not _vg2_create.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "VG: second VG idempotent"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: 1
+      register: _vg2_idem
+      failed_when: _vg2_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "VG: delete second VG"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: 1
+        state: absent
+      register: _vg2_del
+      failed_when: not _vg2_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "VG: delete idempotent"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: 1
+        state: absent
+      register: _vg2_del_idem
+      failed_when: _vg2_del_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource — spawn mode
+    # =================================================================
+    - name: "Resource: spawn from resource group"
+      linbit.linstor.resource:
+        name: "{{ _test_res }}"
+        mode: spawn
+        resource_group: "{{ _test_rg }}"
+        size: 64M
+      register: _res_spawn
+      failed_when: not _res_spawn.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Resource: spawn idempotent"
+      linbit.linstor.resource:
+        name: "{{ _test_res }}"
+        mode: spawn
+        resource_group: "{{ _test_rg }}"
+        size: 64M
+      register: _res_spawn_idem
+      failed_when: _res_spawn_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Resource: check_mode on existing"
+      linbit.linstor.resource:
+        name: "{{ _test_res }}"
+        mode: spawn
+        resource_group: "{{ _test_rg }}"
+        size: 64M
+      check_mode: true
+      register: _res_check_idem
+      failed_when: _res_check_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource definition — DRBD options on spawned resource
+    # =================================================================
+    - name: "RD: set DRBD options on spawned resource"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_res }}"
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+      register: _rd_opts
+      failed_when: not _rd_opts.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RD: DRBD options idempotent"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_res }}"
+        drbd_options:
+          resource:
+            auto-promote: "no"
+            on-no-quorum: io-error
+      register: _rd_opts_idem
+      failed_when: _rd_opts_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Snapshot
+    # =================================================================
+    - name: "Snapshot: create"
+      linbit.linstor.snapshot:
+        resource: "{{ _test_res }}"
+        name: "{{ _test_snap }}"
+      register: _snap_create
+      failed_when: not _snap_create.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Snapshot: idempotent"
+      linbit.linstor.snapshot:
+        resource: "{{ _test_res }}"
+        name: "{{ _test_snap }}"
+      register: _snap_idem
+      failed_when: _snap_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Snapshot: delete"
+      linbit.linstor.snapshot:
+        resource: "{{ _test_res }}"
+        name: "{{ _test_snap }}"
+        state: absent
+      register: _snap_del
+      failed_when: not _snap_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete spawned resource"
+      linbit.linstor.resource:
+        name: "{{ _test_res }}"
+        state: absent
+      register: _res_del
+      failed_when: not _res_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource — spawn definitions_only
+    # =================================================================
+    - name: "Resource: spawn definitions_only"
+      linbit.linstor.resource:
+        name: "{{ _test_defonly }}"
+        mode: spawn
+        resource_group: "{{ _test_rg }}"
+        size: 32M
+        definitions_only: true
+      register: _res_defonly
+      failed_when: not _res_defonly.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Resource: definitions_only has no nodes"
+      ansible.builtin.assert:
+        that: _res_defonly.nodes | length == 0
+        fail_msg: "definitions_only should produce no deployed nodes"
+        quiet: true
+
+    - name: "Resource: definitions_only idempotent"
+      linbit.linstor.resource:
+        name: "{{ _test_defonly }}"
+        mode: spawn
+        resource_group: "{{ _test_rg }}"
+        size: 32M
+        definitions_only: true
+      register: _res_defonly_idem
+      failed_when: _res_defonly_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete definitions_only resource"
+      linbit.linstor.resource:
+        name: "{{ _test_defonly }}"
+        state: absent
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource — autoplace mode
+    # =================================================================
+    - name: "Resource: autoplace with 2 replicas"
+      linbit.linstor.resource:
+        name: "{{ _test_auto }}"
+        mode: autoplace
+        place_count: 2
+        size: 32M
+      register: _res_auto
+      failed_when: not _res_auto.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Resource: autoplace has at least 2 nodes"
+      ansible.builtin.assert:
+        that: _res_auto.nodes | length >= 2
+        fail_msg: "Expected >= 2 nodes, got {{ _res_auto.nodes | length }}"
+        quiet: true
+
+    - name: "Resource: autoplace idempotent"
+      linbit.linstor.resource:
+        name: "{{ _test_auto }}"
+        mode: autoplace
+        place_count: 2
+        size: 32M
+      register: _res_auto_idem
+      failed_when: _res_auto_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete autoplaced resource"
+      linbit.linstor.resource:
+        name: "{{ _test_auto }}"
+        state: absent
+      register: _res_auto_del
+      failed_when: not _res_auto_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource — manual placement + diskless
+    # =================================================================
+    - name: "RD: create for manual placement"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_manual }}"
+        volume_definitions:
+          - size: 32M
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Resource: manual placement on first satellite"
+      linbit.linstor.resource:
+        name: "{{ _test_manual }}"
+        mode: manual
+        node: "{{ _sat1 }}"
+        storage_pool: "{{ _test_storage_pool }}"
+      register: _res_manual
+      failed_when: not _res_manual.changed
+
+    - name: "Resource: manual idempotent"
+      linbit.linstor.resource:
+        name: "{{ _test_manual }}"
+        mode: manual
+        node: "{{ _sat1 }}"
+        storage_pool: "{{ _test_storage_pool }}"
+      register: _res_manual_idem
+      failed_when: _res_manual_idem.changed
+
+    - name: "Resource: add diskless on second satellite"
+      linbit.linstor.resource:
+        name: "{{ _test_manual }}"
+        mode: manual
+        node: "{{ _sat2 }}"
+        diskless: true
+      register: _res_diskless
+      failed_when: not _res_diskless.changed
+
+    - name: "Resource: diskless idempotent"
+      linbit.linstor.resource:
+        name: "{{ _test_manual }}"
+        mode: manual
+        node: "{{ _sat2 }}"
+        diskless: true
+      register: _res_diskless_idem
+      failed_when: _res_diskless_idem.changed
+
+    - name: "Resource: verify both nodes present"
+      ansible.builtin.assert:
+        that:
+          - _sat1 in _res_diskless.nodes
+          - _sat2 in _res_diskless.nodes
+        fail_msg: "Expected both {{ _sat1 }} and {{ _sat2 }} in nodes: {{ _res_diskless.nodes }}"
+        quiet: true
+
+    - name: "Cleanup: delete manual resource"
+      linbit.linstor.resource:
+        name: "{{ _test_manual }}"
+        state: absent
+      register: _res_manual_del
+      failed_when: not _res_manual_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Resource definition — inline volume_definitions
+    # =================================================================
+    - name: "RD: create with inline volume definitions"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        volume_definitions:
+          - size: 64M
+          - size: 32M
+      register: _rd_vols
+      failed_when: not _rd_vols.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RD: verify two volume definitions"
+      ansible.builtin.assert:
+        that: _rd_vols.volume_definitions | length == 2
+        fail_msg: "Expected 2 volume definitions, got {{ _rd_vols.volume_definitions | length }}"
+        quiet: true
+
+    - name: "RD: inline volume defs idempotent"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        volume_definitions:
+          - size: 64M
+          - size: 32M
+      register: _rd_vols_idem
+      failed_when: _rd_vols_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RD: set property"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        properties:
+          Aux/test_rd_prop: hello
+      register: _rd_prop
+      failed_when: not _rd_prop.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RD: property idempotent"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        properties:
+          Aux/test_rd_prop: hello
+      register: _rd_prop_idem
+      failed_when: _rd_prop_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "RD: delete property"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        delete_properties:
+          - Aux/test_rd_prop
+      register: _rd_del_prop
+      failed_when: not _rd_del_prop.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete RD with volumes"
+      linbit.linstor.resource_definition:
+        name: "{{ _test_rd_vols }}"
+        state: absent
+      register: _rd_vols_del
+      failed_when: not _rd_vols_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Key-value store
+    # =================================================================
+    - name: "KVS: create test instance"
+      linbit.linstor.key_value_store:
+        name: "{{ _test_kvs }}"
+        entries:
+          test_key: test_value
+      register: _kvs_create
+      failed_when: not _kvs_create.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "KVS: idempotent"
+      linbit.linstor.key_value_store:
+        name: "{{ _test_kvs }}"
+        entries:
+          test_key: test_value
+      register: _kvs_idem
+      failed_when: _kvs_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "KVS: delete"
+      linbit.linstor.key_value_store:
+        name: "{{ _test_kvs }}"
+        state: absent
+      register: _kvs_del
+      failed_when: not _kvs_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    # =================================================================
+    # Final cleanup
+    # =================================================================
+    - name: "Cleanup: delete test VG"
+      linbit.linstor.volume_group:
+        resource_group: "{{ _test_rg }}"
+        volume_nr: 0
+        state: absent
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete test RG"
+      linbit.linstor.resource_group:
+        name: "{{ _test_rg }}"
+        state: absent
+      register: _rg_del
+      failed_when: not _rg_del.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: "Cleanup: delete RG idempotent"
+      linbit.linstor.resource_group:
+        name: "{{ _test_rg }}"
+        state: absent
+      register: _rg_del_idem
+      failed_when: _rg_del_idem.changed
+      run_once: true  # noqa: run-once[task]
+
+    - name: All tests passed
+      ansible.builtin.debug:
+        msg: "All LINSTOR module tests passed."

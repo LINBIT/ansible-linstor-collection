@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify SSL state of a deployed LINSTOR cluster after ssl_init has run.
+# Expects standard LINSTOR inventory groups (linstor_cluster,
+# linstor_controllers, linstor_satellites).
+# Run after deploying with linstor_ssl=true:
+#   ansible-playbook ./test_ssl.yaml -e linstor_ssl=true
+#
+# Tests:
+#   1. CA private key did not leak to managed nodes
+#   2. SSL ports are listening (3371 controller, 3367 satellites)
+#   3. Control node linstor-client.conf uses linstors://
+#   4. CA cert is present on the control node
+#   5. LINSTOR controller module reachable over HTTPS (validates delegation)
+#   6. Satellite nodes are idempotent in LINSTOR over HTTPS (validates delegation)
+
+- name: Verify CA key did not leak to managed nodes
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check for CA key on managed node
+      ansible.builtin.stat:
+        path: /etc/linstor/ssl/ca.key
+      register: _ca_key_stat
+
+    - name: Assert CA key is absent from managed nodes
+      ansible.builtin.assert:
+        that:
+          - not _ca_key_stat.stat.exists
+        fail_msg: "CA private key found at /etc/linstor/ssl/ca.key on {{ inventory_hostname }} — key must not leave the Ansible control node"
+        quiet: true
+
+- name: Verify SSL connectivity and configuration
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    cluster_init_ssl: "{{ linstor_ssl | default(false) | bool }}"
+
+  tasks:
+    # =================================================================
+    # Port checks
+    # =================================================================
+    - name: Check controller HTTPS port 3371 is listening
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+        port: 3371
+        state: started
+        timeout: 10
+      loop: "{{ groups['linstor_controllers'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Check satellite SSL port 3367 is listening
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+        port: 3367
+        state: started
+        timeout: 10
+      loop: "{{ groups['linstor_satellites'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    # =================================================================
+    # Control node: linstor-client.conf uses linstors://
+    # =================================================================
+    - name: Read linstor-client.conf on control node
+      ansible.builtin.slurp:
+        src: "~/.config/linstor/linstor-client.conf"
+      register: _client_conf
+
+    - name: Assert linstor-client.conf uses linstors:// scheme
+      ansible.builtin.assert:
+        that:
+          - "'linstors://' in (_client_conf.content | b64decode)"
+        fail_msg: >-
+          ~/.config/linstor/linstor-client.conf does not contain linstors://.
+          ssl_init may not have written the control node client config.
+        quiet: true
+
+    # =================================================================
+    # Control node: CA cert present at ssl_init_local_dir
+    # =================================================================
+    - name: Check CA cert on control node
+      ansible.builtin.stat:
+        path: "~/.config/linstor/ssl/ca.crt"
+      register: _ca_crt_stat
+
+    - name: Assert CA cert exists on control node
+      ansible.builtin.assert:
+        that:
+          - _ca_crt_stat.stat.exists
+        fail_msg: >-
+          CA cert not found at ~/.config/linstor/ssl/ca.crt.
+          Check ssl_init_local_dir if the default was overridden.
+        quiet: true
+
+    # =================================================================
+    # Module connectivity: HTTPS endpoint reachable via delegation
+    # =================================================================
+    - name: Read controller properties over HTTPS
+      linbit.linstor.controller:
+      register: _ctrl_props
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Show controller properties
+      ansible.builtin.debug:
+        var: _ctrl_props
+
+    # Idempotent node assertion: proves each satellite is registered and reachable.
+    # failed_when: _node_idem.changed verifies no drift since cluster_init ran.
+    - name: Assert satellite node is idempotent over HTTPS
+      linbit.linstor.node:
+        name: "{{ item }}"
+        ip: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+      register: _node_idem
+      failed_when: _node_idem.changed
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      loop: "{{ groups['linstor_satellites'] }}"
+      loop_control:
+        label: "{{ item }}"
