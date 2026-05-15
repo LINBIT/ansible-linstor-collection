@@ -28,6 +28,7 @@ Requires `python-linstor` on the control node (or on the execution target).
 |---|---|
 | `controller` | Manage controller properties (cluster-wide singleton) |
 | `node` | Manage cluster nodes (create, properties, auxiliary properties) |
+| `node_interface` | Manage node net interfaces (create, modify, delete, query) |
 | `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
 | `resource_group` | Manage resource groups with placement rules, DRBD options, properties |
 | `volume_group` | Manage volume groups within a resource group |
@@ -49,6 +50,50 @@ All modules issue cluster-wide API calls via the LINSTOR controller.
 For `controller`, `resource_group`, `volume_group`, `resource_definition`, and `resource` in `autoplace` or `spawn` mode, use `run_once: true` or a single-host play (`hosts: linstor_controllers[0]`).
 For `resource` in `manual` mode, `node`, and `storage_pool`, the preferred pattern is `run_once: true` with a loop over inventory hosts.
 Alternatively, let each play host call the module with its own host variables.
+
+All module tasks run on the Ansible control node.
+Built-in roles delegate to `localhost` automatically, so `python-linstor` only needs to be installed on the control node, not on managed nodes.
+
+## Using modules in your own playbooks
+
+The collection declares a `linstor` action group in `meta/runtime.yml` (referenced as `group/linbit.linstor.linstor`), so the controller URI can be set once at the play level via `module_defaults`.
+The `controller_env` lookup resolves the URI from inventory and switches between `linstor://` and `linstors://` based on `cluster_init_ssl`.
+
+For a dedicated LINSTOR-management play, set `connection: local` with `hosts: linstor_controllers[0]` so every task runs on the control node without per-task delegation:
+
+```yaml
+- hosts: linstor_controllers[0]
+  connection: local
+  gather_facts: false
+  module_defaults:
+    group/linbit.linstor.linstor:
+      controllers: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Create a resource group
+      linbit.linstor.resource_group:
+        name: rg-0
+        storage_pool: sp-lvm
+        place_count: 2
+      run_once: true  # noqa: run-once[task]
+```
+
+To mix LINSTOR module tasks into a multi-host play, wrap them in a block:
+
+```yaml
+- name: Configure LINSTOR objects
+  module_defaults:
+    group/linbit.linstor.linstor:
+      controllers: "{{ lookup('linbit.linstor.controller_env') }}"
+  block:
+    - linbit.linstor.node:
+        name: "{{ inventory_hostname }}"
+        ip: "{{ ansible_host }}"
+  delegate_to: localhost
+  become: false
+```
+
+If `module_defaults` is not set, modules fall back to the `LS_CONTROLLERS` environment variable, then `/etc/linstor/linstor-client.conf`, then `linstor://localhost`.
+For example: `environment: { LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}" }` works at the task or play level.
 
 ## Required Inventory Groups
 
