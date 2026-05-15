@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 - name: Validate resource names are unique across all gateway targets
   ansible.builtin.assert:
     that: _ha_gw_all_resource_names | length == _ha_gw_all_resource_names | unique | length

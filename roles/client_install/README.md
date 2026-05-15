@@ -16,12 +16,11 @@ See `defaults/main.yml`.
 | Variable | Default | Description |
 |---|---|---|
 | `linstor_controller_addresses` | *(from inventory)* | List of controller IPs for `linstor-client.conf`. Auto-discovered from `linstor_controllers` group `replication_ip` values. |
-| `client_install_vip_discovery` | `true` | Query the controller for the `Aux/ha_database_vip` property and use it as the controller address. Set to `false` to always use `linstor_controller_addresses`. |
-| `client_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts `/etc/linstor/`, re-queries the controller for the HA VIP, and re-templates `linstor-client.conf`. Use for drift correction. |
+| `client_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts `/etc/linstor/` and re-templates `linstor-client.conf`. Use for drift correction. |
 
-On subsequent runs, the role queries the LINSTOR controller for the `Aux/ha_database_vip` property.
-If set (by the `ha_database` role), the VIP replaces the inventory-derived addresses automatically.
-No manual variable override is needed.
+The role always writes the full list of controller addresses to `linstor-client.conf`.
+The LINSTOR client walks the list and connects to the first responder, so HA failover works without a virtual IP.
+If `linstor_ha_vip` is set in inventory it is used by the `ha_database` role to wire up a floating IP for the LINSTOR GUI and external API users, but the client config does not consume it.
 
 Dependencies
 ------------

@@ -6,7 +6,6 @@ argument_specs:
     description:
       - Install and configure the LINSTOR client.
       - Deploys C(/etc/linstor/linstor-client.conf) with controller addresses.
-      - On subsequent runs, discovers the HA VIP from controller properties and uses it as the controller address.
     options:
       linstor_controller_addresses:
         type: list
@@ -14,19 +13,12 @@ argument_specs:
         description:
           - List of controller IPs for C(linstor-client.conf).
           - Auto-discovered from the C(linstor_controllers) group C(replication_ip) values.
-      client_install_vip_discovery:
-        type: bool
-        default: true
-        description:
-          - Query the controller for the C(Aux/ha_database_vip) property and use it as the controller address.
-          - Set to C(false) to always use C(linstor_controller_addresses).
       client_install_force_reconfigure:
         type: bool
         default: false
         description:
           - Force re-running the configure phase even when the LINSTOR client
             package install reports unchanged.
-          - Re-asserts C(/etc/linstor/) directory, re-queries the controller
-            for the HA VIP, and re-templates C(linstor-client.conf).
-          - Use for drift correction after manual edits to client.conf or
-            after an HA VIP is added to an existing cluster.
+          - Re-asserts C(/etc/linstor/) directory and re-templates
+            C(linstor-client.conf).
+          - Use for drift correction after manual edits to client.conf.

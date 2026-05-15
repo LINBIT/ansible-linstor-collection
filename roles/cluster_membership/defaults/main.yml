@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-# LS_CONTROLLERS URI string derived from inventory - VIP if set, otherwise all
-# linstor_controllers; scheme switches to linstors:// when cluster_init_ssl is true.
-linstor_controller_vip: "{{ linstor_ha_vip.split('/')[0] if linstor_ha_vip | default('') else '' }}"
-
 # Network communication type for node registration (Plain or SSL).
 # Omit to leave the current setting unchanged on existing nodes.
 cluster_membership_com_type:

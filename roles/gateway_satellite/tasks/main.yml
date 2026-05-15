@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 - name: Load OS-specific variables for LINSTOR Gateway satellite
   ansible.builtin.include_vars: "{{ item }}"
   with_first_found:

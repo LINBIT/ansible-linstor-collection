@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-linstor_controller_vip: "{{ linstor_ha_vip.split('/')[0] if linstor_ha_vip | default('') else '' }}"
-
 storage_pool_defaults:
   type: lvmthin
   vg_thinpool: thinpool

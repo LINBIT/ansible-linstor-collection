@@ -57,7 +57,10 @@ Built-in roles delegate to `localhost` automatically, so `python-linstor` only n
 ## Using modules in your own playbooks
 
 The collection declares a `linstor` action group in `meta/runtime.yml` (referenced as `group/linbit.linstor.linstor`), so the controller URI can be set once at the play level via `module_defaults`.
-The `controller_env` lookup resolves the URI from inventory and switches between `linstor://` and `linstors://` based on `cluster_init_ssl`.
+The `controller_env` lookup builds a comma-joined URI string from all hosts in `groups['linstor_controllers']`.
+The LINSTOR client walks the list and connects to the first responder.
+When `linstor_ssl` is truthy in the play's variable context, the lookup emits `linstors://` URIs; otherwise plain `linstor://`.
+Set `linstor_ssl: true` when targeting an SSL cluster.
 
 For a dedicated LINSTOR-management play, set `connection: local` with `hosts: linstor_controllers[0]` so every task runs on the control node without per-task delegation:
 

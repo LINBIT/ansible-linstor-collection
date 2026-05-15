@@ -12,14 +12,13 @@ DOCUMENTATION = '''
     - Returns a comma-joined URI string suitable for the C(LS_CONTROLLERS)
       environment variable on tasks delegated to localhost during
       C(cluster_init).
-    - Reads C(linstor_controller_vip), C(cluster_init_ssl), C(groups), and
-      C(hostvars) directly from the current variable context - no parameters
-      required.
-    - When C(linstor_controller_vip) is set, it is used as the sole controller
-      address. Otherwise all hosts in C(linstor_controllers) are resolved via
-      the C(linstor_addr) precedence rule (C(linstor_ip) → C(replication_ip)
-      → C(ansible_host)).
-    - When C(cluster_init_ssl) is true, the scheme switches from C(linstor://)
+    - Reads C(linstor_ssl), C(groups), and C(hostvars) directly from the
+      current variable context - no parameters required.
+    - All hosts in C(linstor_controllers) are resolved via the C(linstor_addr)
+      precedence rule (C(linstor_ip) → C(replication_ip) → C(ansible_host))
+      and joined with commas. The client walks the list and connects to the
+      first responder.
+    - When C(linstor_ssl) is true, the scheme switches from C(linstor://)
       to C(linstors://).
     - If C(linstor_controllers_env) is set in inventory or playbook vars it is
       returned as-is, allowing full override without touching role internals.
@@ -73,12 +72,8 @@ class LookupModule(LookupBase):
         if override:
             return [override]
 
-        vip = self._tmpl(variables.get('linstor_controller_vip', ''), variables)
-        ssl = self._tmpl(variables.get('cluster_init_ssl', False), variables)
+        ssl = self._tmpl(variables.get('linstor_ssl', False), variables)
         scheme = 'linstors' if ssl else 'linstor'
-
-        if vip:
-            return ['{0}://{1}'.format(scheme, vip.split('/')[0])]
 
         groups = variables.get('groups', {})
         hostvars = variables.get('hostvars', {})

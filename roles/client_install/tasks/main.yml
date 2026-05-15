@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 - name: Check if linstor-client is already installed
   ansible.builtin.stat:
     path: "{{ _client_install_linstor_path }}"
@@ -22,3 +30,27 @@
   when:
     (_client_install_package is changed) or
     (client_install_force_reconfigure | bool)
+
+- name: Ensure control-node linstor config directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.config/linstor"
+    state: directory
+    mode: '0700'
+  when: not (linstor_ssl | default(false) | bool)
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Render control-node linstor-client.conf
+  ansible.builtin.template:
+    src: "linstor-client.j2"
+    dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
+    mode: '0600'
+  vars:
+    linstor_client_https: false
+    linstor_client_certfile: ""
+    linstor_client_keyfile: ""
+  when: not (linstor_ssl | default(false) | bool)
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]

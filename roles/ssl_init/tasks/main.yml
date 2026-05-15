@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 - name: Gather controller service facts
   ansible.builtin.service_facts:
   when: inventory_hostname in groups['linstor_controllers']
@@ -9,6 +17,117 @@
   ansible.builtin.stat:
     path: "{{ ssl_init_dir }}/keystore.jks"
   register: _ssl_init_local_check
+
+- name: Check whether cluster has an existing CA cert
+  ansible.builtin.stat:
+    path: "{{ ssl_init_dir }}/ca.crt"
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _ssl_init_cluster_ca_stat
+  changed_when: false
+
+- name: Read cluster CA cert content
+  ansible.builtin.slurp:
+    src: "{{ ssl_init_dir }}/ca.crt"
+  when: _ssl_init_cluster_ca_stat.stat.exists
+  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  run_once: true  # noqa: run-once[task]
+  register: _ssl_init_cluster_ca
+  changed_when: false
+
+- name: Stat local CA cert on control node
+  ansible.builtin.stat:
+    path: "{{ ssl_init_local_dir }}/ca.crt"
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  register: _ssl_init_local_ca_stat
+  changed_when: false
+
+- name: Read local CA cert content
+  ansible.builtin.slurp:
+    src: "{{ ssl_init_local_dir }}/ca.crt"
+  when: _ssl_init_local_ca_stat.stat.exists
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  register: _ssl_init_local_ca
+  changed_when: false
+
+- name: Assert cluster CA matches local CA when both exist
+  ansible.builtin.assert:
+    that: >-
+      (_ssl_init_cluster_ca.content | b64decode) ==
+      (_ssl_init_local_ca.content | b64decode)
+    fail_msg: >-
+      Local CA at {{ ssl_init_local_dir }}/ca.crt differs from the cluster's
+      CA at {{ groups['linstor_controllers'][0] }}:{{ ssl_init_dir }}/ca.crt.
+      Re-running ssl_init from here would re-key the cluster and break trust
+      for every other workstation and consumer. To adopt this cluster from
+      this control node, remove {{ ssl_init_local_dir }} and re-run; the
+      cluster's CA will be fetched automatically.
+    quiet: true
+  when:
+    - _ssl_init_cluster_ca.content is defined
+    - _ssl_init_local_ca.content is defined
+  run_once: true  # noqa: run-once[task]
+
+- name: Ensure control-node SSL directory exists
+  ansible.builtin.file:
+    path: "{{ ssl_init_local_dir }}"
+    state: directory
+    mode: '0700'
+  when: _ssl_init_cluster_ca.content is defined
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Materialize cluster CA on control node
+  ansible.builtin.copy:
+    content: "{{ _ssl_init_cluster_ca.content | b64decode }}"
+    dest: "{{ ssl_init_local_dir }}/ca.crt"
+    mode: '0644'
+  when: _ssl_init_cluster_ca.content is defined
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Stat local client cert for mTLS
+  ansible.builtin.stat:
+    path: "{{ ssl_init_local_dir }}/client.pem"
+  when: _ssl_init_cluster_ca.content is defined
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  register: _ssl_init_local_client_cert
+  changed_when: false
+
+- name: Ensure control-node linstor config directory exists
+  ansible.builtin.file:
+    path: "{{ ssl_init_local_dir | dirname }}"
+    state: directory
+    mode: '0700'
+  when: _ssl_init_cluster_ca.content is defined
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Materialize control-node linstor-client.conf
+  ansible.builtin.copy:
+    content: |
+      [global]
+      controllers={{ groups | linbit.linstor.controller_env(hostvars, true) }}
+      cafile={{ ssl_init_local_dir }}/ca.crt
+      {% if _ssl_init_local_client_cert.stat.exists | default(false) %}
+      certfile={{ ssl_init_local_dir }}/client.pem
+      keyfile={{ ssl_init_local_dir }}/client.key
+      {% endif %}
+    dest: "{{ ssl_init_local_dir | dirname }}/linstor-client.conf"
+    mode: '0600'
+  when: _ssl_init_cluster_ca.content is defined
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
 
 - name: Check if satellite SSL is already active
   linbit.linstor.node:

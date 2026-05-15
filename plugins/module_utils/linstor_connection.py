@@ -3,6 +3,8 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+import os
+
 HAS_LINSTOR = True
 LINSTOR_IMPORT_ERROR = None
 
@@ -33,9 +35,12 @@ def get_linstor_connection(module):
     1. Module 'controllers' parameter (if provided)
     2. LS_CONTROLLERS environment variable
     3. /etc/linstor/linstor-client.conf [global] controllers= key
-    4. Fallback: linstor://localhost
+    4. ~/.config/linstor/linstor-client.conf (XDG user config)
+    5. Fallback: linstor://localhost
 
-    Steps 2-4 are handled by linstor.Config.get_controllers().
+    Steps 2-5 are handled by linstor.Config.get_controllers().
+    SSL cert paths (certfile/keyfile/cafile) are read from the same
+    config files in the same order, with user-level overriding system.
     """
     if not HAS_LINSTOR:
         module.fail_json(
@@ -57,9 +62,15 @@ def get_linstor_connection(module):
         lin = linstor.MultiLinstor(uri_list)
 
         # Read SSL cert paths from linstor-client.conf for HTTPS/mTLS
+        # System config first, then XDG user config; user-level wins.
         import configparser
         config = configparser.ConfigParser()
-        config.read('/etc/linstor/linstor-client.conf')
+        xdg_config_home = os.environ.get(
+            'XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+        config.read([
+            '/etc/linstor/linstor-client.conf',
+            os.path.join(xdg_config_home, 'linstor', 'linstor-client.conf'),
+        ])
         certfile = config.get('global', 'certfile', fallback=None)
         keyfile = config.get('global', 'keyfile', fallback=None)
         cafile = config.get('global', 'cafile', fallback=None)

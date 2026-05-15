@@ -10,38 +10,6 @@
     group: root
     mode: '0755'
 
-# Check for HA VIP: if linstor-client.conf already exists, the controller
-# may be reachable and may have an Aux/ha_database_vip property set.
-- name: Check for existing linstor-client.conf
-  ansible.builtin.stat:
-    path: /etc/linstor/linstor-client.conf
-  when: client_install_vip_discovery | bool
-  register: _client_install_conf
-
-- name: Query controller for HA VIP property
-  linbit.linstor.controller:
-    state: query
-  when:
-    - client_install_vip_discovery | bool
-    - _client_install_conf.stat.exists
-  delegate_to: localhost
-  become: false
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  register: _client_install_controller_props
-  ignore_errors: true
-
-- name: Set controller addresses from HA VIP if available
-  ansible.builtin.set_fact:
-    linstor_controller_addresses:
-      - "{{ _client_install_controller_props.properties['Aux/ha_database_vip'] }}"
-  when:
-    - client_install_vip_discovery | bool
-    - _client_install_controller_props is not skipped
-    - _client_install_controller_props is not failed
-    - "'Aux/ha_database_vip' in _client_install_controller_props.properties"
-    - _client_install_controller_props.properties['Aux/ha_database_vip'] != ''
-
 - name: Setup linstor-client.conf
   ansible.builtin.template:
     src: "linstor-client.j2"

@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 - name: Read satellite TOML config for SSL detection
   ansible.builtin.slurp:
     src: /etc/linstor/linstor_satellite.toml
@@ -40,6 +48,25 @@
       {{ inventory_hostname }} is a member of both linstor_diskless_satellites and
       linstor_diskful_satellites. A node can only belong to one.
     quiet: true
+
+- name: Verify control-node access to the LINSTOR controller
+  linbit.linstor.controller:
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  register: _cluster_membership_local_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Assert control-node ~/.config/linstor/linstor-client.conf reaches the controller
+  ansible.builtin.assert:
+    that: _cluster_membership_local_check is succeeded
+    fail_msg: >-
+      Control-node ~/.config/linstor/linstor-client.conf cannot reach the LINSTOR
+      controller. The local config is likely stale from a previous cluster bring-up.
+      Re-run client_install to refresh it.
+    quiet: true
+  run_once: true  # noqa: run-once[task]
 
 # Initialize both pure controllers and combined (controller+satellite) nodes.
 # Combined nodes detect SSL from satellite TOML. Pure controllers detect from controller TOML (HTTPS keystore).

@@ -11,11 +11,11 @@
 - name: Read satellite TOML config
   ansible.builtin.slurp:
     src: /etc/linstor/linstor_satellite.toml
+  when: inventory_hostname in groups.get('linstor_satellites', [])
   register: _gw_toml
   failed_when: false
   changed_when: false
   listen: restart_linstor_satellite
-  when: inventory_hostname in groups.get('linstor_satellites', [])
 
 # 12 second delay ensures node is listed ONLINE after restart
 - name: Wait for LINSTOR satellite port
@@ -30,15 +30,18 @@
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
     state: query
+  when:
+    - groups.get('linstor_controllers', []) | length > 0
+    - inventory_hostname in groups.get('linstor_satellites', [])
   register: _gw_satellite_status
   until: _gw_satellite_status.connection_status | default('') == 'ONLINE'
   retries: 9
   delay: 5
-  delegate_to: "{{ groups['linstor_controllers'][0] }}"
+  delegate_to: localhost
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   listen: restart_linstor_satellite
-  when:
-    - groups.get('linstor_controllers', []) | length > 0
-    - inventory_hostname in groups.get('linstor_satellites', [])
 
 - name: Gather service facts before NFS disable
   ansible.builtin.service_facts:

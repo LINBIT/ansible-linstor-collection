@@ -11,7 +11,6 @@
     linstor_client_https: true
     linstor_client_certfile: "{{ (ssl_init_dir + '/client.pem') if ssl_init_https_mtls | default(false) | bool else '' }}"
     linstor_client_keyfile: "{{ (ssl_init_dir + '/client.key') if ssl_init_https_mtls | default(false) | bool else '' }}"
-    client_install_vip_discovery: false
 
 - name: Ensure control node linstor config directory exists
   ansible.builtin.file:
@@ -27,12 +26,12 @@
     dest: "{{ ssl_init_local_dir | dirname }}/linstor-client.conf"
     content: |
       [global]
-      controllers={{ groups | linbit.linstor.controller_env(hostvars, linstor_controller_vip | default(''), true) }}
+      controllers={{ groups | linbit.linstor.controller_env(hostvars, true) }}
       cafile={{ ssl_init_local_dir }}/ca.crt
-      {%- if ssl_init_https_mtls | default(false) | bool %}
+      {% if ssl_init_https_mtls | default(false) | bool %}
       certfile={{ ssl_init_local_dir }}/client.pem
       keyfile={{ ssl_init_local_dir }}/client.key
-      {%- endif %}
+      {% endif %}
     mode: '0600'
   delegate_to: localhost
   become: false

@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Pin localhost Python interpreter for module delegation
+  ansible.builtin.add_host:
+    name: localhost
+    ansible_connection: local
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  run_once: true  # noqa: run-once[task]
+  changed_when: false
+
 # Idempotency gate: skip if already converted, fewer than 2 combined nodes,
 # or fewer than 3 total satellites (insufficient for quorum)
 - name: Check LINSTOR database to see if HA migration is needed
