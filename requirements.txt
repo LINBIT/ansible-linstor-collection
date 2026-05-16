@@ -1,1 +1,2 @@
+# Upstream: https://github.com/LINBIT/linstor-api-py
 python-linstor>=1.27.0
