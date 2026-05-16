@@ -128,99 +128,14 @@
     - ssl_init_satellite | bool
     - inventory_hostname in groups['linstor_satellites']
 
-# Flip DB before the restart: the controller boots with SslConnectors instead
-# of caching PlainConnectors. Suppressed when the node doesn't exist yet.
-- name: Update node network interface to SSL
-  linbit.linstor.node:
-    name: "{{ inventory_hostname }}"
-    com_type: SSL
-  when: ssl_init_satellite | bool
-  delegate_to: "{{ linstor_api_delegate }}"
-  become: false
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  register: _ssl_init_netif_update
-  failed_when: false
+# Flush so the restart/com-type handler chain completes before the
+# CLI re-template and ONLINE check below.
+- name: Apply pending SSL handlers before verification
+  ansible.builtin.meta: flush_handlers
 
-# Detect HA via reactor TOML; the resource name is the file basename.
-- name: Find DRBD Reactor config managing linstor-controller
-  ansible.builtin.find:
-    paths: /etc/drbd-reactor.d
-    patterns: "*.toml"
-    contains: "linstor-controller.service"
-    read_whole_file: true
-  delegate_to: "{{ _active_controller_node }}"
-  register: _ssl_init_reactor_find
-  run_once: true  # noqa: run-once[task]
-
-- name: Set DRBD Reactor resource name
-  ansible.builtin.set_fact:
-    _ssl_init_reactor_resource: "{{ _ssl_init_reactor_find.files[0].path | basename | regex_replace('\\.toml$', '') }}"
-  when: _ssl_init_reactor_find.matched | default(0) | int > 0
-  run_once: true  # noqa: run-once[task]
-
-# Disable reactor on every controller; disabling only the active node leaves
-# other reactors racing to promote during the restart's brief demote window.
-- name: Disable DRBD Reactor management of linstor-controller
-  ansible.builtin.command: drbd-reactorctl disable {{ _ssl_init_reactor_resource }}
-  when:
-    - _ssl_init_reactor_resource is defined
-    - inventory_hostname in groups['linstor_controllers']
-  run_once: false
-  changed_when: true
-
-- name: Restart active controller for SSL
-  ansible.builtin.service:
-    name: linstor-controller.service
-    state: restarted
-  delegate_to: "{{ _active_controller_node }}"
-  run_once: true  # noqa: run-once[task]
-
-- name: Wait for controller after SSL restart
-  ansible.builtin.wait_for:
-    host: localhost
-    port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
-    delay: 5
-    timeout: 60
-  delegate_to: "{{ _active_controller_node }}"
-  run_once: true  # noqa: run-once[task]
-
-- name: Wait for LINSTOR controller API to become responsive
-  linbit.linstor.controller:
-    state: query
-  delegate_to: "{{ linstor_api_delegate }}"
-  become: false
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  register: _ssl_init_ctrl_ready
-  retries: 10
-  delay: 5
-  until: _ssl_init_ctrl_ready is succeeded
-  run_once: true  # noqa: run-once[task]
-
-- name: Re-enable DRBD Reactor management of linstor-controller
-  ansible.builtin.command: drbd-reactorctl enable {{ _ssl_init_reactor_resource }}
-  when:
-    - _ssl_init_reactor_resource is defined
-    - inventory_hostname in groups['linstor_controllers']
-  run_once: false
-  changed_when: true
-
-# Now restart satellites so they reconnect to the SSL-enabled controller.
-- name: Restart linstor-satellite for SSL
-  ansible.builtin.service:
-    name: linstor-satellite.service
-    state: restarted
-  when: inventory_hostname in groups['linstor_satellites']
-
-- name: Wait for linstor-satellite SSL port
-  ansible.builtin.wait_for:
-    host: localhost
-    port: "{{ ssl_init_satellite_port }}"
-    timeout: 30
-  when: inventory_hostname in groups['linstor_satellites']
-
-# Switch the CLI to HTTPS now that everything's on SSL.
+# Re-template linstor-client.conf after the controller is on HTTPS.
+# Always runs (idempotent template, no-op when content matches), so a
+# clean re-run still ensures the conf is in sync.
 - name: Update linstor-client.conf for HTTPS
   ansible.builtin.include_tasks: configure-client.yml
   when: ssl_init_https | bool

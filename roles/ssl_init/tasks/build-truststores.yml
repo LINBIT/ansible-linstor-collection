@@ -23,3 +23,6 @@
       done < {{ ssl_init_dir }}/ca.crt
     executable: /bin/bash
     creates: "{{ ssl_init_dir }}/certificates.jks"
+  notify:
+    - ssl_controller_changed
+    - ssl_satellite_changed

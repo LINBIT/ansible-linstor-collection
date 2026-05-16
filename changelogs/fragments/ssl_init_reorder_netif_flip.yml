@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    ``ssl_init`` now flips satellite netinterfaces to SSL after the
+    controller restart, not before. The previous order ran the modify
+    while ``defaultSslConSvc`` was still empty (the controller's
+    pre-seeded ``netcom/SslConnector`` had failed to start at the last
+    boot because the keystore did not exist yet), producing one
+    ``LinStorRuntimeException: The ServiceName of the default TCP
+    connector is not valid`` ErrorReport per satellite. After the
+    restart the keystore is present, the SSL connector starts, and
+    the netif modify completes cleanly. The previous role suppressed
+    the failure with ``failed_when: false``; the suppression is removed
+    and replaced with a prior ``state: query`` gate so fresh installs
+    (nodes not yet registered) still skip cleanly.

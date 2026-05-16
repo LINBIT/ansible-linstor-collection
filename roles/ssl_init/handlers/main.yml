@@ -1,3 +1,125 @@
 # SPDX-License-Identifier: MIT
 ---
-# Service restarts are handled explicitly at the tail of initialize-ssl.yml.
+# Order is load-bearing: Ansible fires handlers in the order they are
+# defined here, not the order they were notified. The controller restart
+# sequence must stay reactor-disable, restart, wait, reactor-enable.
+
+- name: Find DRBD Reactor config managing linstor-controller
+  ansible.builtin.find:
+    paths: /etc/drbd-reactor.d
+    patterns: "*.toml"
+    contains: "linstor-controller.service"
+    read_whole_file: true
+  delegate_to: "{{ _active_controller_node }}"
+  register: _ssl_init_reactor_find
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
+- name: Set DRBD Reactor resource name
+  ansible.builtin.set_fact:
+    _ssl_init_reactor_resource: "{{ _ssl_init_reactor_find.files[0].path | basename | regex_replace('\\.toml$', '') }}"
+  when: _ssl_init_reactor_find.matched | default(0) | int > 0
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
+# Disable reactor on every controller; disabling only the active node
+# leaves other reactors racing to promote during the restart window.
+- name: Disable DRBD Reactor management of linstor-controller
+  ansible.builtin.command: drbd-reactorctl disable {{ _ssl_init_reactor_resource }}
+  when:
+    - _ssl_init_reactor_resource is defined
+    - inventory_hostname in groups['linstor_controllers']
+  changed_when: true
+  listen: ssl_controller_changed
+
+- name: Restart active controller for SSL
+  ansible.builtin.service:
+    name: linstor-controller.service
+    state: restarted
+  delegate_to: "{{ _active_controller_node }}"
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
+- name: Wait for controller after SSL restart
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ ssl_init_https_port if ssl_init_https | bool else 3370 }}"
+    delay: 5
+    timeout: 60
+  delegate_to: "{{ _active_controller_node }}"
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
+- name: Wait for LINSTOR controller API to become responsive
+  linbit.linstor.controller:
+    state: query
+  delegate_to: "{{ linstor_api_delegate }}"
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _ssl_init_ctrl_ready
+  retries: 10
+  delay: 5
+  until: _ssl_init_ctrl_ready is succeeded
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
+- name: Re-enable DRBD Reactor management of linstor-controller
+  ansible.builtin.command: drbd-reactorctl enable {{ _ssl_init_reactor_resource }}
+  when:
+    - _ssl_init_reactor_resource is defined
+    - inventory_hostname in groups['linstor_controllers']
+  changed_when: true
+  listen: ssl_controller_changed
+
+- name: Check if node is already registered
+  linbit.linstor.node:
+    name: "{{ inventory_hostname }}"
+    state: query
+  when: _ssl_init_flip_when | bool
+  vars:
+    _ssl_init_flip_when: >-
+      {{ (ssl_init_satellite | bool and inventory_hostname in groups['linstor_satellites'])
+         or (ssl_init_https | bool and inventory_hostname in groups['linstor_controllers']) }}
+  delegate_to: "{{ linstor_api_delegate }}"
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _ssl_init_node_check
+  listen:
+    - ssl_controller_changed
+    - ssl_satellite_changed
+
+- name: Update node network interface to SSL
+  linbit.linstor.node:
+    name: "{{ inventory_hostname }}"
+    com_type: SSL
+  when:
+    - _ssl_init_flip_when | bool
+    - _ssl_init_node_check.exists | default(false)
+  vars:
+    _ssl_init_flip_when: >-
+      {{ (ssl_init_satellite | bool and inventory_hostname in groups['linstor_satellites'])
+         or (ssl_init_https | bool and inventory_hostname in groups['linstor_controllers']) }}
+  delegate_to: "{{ linstor_api_delegate }}"
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  listen:
+    - ssl_controller_changed
+    - ssl_satellite_changed
+
+- name: Restart linstor-satellite for SSL
+  ansible.builtin.service:
+    name: linstor-satellite.service
+    state: restarted
+  when: inventory_hostname in groups['linstor_satellites']
+  listen: ssl_satellite_changed
+
+- name: Wait for linstor-satellite SSL port
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ ssl_init_satellite_port }}"
+    timeout: 30
+  when: inventory_hostname in groups['linstor_satellites']
+  listen: ssl_satellite_changed

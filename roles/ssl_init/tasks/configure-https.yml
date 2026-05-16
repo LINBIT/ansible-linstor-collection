@@ -7,6 +7,7 @@
     marker: "# {mark} ANSIBLE MANAGED HTTPS BLOCK"
     state: absent
   when: ansible_check_mode is not defined or not ansible_check_mode
+  notify: ssl_controller_changed
 
 # Use ini_file to set keys under the existing [https] section.
 # TOML and INI share enough syntax for simple key = "value" pairs.
@@ -17,6 +18,7 @@
     option: keystore
     value: '"{{ ssl_init_dir }}/keystore.jks"'
     mode: '0644'
+  notify: ssl_controller_changed
 
 - name: Set HTTPS keystore password in linstor.toml
   community.general.ini_file:
@@ -25,6 +27,7 @@
     option: keystore_password
     value: '"{{ ssl_init_keystore_password }}"'
     mode: '0644'
+  notify: ssl_controller_changed
 
 - name: Set HTTPS truststore path in linstor.toml
   community.general.ini_file:
@@ -34,6 +37,7 @@
     value: '"{{ ssl_init_dir }}/truststore_client.jks"'
     mode: '0644'
   when: ssl_init_https_mtls | bool
+  notify: ssl_controller_changed
 
 - name: Set HTTPS truststore password in linstor.toml
   community.general.ini_file:
@@ -43,3 +47,4 @@
     value: '"{{ ssl_init_truststore_password }}"'
     mode: '0644'
   when: ssl_init_https_mtls | bool
+  notify: ssl_controller_changed

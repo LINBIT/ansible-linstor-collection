@@ -8,3 +8,4 @@
     create: true
     mode: '0644'
     state: present
+  notify: ssl_satellite_changed
