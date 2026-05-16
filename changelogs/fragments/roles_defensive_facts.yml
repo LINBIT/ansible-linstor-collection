@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    Roles now gather OS facts defensively at the start of their
+    task lists, so they can run from standalone playbooks that
+    skip the usual ``linbit.internal.common`` fact-gathering
+    play.

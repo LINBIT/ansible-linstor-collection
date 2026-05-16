@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    cluster_membership - reject ``localhost``/``127.0.0.0/8`` and
+    loopback addresses when resolving the LINSTOR registration IP,
+    so misconfigured inventories fail fast instead of producing an
+    unreachable cluster.

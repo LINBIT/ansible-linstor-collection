@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    All package-install tasks now wrap with ``retries: 3`` and
+    ``delay: 10`` so transient mirror/TLS flake during package
+    installation does not abort the role.

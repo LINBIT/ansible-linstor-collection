@@ -1,0 +1,59 @@
+---
+ancestor: 0.9.6
+releases:
+  0.9.7:
+    changes:
+      breaking_changes:
+        - 'gateway_satellite - role variables have been renamed with a ``gateway_satellite_``
+          prefix for namespacing. Update any overrides in ``hosts.yaml``, ``group_vars/``,
+          or playbook ``vars:`` blocks.
+
+          '
+      bugfixes:
+        - 'client_install - replace the broken ``linstor-client.j2`` symlink with
+          the real template so ``/etc/linstor/linstor-client.conf`` renders correctly.
+
+          '
+        - 'gateway_satellite - fix ``nfsv4_only`` handling so the NFSv4-only path
+          is honored end to end.
+
+          '
+        - 'ha_gateway - default the NFS ``mountd`` listen address to ``0.0.0.0/0.0.0.0``
+          to match ``linstor-gateway`` interop and avoid binding failures when the
+          service IP is not yet present.
+
+          '
+      minor_changes:
+        - 'New filter plugin ``linstor_addr`` and lookup plugin ``group_addresses``
+          for resolving LINSTOR-facing addresses from host vars and group membership.
+
+          '
+        - 'gateway_install - inline the LINSTOR Gateway GitHub download URL rather
+          than templating it. Simplifies the role and removes a variable from the
+          public surface.
+
+          '
+      trivial:
+        - 'satellite_install - tool-label the "Install ZFS packages" task for ``apt``,
+          ``dnf``, and ``zypper``.
+
+          '
+        - 'Drop the unused ``playbooks/`` directory and orphaned duplicate copies
+          of ``linstor-client.j2``.
+
+          '
+    fragments:
+      - client_install_template_fix.yml
+      - drop_dead_playbooks.yml
+      - gateway_install_inline_url.yml
+      - gateway_satellite_rename.yml
+      - ha_gateway_nfs_mountd.yml
+      - linstor_addr_filter.yml
+      - satellite_install_zfs_label.yml
+    plugins:
+      lookup:
+        - description: Resolve LINSTOR\-facing addresses for every host in an Ansible
+            group.
+          name: group_addresses
+          namespace: null
+    release_date: '2026-05-13'

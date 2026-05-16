@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+---
+major_changes:
+  - >
+    LINSTOR modules now execute on the Ansible control node and talk
+    directly to the LINSTOR controller, rather than running on each
+    managed node via that node's ``python-linstor``. ``python-linstor``
+    is required on the control node and is no longer required on
+    managed satellites or controllers. This unlocks targeting hosts
+    that cannot host ``python-linstor`` themselves, including
+    Windows nodes and Linux nodes with mixed Python environments
+    (for example 3.6 and 3.12) where Ansible's interpreter discovery
+    is unreliable. The collection's own roles handle the delegation
+    internally; user playbook surface is unchanged.

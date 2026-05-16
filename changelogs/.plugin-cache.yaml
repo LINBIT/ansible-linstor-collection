@@ -1,0 +1,124 @@
+objects: {}
+plugins:
+  become: {}
+  cache: {}
+  callback: {}
+  cliconf: {}
+  connection: {}
+  httpapi: {}
+  inventory: {}
+  lookup:
+    controller_env:
+      description: Build an LS_CONTROLLERS URI string from inventory context
+      name: controller_env
+      version_added: 0.9.7
+    group_addresses:
+      description: Resolve LINSTOR-facing addresses for every host in an Ansible group
+      name: group_addresses
+      version_added: 0.9.7
+  module:
+    backup:
+      description: Create or delete LINSTOR backups on a remote
+      name: backup
+      namespace: ''
+      version_added: 0.9.7
+    backup_abort:
+      description: Abort an in-progress LINSTOR backup operation
+      name: backup_abort
+      namespace: ''
+      version_added: 0.9.7
+    backup_info:
+      description: Query LINSTOR backups, backup details, and queue status
+      name: backup_info
+      namespace: ''
+      version_added: 0.9.7
+    backup_restore:
+      description: Restore a LINSTOR backup to a new resource
+      name: backup_restore
+      namespace: ''
+      version_added: 0.9.7
+    backup_ship:
+      description: Ship a LINSTOR backup between clusters or remotes
+      name: backup_ship
+      namespace: ''
+      version_added: 0.9.7
+    controller:
+      description: Manage LINSTOR controller properties
+      name: controller
+      namespace: ''
+      version_added: 0.9.7
+    encryption:
+      description: Manage LINSTOR encryption passphrase
+      name: encryption
+      namespace: ''
+      version_added: 0.9.7
+    file:
+      description: Manage LINSTOR external files
+      name: file
+      namespace: ''
+      version_added: 0.9.7
+    key_value_store:
+      description: Manage LINSTOR key-value store
+      name: key_value_store
+      namespace: ''
+      version_added: 0.9.7
+    linstor_installed:
+      description: Detect whether LINSTOR is installed on the target host
+      name: linstor_installed
+      namespace: ''
+      version_added: 0.9.8
+    node:
+      description: Manage LINSTOR cluster nodes
+      name: node
+      namespace: ''
+      version_added: 0.9.7
+    node_interface:
+      description: Manage LINSTOR node network interfaces
+      name: node_interface
+      namespace: ''
+      version_added: 0.9.7
+    remote:
+      description: Manage LINSTOR remotes for backup shipping
+      name: remote
+      namespace: ''
+      version_added: 0.9.7
+    resource:
+      description: Deploy LINSTOR resources
+      name: resource
+      namespace: ''
+      version_added: 0.9.7
+    resource_definition:
+      description: Manage LINSTOR resource definitions
+      name: resource_definition
+      namespace: ''
+      version_added: 0.9.7
+    resource_group:
+      description: Manage LINSTOR resource groups
+      name: resource_group
+      namespace: ''
+      version_added: 0.9.7
+    schedule:
+      description: Manage LINSTOR backup schedules
+      name: schedule
+      namespace: ''
+      version_added: 0.9.7
+    snapshot:
+      description: Manage LINSTOR snapshots
+      name: snapshot
+      namespace: ''
+      version_added: 0.9.7
+    storage_pool:
+      description: Manage LINSTOR storage pools
+      name: storage_pool
+      namespace: ''
+      version_added: 0.9.7
+    volume_group:
+      description: Manage LINSTOR volume groups
+      name: volume_group
+      namespace: ''
+      version_added: 0.9.7
+  netconf: {}
+  shell: {}
+  strategy: {}
+  vars: {}
+version: 0.9.7

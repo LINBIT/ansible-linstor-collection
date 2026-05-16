@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    storage_pool - support the ``storagespaces`` and
+    ``storagespaces_thin`` drivers (Windows Storage Spaces),
+    including the matching ``DOCUMENTATION`` choices on the
+    module.

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    Ship a ``requirements.txt`` declaring ``python-linstor`` so
+    the control-node side of the collection can be installed with
+    ``pip install -r requirements.txt``.

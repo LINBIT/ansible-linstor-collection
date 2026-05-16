@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    New filter ``controller_env`` and lookup ``controller_env`` for
+    building an ``LS_CONTROLLERS`` URI string from inventory context.
+    The lookup emits a comma-joined controller list (no VIP) so
+    LINSTOR clients walk the list and fail over naturally, and it
+    supports the ``linstors://`` scheme when ``linstor_ssl`` is set.
+    ``linstor_ha_vip`` is now a ``ha_database``-only variable, no
+    longer threaded through general client/controller resolution.
