@@ -37,7 +37,7 @@
   until: _gw_satellite_status.connection_status | default('') == 'ONLINE'
   retries: 9
   delay: 5
-  delegate_to: localhost
+  delegate_to: "{{ linstor_api_delegate }}"
   become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

@@ -22,3 +22,7 @@ ha_database_drbd_options:
     on-no-quorum: io-error
     on-no-data-accessible: io-error
     on-suspended-primary-outdated: force-secondary
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

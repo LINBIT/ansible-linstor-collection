@@ -29,3 +29,7 @@ ha_gateway_nfs_options: rw,all_squash,anonuid=0,anongid=0
 # NVMe-oF-specific defaults
 ha_gateway_nvmeof_port: 4420
 ha_gateway_nvmeof_nqn_base: "nqn.2026-06.io.linbit:nvme"
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

@@ -21,7 +21,7 @@
   linbit.linstor.controller:
     state: query
   when: _ha_db_combined_nodes | length >= 2
-  delegate_to: localhost
+  delegate_to: "{{ linstor_api_delegate }}"
   become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

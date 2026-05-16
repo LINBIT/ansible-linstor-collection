@@ -31,3 +31,16 @@ argument_specs:
           - Dict providing fallback values for omitted keys in each pool item.
           - Override this dict to change defaults globally.
           - See C(defaults/main.yml) for the full default dict.
+      linstor_api_delegate:
+        type: str
+        required: false
+        default: localhost
+        description:
+          - Delegation target for LINSTOR API tasks (python-linstor module calls).
+          - Default C(localhost) runs the calls on the Ansible control node.
+          - Override to a cluster node when the control node cannot reach the
+            controller API endpoint directly (SSH jump host, segmented
+            management network).
+          - "Common override: C({{ groups['linstor_controllers'][0] }})."
+          - The delegated node must have C(python-linstor) installed.
+            Cluster nodes have it via LINSTOR package dependencies.

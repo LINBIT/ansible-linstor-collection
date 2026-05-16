@@ -37,3 +37,7 @@ ssl_init_https_port: 3371
 # Satellite SSL settings
 ssl_init_satellite_port: 3367
 ssl_init_satellite_protocol: "TLSv1.3"
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

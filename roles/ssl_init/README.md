@@ -50,6 +50,7 @@ Role Variables
 | `ssl_init_https_port` | `3371` | HTTPS port for the LINSTOR REST API |
 | `ssl_init_satellite_port` | `3367` | SSL port for satellite communication |
 | `ssl_init_satellite_protocol` | `TLSv1.3` | TLS protocol version for satellite SSL |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly. OpenSSL and keytool tasks always run on the control node regardless of this value. |
 
 Firewall ports 3370-3371 (controller) and 3366-3367 (satellite) are managed by the `controller_install` and `satellite_install` roles respectively.
 

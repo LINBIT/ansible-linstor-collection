@@ -136,7 +136,7 @@
   when:
     - ssl_init_satellite | bool
     - _ssl_init_local_check.stat.exists
-  delegate_to: localhost
+  delegate_to: "{{ linstor_api_delegate }}"
   become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

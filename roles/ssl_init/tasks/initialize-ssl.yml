@@ -135,7 +135,7 @@
     name: "{{ inventory_hostname }}"
     com_type: SSL
   when: ssl_init_satellite | bool
-  delegate_to: localhost
+  delegate_to: "{{ linstor_api_delegate }}"
   become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -185,6 +185,19 @@
   delegate_to: "{{ _active_controller_node }}"
   run_once: true  # noqa: run-once[task]
 
+- name: Wait for LINSTOR controller API to become responsive
+  linbit.linstor.controller:
+    state: query
+  delegate_to: "{{ linstor_api_delegate }}"
+  become: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _ssl_init_ctrl_ready
+  retries: 10
+  delay: 5
+  until: _ssl_init_ctrl_ready is succeeded
+  run_once: true  # noqa: run-once[task]
+
 - name: Re-enable DRBD Reactor management of linstor-controller
   ansible.builtin.command: drbd-reactorctl enable {{ _ssl_init_reactor_resource }}
   when:
@@ -217,7 +230,7 @@
     name: "{{ inventory_hostname }}"
     state: query
   when: inventory_hostname in groups['linstor_satellites']
-  delegate_to: localhost
+  delegate_to: "{{ linstor_api_delegate }}"
   become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

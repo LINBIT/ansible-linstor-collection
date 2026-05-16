@@ -11,3 +11,7 @@ storage_pool_defaults:
   zpool_vdev_type: stripe
   zpool_properties: {}
   wipefs_force: false
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

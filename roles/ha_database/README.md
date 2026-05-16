@@ -38,6 +38,7 @@ See `defaults/main.yml`.
 | `ha_database_allow_2_replica` | `false` | Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist. Role fails by default and asks the operator to promote a third node to combined for full data redundancy. Set `true` to opt in; ignored when only 2 diskful satellites exist (small cluster, no other choice). |
 | `ha_database_vip` | `""` | Virtual IP for the HA controller (for example `10.0.0.100/24`). DRBD Reactor floats an IPaddr2 resource with the active controller. The IP is stored as `Aux/ha_database_vip` so `client_install` discovers it on subsequent runs. Defaults to `/24` if no CIDR is given. When set, the role installs the IPaddr2 OCF resource agent via `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present. |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
 Dependencies
 ------------

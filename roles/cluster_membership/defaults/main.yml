@@ -11,3 +11,7 @@ cluster_membership_port:
 # Replication network interface name (registered when replication_ip differs from linstor_ip).
 # When set, node-level PrefNic is set to this interface so DRBD replication uses it.
 cluster_membership_replication_netif: replication
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

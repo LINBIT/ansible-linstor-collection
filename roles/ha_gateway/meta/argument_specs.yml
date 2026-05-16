@@ -120,3 +120,16 @@ argument_specs:
             Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to
             C(ha_gateway_nvmeof_nqn_base:name).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
+      linstor_api_delegate:
+        type: str
+        required: false
+        default: localhost
+        description:
+          - Delegation target for LINSTOR API tasks (python-linstor module calls).
+          - Default C(localhost) runs the calls on the Ansible control node.
+          - Override to a cluster node when the control node cannot reach the
+            controller API endpoint directly (SSH jump host, segmented
+            management network).
+          - "Common override: C({{ groups['linstor_controllers'][0] }})."
+          - The delegated node must have C(python-linstor) installed.
+            Cluster nodes have it via LINSTOR package dependencies.

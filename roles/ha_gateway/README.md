@@ -67,6 +67,7 @@ See `defaults/main.yml`.
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
 | `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on target. Must include `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
 Resource Naming
 ---------------

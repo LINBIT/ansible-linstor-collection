@@ -25,6 +25,19 @@ Role Variables
 | `cluster_membership_replication_netif` | `replication` | Name for the optional dedicated DRBD net interface |
 | `cluster_membership_com_type` | unset | Override `Plain` or `SSL` for node registration; auto-detected from satellite/controller TOML when unset |
 | `cluster_membership_port` | unset | Override registration port; defaults to standard LINSTOR ports based on node type and SSL state |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+
+Delegation
+----------
+
+LINSTOR API tasks (`linbit.linstor.node`, `linbit.linstor.node_interface`) run on `linstor_api_delegate`, defaulting to `localhost`.
+When the Ansible control node cannot reach the LINSTOR controller API endpoint directly (for example, an SSH jump host setup or a segmented management network), set:
+
+```yaml
+linstor_api_delegate: "{{ groups['linstor_controllers'][0] }}"
+```
+
+This routes the python-linstor calls through Ansible's SSH transport (which already handles ProxyJump) and lets the controller node make the API call locally.
 
 Network interfaces
 ------------------

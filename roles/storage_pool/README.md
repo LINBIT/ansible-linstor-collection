@@ -79,6 +79,12 @@ A dict providing fallback values for omitted keys in each pool item.
 Override this dict to change defaults globally.
 See `defaults/main.yml`.
 
+### `linstor_api_delegate` (role default: `localhost`)
+
+Delegation target for LINSTOR API tasks.
+Default `localhost` runs the python-linstor calls on the Ansible control node.
+Override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller API endpoint directly (SSH jump host, segmented management network).
+
 Behavior
 --------
 

@@ -21,3 +21,7 @@ gateway_satellite_firewall_ports: >-
 # SCST iSCSI target - compile and install from source
 gateway_satellite_scst: false
 gateway_satellite_scst_version: '3.10.x'
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

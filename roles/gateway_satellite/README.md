@@ -28,6 +28,7 @@ Role Variables
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048). Matches `ha_gateway_nfsv4_only` default. |
 | `gateway_satellite_scst` | `false` | LIO alternative. Compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
 | `gateway_satellite_scst_version` | `3.10.x` | SCST git tag to build from source (see [tags](https://github.com/SCST-project/scst/tags)); only used when `gateway_satellite_scst=true` |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
 Dependencies
 ------------
