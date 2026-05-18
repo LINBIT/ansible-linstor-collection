@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >
-    New ``linstor_installed`` module that reports whether
-    ``linstor-controller``/``linstor-satellite`` are installed
-    on the target host. Replaces an earlier filter-plugin
-    prototype.

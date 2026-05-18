@@ -1,9 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >
-    ssl_init - assert that any pre-existing local CA on the control
-    node matches the cluster's CA before continuing. If they differ,
-    fail with a clear message pointing at the local path to remove
-    rather than silently re-keying the cluster and breaking trust
-    for every other workstation and consumer.

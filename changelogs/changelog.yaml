@@ -34,12 +34,12 @@ releases:
 
           '
       trivial:
-        - 'satellite_install - tool-label the "Install ZFS packages" task for ``apt``,
-          ``dnf``, and ``zypper``.
-
-          '
         - 'Drop the unused ``playbooks/`` directory and orphaned duplicate copies
           of ``linstor-client.j2``.
+
+          '
+        - 'satellite_install - tool-label the "Install ZFS packages" task for ``apt``,
+          ``dnf``, and ``zypper``.
 
           '
     fragments:
@@ -57,3 +57,129 @@ releases:
           name: group_addresses
           namespace: null
     release_date: '2026-05-13'
+  0.9.8:
+    changes:
+      bugfixes:
+        - 'Roles now gather OS facts defensively at the start of their task lists,
+          so they can run from standalone playbooks that skip the usual ``linbit.internal.common``
+          fact-gathering play.
+
+          '
+        - 'ssl_init - flip satellite netinterfaces to SSL after the controller restart,
+          not before, so the SSL connector is up when the modify lands and no longer
+          produces a spurious ``LinStorRuntimeException`` ErrorReport per satellite.
+          The previous ``failed_when: false`` suppression is replaced with a ``state:
+          query`` gate so fresh installs still skip cleanly.
+
+          '
+        - 'cluster_membership - reject ``localhost``/``127.0.0.0/8`` and loopback
+          addresses when resolving the LINSTOR registration IP, so misconfigured inventories
+          fail fast instead of producing an unreachable cluster.
+
+          '
+        - 'ssl_init - assert that any pre-existing local CA on the control node matches
+          the cluster''s CA before continuing. If they differ, fail with a clear message
+          pointing at the local path to remove rather than silently re-keying the
+          cluster and breaking trust for every other workstation and consumer.
+
+          '
+      major_changes:
+        - 'LINSTOR modules now execute on the Ansible control node and talk directly
+          to the LINSTOR controller, rather than running on each managed node via
+          that node''s ``python-linstor``. The previous on-node pattern piggybacked
+          on the ``python-linstor`` that ships transitively with ``linstor-client``,
+          which ruled out targeting hosts that cannot host it (Windows nodes, Linux
+          nodes with mixed Python environments where Ansible''s interpreter discovery
+          is unreliable). The Ansible control node now requires ``python-linstor``.
+          The collection''s own roles handle the delegation internally; user playbook
+          surface is unchanged.
+
+          '
+      minor_changes:
+        - 'All package-install tasks now wrap with ``retries: 3`` and ``delay: 10``
+          so transient mirror/TLS flake during package installation does not abort
+          the role.
+
+          '
+        - 'Every LINSTOR module that wraps ``python-linstor`` now includes an ``EXAMPLES``
+          entry showing how to route the API call through a LINSTOR controller via
+          ``delegate_to:`` for SSH jump host and segmented management network setups.
+          The ``controller`` module also demonstrates the ``block:`` pattern for
+          sharing delegation across a sequence of LINSTOR tasks.
+
+          '
+        - 'New ``linstor_installed`` module that reports whether ``linstor-controller``/``linstor-satellite``
+          are installed on the target host. Replaces an earlier filter-plugin prototype.
+
+          '
+        - 'New ``linstor`` action group in ``meta/runtime.yml`` covering every LINSTOR
+          object module. Helps keep LINSTOR module calling inside playbooks more straightforward
+          with the new control-node built-in delegation pattern (avoids repeating
+          ``controllers:`` on every module call).
+
+          '
+        - 'New ``controller_env`` filter and lookup for building an ``LS_CONTROLLERS``
+          URI string from inventory. The lookup emits a comma-joined controller list
+          (no VIP); LINSTOR clients walk it and connect to whichever controller responds.
+          The ``linstors://`` scheme is used when ``linstor_ssl`` is set.
+
+          '
+        - 'The ``linstor_ha_vip`` variable is now ``ha_database``-only, no longer
+          threaded through general client/controller address resolution.
+
+          '
+        - 'Ship a ``requirements.txt`` declaring ``python-linstor`` so the control-node
+          side of the collection can be installed with ``pip install -r requirements.txt``.
+
+          '
+        - 'The ``linstor_connection.py`` shared module util now reads client certificate
+          paths from both ``/etc/linstor/`` and the XDG user config directory so control-node-side
+          runs and on-node CLI invocations pick the same credentials.
+
+          '
+        - 'The control-node ``~/.config/linstor/linstor-client.conf`` is auto-materialized
+          on every cluster bring-up so subsequent ``linstor`` CLI invocations target
+          the right cluster. The ``client_install`` role writes the plain variant
+          when ``linstor_ssl`` is false; ``ssl_init`` fetches the cluster''s CA from
+          a controller and writes the ``linstors://`` variant.
+
+          '
+        - 'cluster_membership - pre-flight that the control-node''s ``~/.config/linstor/linstor-client.conf``
+          actually reaches the LINSTOR controller and fail with an actionable message
+          pointing at ``client_install`` to refresh stale local config, instead of
+          letting the first module call fail with a generic connection error.
+
+          '
+        - 'ssl_init - convert the controller/satellite restart sequence to handlers
+          notified by change-producing tasks. A re-run with no changes now fires zero
+          restarts; a partial re-run only triggers restarts when keystores, truststores,
+          or SSL TOML actually changed.
+
+          '
+        - 'storage_pool - support the ``storagespaces`` and ``storagespaces_thin``
+          drivers (Windows Storage Spaces), including the matching ``DOCUMENTATION``
+          choices on the module.
+
+          '
+    fragments:
+      - cluster_membership_loopback.yml
+      - cluster_membership_preflight.yml
+      - controller_env_plugins.yml
+      - delegate_to_control_node.yml
+      - integration_tests.yml
+      - linstor_client_conf_xdg.yml
+      - linstor_installed_module.yml
+      - module_examples_delegate_to.yml
+      - network_retries_install.yml
+      - requirements_python_linstor.yml
+      - roles_defensive_facts.yml
+      - runtime_action_group.yml
+      - ssl_init_ca_guard.yml
+      - ssl_init_idempotent_restarts.yml
+      - ssl_init_reorder_netif_flip.yml
+      - storage_pool_storagespaces.yml
+    modules:
+      - description: Detect whether LINSTOR is installed on the target host.
+        name: linstor_installed
+        namespace: ''
+    release_date: '2026-05-18'

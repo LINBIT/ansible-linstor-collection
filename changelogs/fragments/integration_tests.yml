@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-trivial:
-  - >
-    tests/integration - add stack-agnostic module and SSL test
-    playbooks runnable against any provisioned LINSTOR cluster.

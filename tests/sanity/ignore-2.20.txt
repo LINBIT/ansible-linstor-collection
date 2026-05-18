@@ -7,6 +7,7 @@ plugins/modules/controller.py validate-modules:missing-gplv3-license
 plugins/modules/encryption.py validate-modules:missing-gplv3-license
 plugins/modules/file.py validate-modules:missing-gplv3-license
 plugins/modules/key_value_store.py validate-modules:missing-gplv3-license
+plugins/modules/linstor_installed.py validate-modules:missing-gplv3-license
 plugins/modules/node.py validate-modules:missing-gplv3-license
 plugins/modules/node_interface.py validate-modules:missing-gplv3-license
 plugins/modules/remote.py validate-modules:missing-gplv3-license
