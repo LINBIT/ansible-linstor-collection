@@ -93,6 +93,18 @@ EXAMPLES = r'''
     name: cluster-metadata
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Set a key-value entry via a delegated controller
+  linbit.linstor.key_value_store:
+    name: cluster-metadata
+    entries:
+      version: "1.0"
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

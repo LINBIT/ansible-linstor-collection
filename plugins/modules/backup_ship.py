@@ -132,6 +132,18 @@ EXAMPLES = r'''
     dst_resource: res-data
     force_full: true
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Ship a backup to a peer cluster via a delegated controller
+  linbit.linstor.backup_ship:
+    remote: remote-dr-site
+    src_resource: res-data
+    dst_resource: res-data-dr
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

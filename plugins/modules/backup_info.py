@@ -137,6 +137,18 @@ EXAMPLES = r'''
   when: not (ship_queue.queue.node_queues | default([]))
         and not (ship_queue.queue.snap_queues | default([]))
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: List backups on a remote via a delegated controller
+  linbit.linstor.backup_info:
+    remote: remote-s3-backup
+    kind: list
+  register: backup_list
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

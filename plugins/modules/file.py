@@ -86,6 +86,17 @@ EXAMPLES = r'''
     path: /etc/drbd-reactor.d/linstor-gateway-iscsi-example.toml
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Push an external file via a delegated controller
+  linbit.linstor.file:
+    path: /etc/drbd-reactor.d/linstor-gateway-iscsi-example.toml
+    content: "{{ lookup('file', 'promoter.toml') }}"
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

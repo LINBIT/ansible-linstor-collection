@@ -222,6 +222,19 @@ EXAMPLES = r'''
     cluster_id: "{{ dr_cluster_id }}"
     force_recreate: true
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Create a LINSTOR remote via a delegated controller
+  linbit.linstor.remote:
+    name: remote-dr-site
+    type: linstor
+    url: linstor://dr-controller.example.com
+    cluster_id: "{{ dr_cluster_id }}"
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

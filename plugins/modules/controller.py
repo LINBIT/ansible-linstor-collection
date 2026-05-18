@@ -144,6 +144,35 @@ EXAMPLES = r'''
     delete_properties:
       - Aux/region
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Set a controller property via a delegated controller
+  linbit.linstor.controller:
+    properties:
+      DrbdOptions/auto-quorum: io-error
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
+
+# Share delegation across a sequence of LINSTOR module tasks via block.
+# Cleaner than repeating delegate_to and environment on every task.
+- name: Cluster bootstrap through a delegated controller
+  block:
+    - name: Set controller properties
+      linbit.linstor.controller:
+        properties:
+          DrbdOptions/auto-quorum: io-error
+
+    - name: Create resource group rg-0
+      linbit.linstor.resource_group:
+        name: rg-0
+        place_count: 2
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

@@ -164,6 +164,19 @@ EXAMPLES = r'''
     node: node-1
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Create an LVM storage pool via a delegated controller
+  linbit.linstor.storage_pool:
+    name: sp-lvm
+    node: node-1
+    driver: lvm
+    driver_pool: drbdpool
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

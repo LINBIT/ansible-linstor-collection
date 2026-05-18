@@ -223,6 +223,18 @@ EXAMPLES = r'''
     name: rg-0
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Create a resource group via a delegated controller
+  linbit.linstor.resource_group:
+    name: rg-0
+    place_count: 2
+    storage_pool: sp-lvm
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

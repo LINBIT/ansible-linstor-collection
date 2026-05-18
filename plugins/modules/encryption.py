@@ -103,6 +103,17 @@ EXAMPLES = r'''
     state: query
   register: crypt_result
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Enter the master passphrase via a delegated controller
+  linbit.linstor.encryption:
+    state: entered
+    passphrase: "{{ vault_master_passphrase }}"
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

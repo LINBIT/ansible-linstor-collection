@@ -111,6 +111,18 @@ EXAMPLES = r'''
     name: replication
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Add a replication interface via a delegated controller
+  linbit.linstor.node_interface:
+    node: node-1
+    name: replication
+    ip: 192.168.222.10
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

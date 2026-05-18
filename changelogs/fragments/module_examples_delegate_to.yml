@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    Every LINSTOR module that wraps ``python-linstor`` now includes
+    an ``EXAMPLES`` entry showing how to route the API call through
+    a LINSTOR controller via ``delegate_to:`` for SSH jump host and
+    segmented management network setups. ``controller`` also
+    demonstrates the ``block:`` pattern for sharing delegation
+    across a sequence of LINSTOR tasks.

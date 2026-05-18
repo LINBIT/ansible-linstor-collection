@@ -196,6 +196,17 @@ EXAMPLES = r'''
     max_retries: 3
     keep_remote: 24
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Create a backup schedule via a delegated controller
+  linbit.linstor.schedule:
+    name: sched-hourly
+    full_cron: "0 * * * *"
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''

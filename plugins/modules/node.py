@@ -265,6 +265,18 @@ EXAMPLES = r'''
     name: node-3
     state: absent
   run_once: true  # noqa: run-once[task]
+
+# Delegate to a cluster controller when the control node cannot reach
+# the LINSTOR API directly (SSH jump host, segmented management network)
+- name: Register a satellite via a delegated controller
+  linbit.linstor.node:
+    name: node-1
+    ip: 192.168.222.10
+    node_type: Satellite
+  delegate_to: controller-0
+  environment:
+    LS_CONTROLLERS: linstor://localhost
+  run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
