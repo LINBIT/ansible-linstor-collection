@@ -109,10 +109,17 @@ options:
 requirements:
   - python-linstor
 notes:
-  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
+  - This module issues API calls via C(python-linstor) to the LINSTOR controller.
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
-  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "For cluster-wide tasks use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
   - C(state=present) only works with S3-compatible remotes. For
     LINSTOR-to-LINSTOR remotes, use M(linbit.linstor.backup_ship) instead.
   - The M(linbit.linstor.remote) module must be used first to configure
@@ -137,6 +144,7 @@ EXAMPLES = r'''
     remote: remote-s3-backup
     resource: res-data
     incremental: false
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Create an incremental backup

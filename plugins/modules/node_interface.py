@@ -60,6 +60,13 @@ options:
 requirements:
   - python-linstor
 notes:
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
   - This module manages network interfaces on existing LINSTOR nodes.
   - The C(default) interface is created automatically when a node is registered
     and serves as the satellite connection unless another interface is designated.
@@ -79,6 +86,7 @@ EXAMPLES = r'''
     node: node-1
     name: replication
     ip: 192.168.100.11
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Create an SSL network interface

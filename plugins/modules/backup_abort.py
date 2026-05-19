@@ -45,8 +45,15 @@ options:
 requirements:
   - python-linstor
 notes:
-  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
-  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
+  - This module issues API calls via C(python-linstor) to the LINSTOR controller.
+  - "For cluster-wide tasks use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
 seealso:
   - module: linbit.linstor.backup
   - module: linbit.linstor.backup_info
@@ -62,6 +69,7 @@ EXAMPLES = r'''
   linbit.linstor.backup_abort:
     remote: remote-s3-backup
     resource: res-data
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Abort only a restore, leaving creates running

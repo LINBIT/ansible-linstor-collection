@@ -108,10 +108,17 @@ options:
 requirements:
   - python-linstor
 notes:
-  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
+  - This module issues API calls via C(python-linstor) to the LINSTOR controller.
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
-  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "For cluster-wide tasks use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
   - "Auto-quorum override: set C(DrbdOptions/auto-quorum) to C(disabled) on a
     resource group to manually control C(DrbdOptions/Resource/quorum) and
     C(DrbdOptions/Resource/on-no-quorum) for resources spawned from it."
@@ -144,6 +151,7 @@ EXAMPLES = r'''
     name: rg-0
     storage_pool: sp-lvm-thin
     place_count: 2
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Create resource group with cache layer

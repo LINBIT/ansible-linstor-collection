@@ -114,9 +114,16 @@ options:
 requirements:
   - python-linstor
 notes:
-  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - This module issues API calls via C(python-linstor) to the LINSTOR controller.
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
   - Two usage patterns are supported.
   - Centralized, use C(run_once=true) with a loop over inventory hosts to send
     all API calls from a single host.
@@ -150,6 +157,7 @@ EXAMPLES = r'''
     name: "{{ inventory_hostname }}"
     ip: "{{ replication_ip }}"  # Defined in inventory
     node_type: Combined
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Create a satellite node

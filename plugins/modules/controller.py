@@ -47,10 +47,17 @@ options:
 requirements:
   - python-linstor
 notes:
-  - This module issues cluster-wide API calls via C(python-linstor) to the LINSTOR controller.
+  - "Recommended play structure: dedicate a play with a single host such
+    as C(hosts: linstor_controllers[0]) and C(connection: local) for
+    directly accessing the LINSTOR controller, or set C(delegate_to: localhost)
+    on the task (or a wrapping C(block:)) when mixing into a multi-host play."
+  - "The collection's action plugins force C(become: false) on the task
+    automatically, so a parent play's C(become: true) does not bleed into
+    the delegated call."
+  - This module issues API calls via C(python-linstor) to the LINSTOR controller.
   - Requires the L(linstor-api-py,https://github.com/LINBIT/linstor-api-py) package
     (C(python-linstor)) on the play host.
-  - "Use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - "For cluster-wide tasks use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
   - "Auto-quorum: set C(DrbdOptions/auto-quorum) to C(disabled), C(suspend-io), or
     C(io-error) (default C(io-error)). When enabled, LINSTOR auto-manages
     C(DrbdOptions/Resource/quorum) and C(DrbdOptions/Resource/on-no-quorum).
@@ -85,6 +92,7 @@ EXAMPLES = r'''
   linbit.linstor.controller:
     state: query
   register: ctrl_result
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Set multiple controller properties
