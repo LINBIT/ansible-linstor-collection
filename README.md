@@ -92,8 +92,9 @@ To mix LINSTOR module tasks into a multi-host play, wrap them in a block:
         name: "{{ inventory_hostname }}"
         ip: "{{ ansible_host }}"
   delegate_to: localhost
-  become: false
 ```
+
+The action plugins shipped with this collection force `become: false` on every LINSTOR API module, so a parent play's `become: true` does not bleed into the delegated task.
 
 If `module_defaults` is not set, modules fall back to the `LS_CONTROLLERS` environment variable, then `/etc/linstor/linstor-client.conf`, then `linstor://localhost`.
 For example: `environment: { LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}" }` works at the task or play level.
