@@ -1,3 +1,4 @@
+{# SPDX-License-Identifier: MIT #}
 [linstor]
 {%- set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') %}
 controllers = [ {{ addrs | map('regex_replace', '^(.*)$', '"\1"') | join(', ') }} ]

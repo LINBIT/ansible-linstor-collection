@@ -124,3 +124,9 @@ The following inventory groups are used to control role targeting:
 | `linbit.common` | LINBIT repo setup |
 | `ansible.posix` | firewalld management |
 | `community.general` | filesystem, LVM, ZFS, and package management |
+
+## License
+
+MIT License.
+
+See [LICENSE](LICENSE) for the full text.

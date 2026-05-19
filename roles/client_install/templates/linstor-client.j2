@@ -1,3 +1,4 @@
+{# SPDX-License-Identifier: MIT #}
 {# Controller address fallback: linstor_ip → replication_ip → ansible_host → localhost #}
 {%- set _https = 'linstors://' if linstor_client_https | default(false) | bool else '' -%}
 {%- set _controllers = linstor_controller_addresses | map('regex_replace', '^', _https) | join(',') -%}
