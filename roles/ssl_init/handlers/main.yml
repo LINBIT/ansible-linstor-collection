@@ -54,7 +54,6 @@
   linbit.linstor.controller:
     state: query
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ssl_init_ctrl_ready
@@ -82,7 +81,6 @@
       {{ (ssl_init_satellite | bool and inventory_hostname in groups['linstor_satellites'])
          or (ssl_init_https | bool and inventory_hostname in groups['linstor_controllers']) }}
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ssl_init_node_check
@@ -102,7 +100,6 @@
       {{ (ssl_init_satellite | bool and inventory_hostname in groups['linstor_satellites'])
          or (ssl_init_https | bool and inventory_hostname in groups['linstor_controllers']) }}
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   listen:

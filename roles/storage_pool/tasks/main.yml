@@ -37,7 +37,6 @@
     state: query
   when: _storage_pool_is_diskful | bool
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   loop: "{{ _my_pools }}"
@@ -216,7 +215,6 @@
       }}
   when: _storage_pool_is_diskful | bool
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   loop: "{{ _pools_to_create | default([]) }}"

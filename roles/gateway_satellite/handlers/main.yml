@@ -38,7 +38,6 @@
   retries: 9
   delay: 5
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   listen: restart_linstor_satellite

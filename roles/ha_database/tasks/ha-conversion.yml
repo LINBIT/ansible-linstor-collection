@@ -39,7 +39,6 @@
       ControllerIsHA: "True"
   when: inventory_hostname in _ha_db_combined_nodes
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   throttle: 1
@@ -51,7 +50,6 @@
     place_count: "{{ _ha_db_combined_nodes | length }}"
     drbd_options: "{{ ha_database_drbd_options }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -68,7 +66,6 @@
     nodes: "{{ _ha_db_placement_nodes }}"
     storage_pool: "{{ ha_database_pool | default(omit, true) }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -239,7 +236,6 @@
       {%- endif -%}
   when: inventory_hostname in _ha_db_combined_nodes
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]

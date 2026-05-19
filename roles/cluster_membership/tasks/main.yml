@@ -100,7 +100,6 @@
 - name: Verify delegated-node access to the LINSTOR controller
   linbit.linstor.controller:
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -141,7 +140,6 @@
       {{ cluster_membership_port | default(omit, true) }}
   when: inventory_hostname in groups['linstor_controllers']
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _cluster_membership_ctrl_register
@@ -162,7 +160,6 @@
       {{ cluster_membership_port | default(omit, true) }}
   when: inventory_hostname not in groups['linstor_controllers']
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
@@ -181,7 +178,6 @@
     - replication_ip is defined
     - replication_ip != _cluster_membership_linstor_ip
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
@@ -194,7 +190,6 @@
     - replication_ip is defined
     - replication_ip != _cluster_membership_linstor_ip
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 

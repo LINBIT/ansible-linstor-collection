@@ -87,7 +87,6 @@
     loop_var: _target
     label: "{{ _target.name }}:{{ _target.resource_group }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -136,7 +135,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -170,7 +168,6 @@
     loop_var: _placement
     label: "{{ _placement.resource_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -191,7 +188,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -214,7 +210,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -232,7 +227,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -324,7 +318,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -346,7 +339,6 @@
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -372,7 +364,6 @@
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
@@ -386,7 +377,6 @@
     loop_var: _target
     label: "{{ _target._rd_name }}"
   delegate_to: "{{ linstor_api_delegate }}"
-  become: false
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
