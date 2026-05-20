@@ -1,4 +1,8 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
+# GNU General Public License v3.0+ (https://www.gnu.org/licenses/gpl-3.0.txt)
+# Non-module plugins run in the Ansible controller process and must be
+# GPL-3.0-or-later per the Ansible community package inclusion rules.
+# The rest of the linbit.* collections remain MIT-licensed.
 """Shared action plugin base for linbit.linstor API modules.
 
 The modules in ``action_groups.linstor`` (meta/runtime.yml) all talk to the

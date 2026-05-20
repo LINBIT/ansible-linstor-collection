@@ -18,6 +18,4 @@ plugins/modules/schedule.py validate-modules:missing-gplv3-license
 plugins/modules/snapshot.py validate-modules:missing-gplv3-license
 plugins/modules/storage_pool.py validate-modules:missing-gplv3-license
 plugins/modules/volume_group.py validate-modules:missing-gplv3-license
-plugins/lookup/group_addresses.py validate-modules:missing-gplv3-license
-plugins/lookup/controller_env.py validate-modules:missing-gplv3-license
 plugins/action/_linstor_api.py action-plugin-docs
