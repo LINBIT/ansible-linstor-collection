@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    plugins/action, plugins/filter, plugins/lookup - SPDX headers flipped
+    from MIT to GPL-3.0-or-later for Ansible community package inclusion
+    compliance. ``galaxy.yml`` now declares both MIT and GPL-3.0-or-later.
+    Modules and ``module_utils`` remain MIT.
