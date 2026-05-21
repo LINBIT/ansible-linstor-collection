@@ -2,19 +2,31 @@
 
 **Topics**
 
+- <a href="#v0-9-9">v0\.9\.9</a>
+    - <a href="#minor-changes">Minor Changes</a>
 - <a href="#v0-9-8">v0\.9\.8</a>
     - <a href="#major-changes">Major Changes</a>
-    - <a href="#minor-changes">Minor Changes</a>
+    - <a href="#minor-changes-1">Minor Changes</a>
     - <a href="#bugfixes">Bugfixes</a>
     - <a href="#new-modules">New Modules</a>
 - <a href="#v0-9-7">v0\.9\.7</a>
-    - <a href="#minor-changes-1">Minor Changes</a>
+    - <a href="#minor-changes-2">Minor Changes</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
     - <a href="#bugfixes-1">Bugfixes</a>
     - <a href="#new-plugins">New Plugins</a>
         - <a href="#lookup">Lookup</a>
 
 This changelog describes changes after version 0\.9\.6\.
+
+<a id="v0-9-9"></a>
+## v0\.9\.9
+
+<a id="minor-changes"></a>
+### Minor Changes
+
+* plugins/action \- add a shared action\-plugin base that forces <code>become\: false</code> on every LINSTOR API module\, so a parent play\'s <code>become\: true</code> no longer bleeds into the delegated API call\.
+* plugins/action\, plugins/filter\, plugins/lookup \- SPDX headers flipped from MIT to GPL\-3\.0\-or\-later for Ansible community package inclusion compliance\. <code>galaxy\.yml</code> now declares both MIT and GPL\-3\.0\-or\-later\. Modules and <code>module\_utils</code> remain MIT\.
+* plugins/modules \- document the recommended play structure \(single\-host play with <code>connection\: local</code>\, or <code>delegate\_to\: localhost</code> per task\) for invoking LINSTOR API modules\. Each module\'s first EXAMPLES entry now models the pattern\.
 
 <a id="v0-9-8"></a>
 ## v0\.9\.8
@@ -24,7 +36,7 @@ This changelog describes changes after version 0\.9\.6\.
 
 * LINSTOR modules now execute on the Ansible control node and talk directly to the LINSTOR controller\, rather than running on each managed node via that node\'s <code>python\-linstor</code>\. The previous on\-node pattern piggybacked on the <code>python\-linstor</code> that ships transitively with <code>linstor\-client</code>\, which ruled out targeting hosts that cannot host it \(Windows nodes\, Linux nodes with mixed Python environments where Ansible\'s interpreter discovery is unreliable\)\. The Ansible control node now requires <code>python\-linstor</code>\. The collection\'s own roles handle the delegation internally\; user playbook surface is unchanged\.
 
-<a id="minor-changes"></a>
+<a id="minor-changes-1"></a>
 ### Minor Changes
 
 * All package\-install tasks now wrap with <code>retries\: 3</code> and <code>delay\: 10</code> so transient mirror/TLS flake during package installation does not abort the role\.
@@ -56,7 +68,7 @@ This changelog describes changes after version 0\.9\.6\.
 <a id="v0-9-7"></a>
 ## v0\.9\.7
 
-<a id="minor-changes-1"></a>
+<a id="minor-changes-2"></a>
 ### Minor Changes
 
 * New filter plugin <code>linstor\_addr</code> and lookup plugin <code>group\_addresses</code> for resolving LINSTOR\-facing addresses from host vars and group membership\.

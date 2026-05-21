@@ -65,13 +65,6 @@ releases:
           fact-gathering play.
 
           '
-        - 'ssl_init - flip satellite netinterfaces to SSL after the controller restart,
-          not before, so the SSL connector is up when the modify lands and no longer
-          produces a spurious ``LinStorRuntimeException`` ErrorReport per satellite.
-          The previous ``failed_when: false`` suppression is replaced with a ``state:
-          query`` gate so fresh installs still skip cleanly.
-
-          '
         - 'cluster_membership - reject ``localhost``/``127.0.0.0/8`` and loopback
           addresses when resolving the LINSTOR registration IP, so misconfigured inventories
           fail fast instead of producing an unreachable cluster.
@@ -81,6 +74,13 @@ releases:
           the cluster''s CA before continuing. If they differ, fail with a clear message
           pointing at the local path to remove rather than silently re-keying the
           cluster and breaking trust for every other workstation and consumer.
+
+          '
+        - 'ssl_init - flip satellite netinterfaces to SSL after the controller restart,
+          not before, so the SSL connector is up when the modify lands and no longer
+          produces a spurious ``LinStorRuntimeException`` ErrorReport per satellite.
+          The previous ``failed_when: false`` suppression is replaced with a ``state:
+          query`` gate so fresh installs still skip cleanly.
 
           '
       major_changes:
@@ -104,8 +104,14 @@ releases:
         - 'Every LINSTOR module that wraps ``python-linstor`` now includes an ``EXAMPLES``
           entry showing how to route the API call through a LINSTOR controller via
           ``delegate_to:`` for SSH jump host and segmented management network setups.
-          The ``controller`` module also demonstrates the ``block:`` pattern for
-          sharing delegation across a sequence of LINSTOR tasks.
+          The ``controller`` module also demonstrates the ``block:`` pattern for sharing
+          delegation across a sequence of LINSTOR tasks.
+
+          '
+        - 'New ``controller_env`` filter and lookup for building an ``LS_CONTROLLERS``
+          URI string from inventory. The lookup emits a comma-joined controller list
+          (no VIP); LINSTOR clients walk it and connect to whichever controller responds.
+          The ``linstors://`` scheme is used when ``linstor_ssl`` is set.
 
           '
         - 'New ``linstor_installed`` module that reports whether ``linstor-controller``/``linstor-satellite``
@@ -118,16 +124,6 @@ releases:
           ``controllers:`` on every module call).
 
           '
-        - 'New ``controller_env`` filter and lookup for building an ``LS_CONTROLLERS``
-          URI string from inventory. The lookup emits a comma-joined controller list
-          (no VIP); LINSTOR clients walk it and connect to whichever controller responds.
-          The ``linstors://`` scheme is used when ``linstor_ssl`` is set.
-
-          '
-        - 'The ``linstor_ha_vip`` variable is now ``ha_database``-only, no longer
-          threaded through general client/controller address resolution.
-
-          '
         - 'Ship a ``requirements.txt`` declaring ``python-linstor`` so the control-node
           side of the collection can be installed with ``pip install -r requirements.txt``.
 
@@ -135,6 +131,10 @@ releases:
         - 'The ``linstor_connection.py`` shared module util now reads client certificate
           paths from both ``/etc/linstor/`` and the XDG user config directory so control-node-side
           runs and on-node CLI invocations pick the same credentials.
+
+          '
+        - 'The ``linstor_ha_vip`` variable is now ``ha_database``-only, no longer
+          threaded through general client/controller address resolution.
 
           '
         - 'The control-node ``~/.config/linstor/linstor-client.conf`` is auto-materialized
@@ -183,3 +183,28 @@ releases:
         name: linstor_installed
         namespace: ''
     release_date: '2026-05-18'
+  0.9.9:
+    changes:
+      minor_changes:
+        - 'plugins/action - add a shared action-plugin base that forces ``become:
+          false`` on every LINSTOR API module, so a parent play''s ``become: true``
+          no longer bleeds into the delegated API call.
+
+          '
+        - 'plugins/action, plugins/filter, plugins/lookup - SPDX headers flipped from
+          MIT to GPL-3.0-or-later for Ansible community package inclusion compliance.
+          ``galaxy.yml`` now declares both MIT and GPL-3.0-or-later. Modules and ``module_utils``
+          remain MIT.
+
+          '
+        - 'plugins/modules - document the recommended play structure (single-host
+          play with ``connection: local``, or ``delegate_to: localhost`` per task)
+          for invoking LINSTOR API modules. Each module''s first EXAMPLES entry now
+          models the pattern.
+
+          '
+    fragments:
+      - become-default-false.yml
+      - gpl-non-module-plugins.yml
+      - module-play-structure-docs.yml
+    release_date: '2026-05-21'
