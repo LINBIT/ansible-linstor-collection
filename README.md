@@ -125,8 +125,12 @@ The following inventory groups are used to control role targeting:
 | `ansible.posix` | firewalld management |
 | `community.general` | filesystem, LVM, ZFS, and package management |
 
-## License
+## Licensing
 
-MIT License.
+This collection is primarily licensed and distributed as a whole under the MIT License. See [LICENSE](LICENSE) for the full text.
 
-See [LICENSE](LICENSE) for the full text.
+Non-module plugin files in the following directories are licensed under the [GNU General Public License v3.0 or later](https://www.gnu.org/licenses/gpl-3.0.txt), as required by the Ansible community package inclusion rules:
+
+- [`plugins/action/`](plugins/action/)
+- [`plugins/filter/`](plugins/filter/)
+- [`plugins/lookup/`](plugins/lookup/)
