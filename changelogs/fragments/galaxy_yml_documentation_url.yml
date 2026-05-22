@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    galaxy.yml - point documentation URL at the GitHub repo so Galaxy
+    renders the Documentation link to the same public-facing source as
+    the Repository link.

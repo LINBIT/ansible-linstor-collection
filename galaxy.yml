@@ -33,6 +33,6 @@ dependencies:
   linbit.drbd: '*'
   linbit.drbd_reactor: '*'
 repository: https://github.com/LINBIT/ansible-linstor-collection
-documentation: https://linbit.com/user-guides-and-product-documentation/
+documentation: https://github.com/LINBIT/ansible-linstor-collection
 homepage: https://linbit.com
 issues: https://github.com/LINBIT/ansible-linstor-collection/issues
