@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    galaxy.yml - point repository and issues URLs at the public GitHub
+    mirror so Galaxy renders contributor and issue links to the
+    public-facing source.
