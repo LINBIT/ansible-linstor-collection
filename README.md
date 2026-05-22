@@ -11,18 +11,18 @@ The `linbit.linstor` Ansible collection for installing and configuring [LINSTORÂ
 
 | Role | Description |
 |---|---|
-| `cluster_init` | Convenience role: installs satellite, controller, and registers cluster membership based on inventory group membership |
-| `cluster_membership` | Registers LINSTOR nodes into the cluster (controller, combined, and satellite node types) |
-| `satellite_install` | Installs the LINSTOR satellite and DRBD |
-| `controller_install` | Installs the LINSTOR controller and GUI |
-| `client_install` | Installs the LINSTOR CLI client |
-| `ssl_init` | Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS), including private CA, per-node certs, and Java keystores |
-| `peer_trust` | Trust a peer LINSTOR cluster's CA in the local Java truststore for cross-cluster backup shipping over HTTPS |
-| `gateway_install` | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
-| `gateway_satellite` | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
-| `storage_pool` | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
-| `ha_database` | Configure highly available LINSTOR database storage; works for new deployments and existing production clusters |
-| `ha_gateway` | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |
+| [`cluster_init`](roles/cluster_init/README.md) | Convenience role: installs satellite, controller, and registers cluster membership based on inventory group membership |
+| [`cluster_membership`](roles/cluster_membership/README.md) | Registers LINSTOR nodes into the cluster (controller, combined, and satellite node types) |
+| [`satellite_install`](roles/satellite_install/README.md) | Installs the LINSTOR satellite and DRBD |
+| [`controller_install`](roles/controller_install/README.md) | Installs the LINSTOR controller and GUI |
+| [`client_install`](roles/client_install/README.md) | Installs the LINSTOR CLI client |
+| [`ssl_init`](roles/ssl_init/README.md) | Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS), including private CA, per-node certs, and Java keystores |
+| [`peer_trust`](roles/peer_trust/README.md) | Trust a peer LINSTOR cluster's CA in the local Java truststore for cross-cluster backup shipping over HTTPS |
+| [`gateway_install`](roles/gateway_install/README.md) | Installs the LINSTOR Gateway binary and service; includes satellite components on satellite nodes |
+| [`gateway_satellite`](roles/gateway_satellite/README.md) | Installs LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor); optionally compiles and installs SCST iSCSI target when `scst=true` |
+| [`storage_pool`](roles/storage_pool/README.md) | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
+| [`ha_database`](roles/ha_database/README.md) | Configure highly available LINSTOR database storage; works for new deployments and existing production clusters |
+| [`ha_gateway`](roles/ha_gateway/README.md) | Ansible-driven alternative to `linstor-gateway` CLI: creates HA NFS/iSCSI resources via DRBD Reactor promoter configs |
 
 ## Modules
 
