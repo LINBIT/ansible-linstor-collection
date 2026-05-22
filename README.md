@@ -1,6 +1,6 @@
-# Ansible Collection - linbit.linstor
+# LINBIT LINSTOR Collection
 
-Installs and configures the full LINSTOR software-defined storage stack: controller, satellite, client, and LINSTOR Gateway (NFS/iSCSI HA).
+The `linbit.linstor` Ansible collection for installing and configuring [LINSTOR®](https://linbit.com/linstor/).
 
 ## Roles
 
