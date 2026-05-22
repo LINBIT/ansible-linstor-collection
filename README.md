@@ -2,6 +2,11 @@
 
 The `linbit.linstor` Ansible collection for installing and configuring [LINSTOR®](https://linbit.com/linstor/).
 
+## Requirements
+
+- ansible-core 2.16 or newer
+- [`python-linstor`](https://pypi.org/project/python-linstor/) 1.27.1 or newer
+
 ## Roles
 
 | Role | Description |
@@ -114,16 +119,6 @@ The following inventory groups are used to control role targeting:
 | Playbook | Description |
 |---|---|
 | `ha_controller.yaml` | Wrapper playbook for the `ha_database` role (HA LINSTOR database conversion) |
-
-## Dependencies
-
-| Collection | Purpose |
-|---|---|
-| `linbit.drbd` | DRBD kernel module installation |
-| `linbit.drbd_reactor` | DRBD Reactor for HA gateway resources |
-| `linbit.common` | LINBIT repo setup |
-| `ansible.posix` | firewalld management |
-| `community.general` | filesystem, LVM, ZFS, and package management |
 
 ## Licensing
 

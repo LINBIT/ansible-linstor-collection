@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    README - replace Dependencies section with a Requirements section
+    listing ansible-core and python-linstor prerequisites;
+    collection-level dependencies are declared in galaxy.yml.
