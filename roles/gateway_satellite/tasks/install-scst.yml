@@ -22,6 +22,11 @@
         version: "{{ gateway_satellite_scst_version }}"
         dest: /tmp/scst
 
+    - name: Install kernel headers for SCST DKMS
+      ansible.builtin.package:
+        name: "{{ ansible_facts | linbit.common.dkms_kernel_headers }}"
+        state: present
+
     - name: Build and install SCST (RHEL)
       when: ansible_facts['os_family'] | lower == 'redhat'
       block:
@@ -34,7 +39,6 @@
           ansible.builtin.package:
             name:
               - '@Development tools'
-              - kernel-devel
               - perl
               - perl-Data-Dumper
               - perl-ExtUtils-MakeMaker
@@ -70,19 +74,6 @@
               - lintian
               - quilt
             state: present
-
-        # SCST uses DKMS, so install headers for all installed kernels.
-        - name: Install PVE kernel headers (Proxmox VE)
-          ansible.builtin.package:
-            name: proxmox-default-headers
-            state: present
-          when: ansible_facts | linbit.common.is_pve
-
-        - name: Install Debian kernel headers
-          ansible.builtin.package:
-            name: "linux-headers-{{ _debian_arch }}"
-            state: present
-          when: "'pve' not in ansible_facts['kernel']"
 
         - name: Compile SCST .deb packages
           ansible.builtin.shell: |

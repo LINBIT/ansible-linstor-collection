@@ -40,10 +40,8 @@
 
 - name: Install kernel headers for ZFS DKMS
   ansible.builtin.package:
-    name: "linux-headers-{{ _debian_arch }}"
+    name: "{{ ansible_facts | linbit.common.dkms_kernel_headers }}"
     state: present
-  vars:
-    _debian_arch: "{{ 'arm64' if ansible_facts['architecture'] == 'aarch64' else 'amd64' }}"
   register: _satellite_install_kernel_headers
   until: _satellite_install_kernel_headers is succeeded
   retries: 3

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    satellite_install, gateway_satellite - select kernel headers for ZFS and
+    SCST DKMS builds via the new ``linbit.common.dkms_kernel_headers`` filter.
+    On the Debian family this matches the running kernel's flavor/edition
+    (fixing cloud kernels); on RHEL/Oracle Linux it picks the variant-matched
+    devel package (``kernel-uek-devel`` on UEK, ``kernel-rt-devel`` on Real
+    Time, ``kernel-64k-devel`` on aarch64 64K) instead of always
+    ``kernel-devel``.
