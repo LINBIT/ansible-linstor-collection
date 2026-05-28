@@ -38,6 +38,8 @@ To upgrade to the latest commits on the default branch:
 ansible-galaxy collection install -r requirements.yml --upgrade
 ```
 
+For new deployments, start with the [`cluster_init`](roles/cluster_init/README.md) role.
+
 See [using Ansible collections](https://docs.ansible.com/ansible/latest/collections_guide/) for more details.
 
 ## Roles
