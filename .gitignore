@@ -1,17 +1,17 @@
 # Python
-__pycache__/
+**/__pycache__/
 *.py[cod]
-*.egg-info/
+**/*.egg-info/
 
 # Ansible
-.ansible/
+**/.ansible/
 *.retry
 
 # Editors
 *.swp
 *~
-.vscode/
-.idea/
+**/.vscode/
+**/.idea/
 
 # OS
 .DS_Store
