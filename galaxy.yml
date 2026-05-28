@@ -28,7 +28,7 @@ tags:
 dependencies:
   ansible.posix: '*'
   ansible.utils: '>=2.0.0'
-  community.general: '>=10.4.0,<12.6.0'
+  community.general: '>=10.4.0'
   linbit.common: '*'
   linbit.drbd: '*'
   linbit.drbd_reactor: '*'
