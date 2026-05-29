@@ -31,9 +31,7 @@
 
 - name: Install ZFS packages (DNF)
   ansible.builtin.dnf:
-    name:
-      - kernel-devel
-      - zfs
+    name: zfs
     state: present
   register: _satellite_install_zfs_dnf
   until: _satellite_install_zfs_dnf is succeeded

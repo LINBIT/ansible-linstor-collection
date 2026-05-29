@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    satellite_install - drop ``kernel-devel`` from the RHEL/Alma/Rocky ZFS
+    install. That path switches the ZFS repo to ``zfs-kmod`` and installs the
+    prebuilt ``kmod-zfs`` package, so nothing is compiled and no kernel headers
+    are needed. The package was also unversioned and could have pulled a
+    ``kernel-devel`` newer than the running kernel. The Oracle Linux UEK path
+    still installs the matching headers via ``linbit.common.dkms_kernel_headers``
+    because it builds the module through DKMS.
