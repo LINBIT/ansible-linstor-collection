@@ -17,7 +17,7 @@ The following inventory group must be defined:
 | Variable | Default | Description |
 |---|---|---|
 | `satellite_install_package_state` | `present` | Package state for LINSTOR satellite packages; set `latest` to check for upgrades |
-| `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), RedHat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
+| `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), Red Hat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
 | `satellite_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall ports and the LVM `global_filter` for DRBD devices (drift correction) |
@@ -41,11 +41,11 @@ For all other distributions, set `satellite_install_zfs: true` to enable:
 | OS Family | Method | Notes |
 |---|---|---|
 | Debian (non-Ubuntu, non-Proxmox) | Enables `contrib` repository, installs `zfsutils-linux` via DKMS | |
-| RedHat (standard kernel) | Installs EPEL and ZFS kmod repository, uses prebuilt kernel modules | Disables DKMS repo, enables kmod repo |
-| RedHat (UEK kernel) | Installs EPEL and ZFS DKMS repository, builds module from source | Requires `gcc-toolset-11` on EL8 to match the UEK build compiler; EL9+ uses the system GCC |
+| Red Hat (standard kernel) | Installs EPEL and ZFS kmod repository, uses prebuilt kernel modules | Disables DKMS repo, enables kmod repo |
+| Red Hat (UEK kernel) | Installs EPEL and ZFS DKMS repository, builds module from source | Requires `gcc-toolset-11` on EL8 to match the UEK build compiler; EL9+ uses the system GCC |
 | SUSE | Adds openSUSE filesystems repository, installs prebuilt `zfs` package | Configures `allow_unsupported_modules` for kernel module loading; installs `zfs-ueficert` and reboots on UEFI systems for Secure Boot MOK enrollment |
 
-On RedHat and SUSE, the role also creates `/etc/modules-load.d/zfs.conf` so the ZFS kernel module loads automatically at boot.
+On Red Hat and SUSE, the role also creates `/etc/modules-load.d/zfs.conf` so the ZFS kernel module loads automatically at boot.
 Debian family distributions handle module auto-loading through their own package hooks.
 
 ## Dependencies
@@ -65,7 +65,7 @@ Debian family distributions handle module auto-loading through their own package
         name: linbit.linstor.satellite_install
 ```
 
-To enable ZFS on RedHat, SUSE, and non-Ubuntu Debian nodes:
+To enable ZFS on Red Hat, SUSE, and non-Ubuntu Debian nodes:
 
 ```yaml
 - name: Install LINSTOR satellites with ZFS

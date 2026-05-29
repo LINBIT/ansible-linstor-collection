@@ -4,7 +4,7 @@
 # client_install role handles LINSTOR client packages and configuration
 satellite_install_package_state: present
 
-# Enable ZFS storage pool support (Debian DKMS, RedHat, SUSE).
+# Enable ZFS storage pool support (Debian DKMS, Red Hat, SUSE).
 # Ubuntu always installs zfsutils-linux regardless of this setting.
 # Proxmox VE ships ZFS out of the box, no additional packages needed.
 satellite_install_zfs: false

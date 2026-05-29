@@ -26,13 +26,13 @@ argument_specs:
         type: bool
         default: false
         description:
-          - Install ZFS on Debian (non-Ubuntu, non-Proxmox), RedHat, and SUSE family nodes.
+          - Install ZFS on Debian (non-Ubuntu, non-Proxmox), Red Hat, and SUSE family nodes.
           - >-
             Ubuntu always installs C(zfsutils-linux) as a prerequisite, regardless of this setting (userspace
             only, no DKMS).
           - Proxmox VE ships with ZFS and needs no additional packages.
           - >-
-            Disabled by default because the RedHat and SUSE paths involve DKMS or kmod package installs that
+            Disabled by default because the Red Hat and SUSE paths involve DKMS or kmod package installs that
             can be slow and kernel-sensitive.
           - >-
             LINBIT does not support ZFS on non-Debian family operating systems, use for testing purposes or

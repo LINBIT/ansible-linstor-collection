@@ -22,10 +22,10 @@
       when: _ssl_init_ca_debian.changed  # noqa: no-handler
       changed_when: true
 
-- name: Install CA certificate into RedHat trust store
+- name: Install CA certificate into Red Hat trust store
   when: ansible_facts['os_family'] | lower == 'redhat'
   block:
-    - name: Copy CA certificate to RedHat trust directory
+    - name: Copy CA certificate to Red Hat trust directory
       ansible.builtin.copy:
         src: "{{ ssl_init_dir }}/ca.crt"
         remote_src: true
@@ -35,7 +35,7 @@
         mode: '0644'
       register: _ssl_init_ca_redhat
 
-    - name: Update RedHat CA trust
+    - name: Update Red Hat CA trust
       ansible.builtin.command:
         cmd: update-ca-trust
       when: _ssl_init_ca_redhat.changed  # noqa: no-handler

@@ -77,7 +77,7 @@ After completing the SSL configuration, `~/.config/linstor/linstor-client.conf` 
 The CA certificate is also installed into the operating system trust store:
 
 - Debian/Ubuntu: `/usr/local/share/ca-certificates/linstor-ca.crt`
-- RedHat: `/etc/pki/ca-trust/source/anchors/linstor-ca.crt`
+- Red Hat: `/etc/pki/ca-trust/source/anchors/linstor-ca.crt`
 - SUSE: `/etc/pki/trust/anchors/linstor-ca.crt`
 
 ### Using externally-provided certificates
