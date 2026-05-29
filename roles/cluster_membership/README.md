@@ -1,12 +1,10 @@
-cluster_membership
-==================
+# cluster_membership
 
 Register LINSTOR nodes into the cluster.
 Runs `linstor node create` for controller, combined (controller+satellite), and satellite node types.
 Idempotent: nodes already registered are skipped.
 
-Requirements
-------------
+## Requirements
 
 The following inventory groups must be defined:
 
@@ -15,8 +13,7 @@ The following inventory groups must be defined:
 | `linstor_controllers` | Controller nodes (registers as `Controller` or `Combined`) |
 | `linstor_satellites` | Satellite nodes (registers as `Satellite` or `Combined`) |
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -27,8 +24,7 @@ Role Variables
 | `cluster_membership_port` | unset | Override registration port; defaults to standard LINSTOR ports based on node type and SSL state |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
-Delegation
-----------
+## Delegation
 
 LINSTOR API tasks (`linbit.linstor.node`, `linbit.linstor.node_interface`) run on `linstor_api_delegate`, defaulting to `localhost`.
 When the Ansible control node cannot reach the LINSTOR controller API endpoint directly (for example, an SSH jump host setup or a segmented management network), set:
@@ -39,8 +35,7 @@ linstor_api_delegate: "{{ groups['linstor_controllers'][0] }}"
 
 This routes the python-linstor calls through Ansible's SSH transport (which already handles ProxyJump) and lets the controller node make the API call locally.
 
-Network interfaces
-------------------
+## Network interfaces
 
 Two deployment patterns are supported:
 
@@ -59,13 +54,11 @@ The role does not explicitly designate a satellite connection.
 LINSTOR sets it automatically: every node has exactly one satellite connection, and at `linstor node create` time the `default` interface (the only candidate) gets the role.
 For SSL clusters, `ssl_init` adds both `linstor_ip` and `replication_ip` to the node certificate's SAN list when both are set.
 
-Dependencies
-------------
+## Dependencies
 
 None.
 
-Example Playbook
-----------------
+## Example Playbook
 
 Nodes in both `linstor_controllers` and `linstor_satellites` are registered as `Combined`.
 Nodes in only one group are registered as their respective type.
@@ -102,12 +95,10 @@ In this example, `linstor-1` and `linstor-2` appear in both groups and are regis
         name: linbit.linstor.cluster_membership
 ```
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

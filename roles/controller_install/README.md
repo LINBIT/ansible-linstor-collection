@@ -1,10 +1,8 @@
-controller_install
-==================
+# controller_install
 
 Install and configure the LINSTOR controller.
 
-Requirements
-------------
+## Requirements
 
 The following inventory group must be defined:
 
@@ -12,8 +10,7 @@ The following inventory group must be defined:
 |---|---|
 | `linstor_controllers` | Nodes to install the LINSTOR controller on |
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -21,17 +18,15 @@ Role Variables
 | `controller_install_gui` | `true` | Install the `linstor-gui` web UI alongside `linstor-controller`; set `false` to skip |
 | `controller_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR controller ports; set `false` to skip |
 | `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
-| `controller_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts firewall ports and controller service state. **Caution:** when set on a running cluster, the active controller is briefly restarted. Use deliberately for drift correction. |
+| `controller_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall and controller service state; **briefly restarts the active controller on a running cluster** (drift correction) |
 
 See `defaults/main.yml` for additional variables.
 
-Dependencies
-------------
+## Dependencies
 
 `linbit.linstor.client_install`
 
-Example Playbook
-----------------
+## Example Playbook
 
 ```yaml
 - name: Install LINSTOR controller
@@ -43,12 +38,10 @@ Example Playbook
         name: linbit.linstor.controller_install
 ```
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

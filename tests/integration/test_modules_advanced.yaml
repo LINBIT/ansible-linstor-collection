@@ -176,7 +176,7 @@
       failed_when: _sp_absent_noop.changed
 
     # =================================================================
-    # Resource group — simple (tests property operations, then cleanup)
+    # Resource group - simple (tests property operations, then cleanup)
     # =================================================================
     - name: "RG: create simple"
       linbit.linstor.resource_group:
@@ -254,7 +254,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource group — DRBD options (used for spawn/snapshot tests below)
+    # Resource group - DRBD options (used for spawn/snapshot tests below)
     # =================================================================
     - name: "RG: create with DRBD options"
       linbit.linstor.resource_group:
@@ -336,7 +336,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource — spawn mode
+    # Resource - spawn mode
     # =================================================================
     - name: "Resource: spawn from resource group"
       linbit.linstor.resource:
@@ -370,7 +370,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource definition — DRBD options on spawned resource
+    # Resource definition - DRBD options on spawned resource
     # =================================================================
     - name: "RD: set DRBD options on spawned resource"
       linbit.linstor.resource_definition:
@@ -431,7 +431,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource — spawn definitions_only
+    # Resource - spawn definitions_only
     # =================================================================
     - name: "Resource: spawn definitions_only"
       linbit.linstor.resource:
@@ -468,7 +468,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource — autoplace mode
+    # Resource - autoplace mode
     # =================================================================
     - name: "Resource: autoplace with 2 replicas"
       linbit.linstor.resource:
@@ -505,7 +505,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource — manual placement + diskless
+    # Resource - manual placement + diskless
     # =================================================================
     - name: "RD: create for manual placement"
       linbit.linstor.resource_definition:
@@ -567,7 +567,7 @@
       run_once: true  # noqa: run-once[task]
 
     # =================================================================
-    # Resource definition — inline volume_definitions
+    # Resource definition - inline volume_definitions
     # =================================================================
     - name: "RD: create with inline volume definitions"
       linbit.linstor.resource_definition:

@@ -1,5 +1,4 @@
-ha_gateway
-==========
+# ha_gateway
 
 Create highly available iSCSI targets, NFS exports, and NVMe-oF targets using DRBD Reactor promoter configs.
 This is an Ansible-only implementation of [LINSTOR Gateway](https://github.com/LINBIT/linstor-gateway), interoperable with the `linstor-gateway` CLI: resources created by this role show up in `linstor-gateway iscsi list`, `linstor-gateway nfs list`, and `linstor-gateway nvme list`, and that CLI can inspect or remove them.
@@ -16,8 +15,7 @@ Targets with explicit `nodes` use manual placement; targets without `nodes` use 
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
 
-Requirements
-------------
+## Requirements
 
 The `ansible.utils` collection and `netaddr` Python library are required on the Ansible control node for service IP subnet validation.
 Install `netaddr` with your package manager:
@@ -47,8 +45,7 @@ It installs iSCSI and NFS resource agents, the portblock RA fix, and DRBD Reacto
         name: linbit.linstor.gateway_satellite
 ```
 
-Role Variables
---------------
+## Role Variables
 
 See `defaults/main.yml`.
 
@@ -63,14 +60,13 @@ See `defaults/main.yml`.
 | `ha_gateway_iscsi_port` | `3260` | Default iSCSI target port |
 | `ha_gateway_iscsi_iqn_base` | `iqn.2026-06.com.linbit` | Default IQN base when `iqn` is not set on target |
 | `ha_gateway_nfs_port` | `2049` | NFS service port |
-| `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0.0.0.0"]` | Default client CIDRs for NFS exports. `rpc.mountd` rejects `0.0.0.0/0`; the dotted-mask form `0.0.0.0/0.0.0.0` is the equivalent that mountd accepts and that `linstor-gateway` parses. Any literal `0.0.0.0/0` is auto-corrected at template time |
+| `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0.0.0.0"]` | Default client CIDRs for NFS exports; use the dotted-mask form (`rpc.mountd` rejects `0.0.0.0/0`, and a literal `0.0.0.0/0` is auto-corrected at template time) |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
-| `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on target. Must include `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
+| `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on a target; must include the `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
-Resource Naming
----------------
+## Resource Naming
 
 LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI can recognize them:
 
@@ -87,8 +83,7 @@ Promoter config files are stored in LINSTOR as external files with the path patt
 
 DRBD device paths follow the resource name, for example `/dev/drbd/by-res/shared/0`.
 
-iSCSI Targets
--------------
+## iSCSI Targets
 
 Each entry in `linstor_iscsi_targets`:
 
@@ -110,8 +105,7 @@ Each entry in `linstor_iscsi_targets`:
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
 
-NFS Exports
------------
+## NFS Exports
 
 Each entry in `linstor_nfs_exports`:
 
@@ -134,7 +128,7 @@ Each entry in `exports`:
 |---|---|---|---|
 | `size` | yes | | Export volume size (for example `50G`) |
 | `path` | no | `/` | Path under `/srv/gateway-exports/<resource_name>/`; clients mount via the full server path (for example `mount -t nfs <VIP>:/srv/gateway-exports/shared/data /mnt`) |
-| `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client CIDRs. Use the dotted-mask form (for example `192.168.0.0/255.255.0.0`) for the broadest mountd/linstor-gateway compatibility |
+| `allowed_ips` | no | `ha_gateway_nfs_allowed_ips` | List of client CIDRs; use the dotted-mask form (for example `192.168.0.0/255.255.0.0`) for the broadest mountd/linstor-gateway compatibility |
 | `export_options` | no | `ha_gateway_nfs_options` | NFS export options |
 | `fstype` | no | service-level `fstype` | Filesystem for this volume |
 
@@ -143,8 +137,7 @@ The kernel NFS server cannot have more than one instance per node, so multiple N
 When multiple NFS exports use autoplace, `do_not_place_with_regex` prevents LINSTOR from placing two NFS resources on the same node.
 A post-placement validation confirms non-overlapping nodes across all NFS exports.
 
-NVMe-oF Targets
----------------
+## NVMe-oF Targets
 
 Each entry in `linstor_nvmeof_targets`:
 
@@ -162,8 +155,7 @@ Each entry in `linstor_nvmeof_targets`:
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
 
-Per-target Placement
---------------------
+## Per-target Placement
 
 Each target supports two placement modes:
 
@@ -173,8 +165,8 @@ Any additional nodes are placed as diskless (explicit TieBreaker control).
 All nodes are placed in a single batch API call.
 
 Examples with `place_count: 2` (default):
-- `nodes: [A, B]` — 2 diskful, LINSTOR auto-creates TieBreaker on a random satellite.
-- `nodes: [A, B, C]` — 2 diskful on A and B, diskless on C (you control the TieBreaker node).
+- `nodes: [A, B]`: 2 diskful, LINSTOR auto-creates a TieBreaker on a random satellite.
+- `nodes: [A, B, C]`: 2 diskful on A and B, diskless on C (you control the TieBreaker node).
 
 With `place_count: 3` and `nodes: [A, B, C]`, all three are diskful and quorum is inherent.
 All diskful nodes must be in the `linstor_diskful_satellites` inventory group.
@@ -182,8 +174,7 @@ All diskful nodes must be in the `linstor_diskful_satellites` inventory group.
 **Autoplace**: omit `nodes` (or set `nodes: []`) to let LINSTOR select nodes automatically based on `place_count`.
 The role queries LINSTOR after placement to discover the selected nodes and deploys promoter configs accordingly.
 
-Dependencies
-------------
+## Dependencies
 
 No hard role dependencies.
 `linbit.linstor.gateway_satellite` must run on all satellite nodes before this role (see Requirements above).
@@ -191,8 +182,7 @@ It installs DRBD Reactor (`linbit.drbd_reactor.reactor_install`) transitively.
 
 The `ansible.utils` collection and `netaddr` Python library are required on the Ansible control node (see Requirements above).
 
-Example Playbook
-----------------
+## Example Playbook
 
 ```yaml
 - name: Deploy HA gateway targets
@@ -253,7 +243,7 @@ Autoplace targets (omit `nodes` to let LINSTOR select nodes automatically):
 
 ```yaml
 # group_vars/all/ha-autoplace.yaml
-# No 'nodes' key — LINSTOR autoplace selects satellites based on place_count
+# No 'nodes' key - LINSTOR autoplace selects satellites based on place_count
 linstor_iscsi_targets:
   - name: auto
     service_ips:
@@ -398,12 +388,10 @@ linstor_nvmeof_targets:
     state: absent
 ```
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

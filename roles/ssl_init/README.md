@@ -1,5 +1,4 @@
-ssl_init
-========
+# ssl_init
 
 Configure SSL/TLS for LINSTOR REST API and satellite connections.
 
@@ -11,8 +10,7 @@ The role generates a private CA, signs per-node certificates with Subject Altern
 This CA-based approach ensures that all clients (Java, Python, Go, Perl) trust the LINSTOR certificates without manual trust store configuration.
 After the role completes, `linstor-client.conf` is updated with the `linstors://` scheme so that subsequent module calls (for example `cluster_membership`) connect over HTTPS.
 
-Requirements
-------------
+## Requirements
 
 The following inventory groups must be defined:
 
@@ -23,8 +21,7 @@ The following inventory groups must be defined:
 
 Java `keytool` must be available on all cluster nodes (installed by the `linstor-controller` and `linstor-satellite` packages) for JKS keystore conversion.
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -50,7 +47,7 @@ Role Variables
 | `ssl_init_https_port` | `3371` | HTTPS port for the LINSTOR REST API |
 | `ssl_init_satellite_port` | `3367` | SSL port for satellite communication |
 | `ssl_init_satellite_protocol` | `TLSv1.3` | TLS protocol version for satellite SSL |
-| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly. OpenSSL and keytool tasks always run on the control node regardless of this value. |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly; OpenSSL and keytool tasks always run on the control node regardless |
 
 Firewall ports 3370-3371 (controller) and 3366-3367 (satellite) are managed by the `controller_install` and `satellite_install` roles respectively.
 
@@ -60,7 +57,7 @@ When `ssl_init_generate_certs` is true, the role creates the following files on 
 
 | File | Purpose |
 |---|---|
-| `ca.key` | CA private key — never distributed to cluster nodes |
+| `ca.key` | CA private key, never distributed to cluster nodes |
 | `ca.crt` | CA certificate |
 | `<hostname>/node.key` | Per-node private key |
 | `<hostname>/node.crt` | CA-signed per-node certificate with SANs |
@@ -139,8 +136,7 @@ mTLS client certificate authentication (`ssl_init_https_mtls`) is not supported 
         ssl_init_key_password: "{{ vault_ssl_key_password }}"
 ```
 
-Dependencies
-------------
+## Dependencies
 
 None.
 
@@ -149,8 +145,7 @@ The role updates node network interfaces to SSL automatically, so it can run bef
 
 When used through `cluster_init`, ordering is handled automatically.
 
-Example Playbook
-----------------
+## Example Playbook
 
 Enable SSL through `cluster_init` (encrypts both REST API and satellite connections):
 
@@ -192,12 +187,10 @@ When adding a node to an existing CA-secured cluster, run the role again.
 The CA key persists on the Ansible control node at `ssl_init_local_dir`.
 The role signs a new certificate for the new node without touching any running cluster node or affecting existing nodes.
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

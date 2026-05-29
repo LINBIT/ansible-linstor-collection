@@ -1,5 +1,4 @@
-peer_trust
-==========
+# peer_trust
 
 Trust a peer LINSTOR cluster's CA for cross-cluster backup shipping.
 
@@ -10,31 +9,27 @@ This role imports a peer cluster's CA into the local Java truststore so that sub
 The role is one-shot per peer relationship.
 Re-running with the same `peer_trust_alias` and unchanged peer cert is a no-op via `community.general.java_cert`'s alias check, and does not restart `linstor-controller`.
 
-Requirements
-------------
+## Requirements
 
 `community.general` (>= 10.4.0) for the `java_cert` module.
 
 The peer cluster must be reachable over SSH from the local controller for the CA-cert read step (the role uses `delegate_to: "{{ peer_trust_peer_host }}"`).
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `peer_trust_peer_host` | _required_ | Inventory hostname of a controller in the peer cluster, used as `delegate_to` to read the peer's CA. |
-| `peer_trust_alias` | _required_ | Alias under which the peer CA is stored in the local Java truststore. Must be unique per peer. |
-| `peer_trust_remote_ca_path` | `/etc/linstor/ssl/ca.crt` | Path on the peer controller where the peer cluster's CA cert lives. |
-| `peer_trust_keystore_path` | `/etc/ssl/certs/java/cacerts` | Path to the Java truststore on the local controller. |
-| `peer_trust_keystore_password` | `changeit` | Password for the local Java truststore. Matches the OpenJDK default. |
+| `peer_trust_peer_host` | _required_ | Inventory hostname of a controller in the peer cluster, used as `delegate_to` to read the peer's CA |
+| `peer_trust_alias` | _required_ | Alias for the peer CA in the local Java truststore; must be unique per peer |
+| `peer_trust_remote_ca_path` | `/etc/linstor/ssl/ca.crt` | Path on the peer controller to the peer cluster's CA cert |
+| `peer_trust_keystore_path` | `/etc/ssl/certs/java/cacerts` | Path to the Java truststore on the local controller |
+| `peer_trust_keystore_password` | `changeit` | Password for the local Java truststore (OpenJDK default) |
 
-Dependencies
-------------
+## Dependencies
 
 None.
 
-Example Playbook
-----------------
+## Example Playbook
 
 Trust a single peer cluster's CA on every controller in the local cluster:
 
@@ -69,12 +64,10 @@ Trust multiple peer clusters in one play with a loop:
 
 After the role completes, run the `linbit.linstor.remote` module to register the bidirectional remote pointing at the peer's HTTPS endpoint, then proceed with `linbit.linstor.backup_ship`.
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

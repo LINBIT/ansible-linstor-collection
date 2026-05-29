@@ -1,12 +1,10 @@
-satellite_install
-=================
+# satellite_install
 
 Install and configure LINSTOR satellite nodes.
 
 When `linstor-satellite` is already installed and `satellite_install_package_state` is `present` (the default), the role skips package installation entirely for faster subsequent runs.
 
-Requirements
-------------
+## Requirements
 
 The following inventory group must be defined:
 
@@ -14,21 +12,19 @@ The following inventory group must be defined:
 |---|---|
 | `linstor_satellites` | Nodes to install the LINSTOR satellite on |
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `satellite_install_package_state` | `present` | Package state for LINSTOR satellite packages; set `latest` to check for upgrades |
-| `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu, non-Proxmox), RedHat, and SUSE family nodes. Ubuntu and Proxmox VE are unaffected (Ubuntu installs `zfsutils-linux` as a prereq unconditionally; Proxmox VE ships ZFS with the distribution) |
+| `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), RedHat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
-| `satellite_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts firewall ports and the LVM `global_filter` for DRBD devices. Use for drift correction. |
+| `satellite_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall ports and the LVM `global_filter` for DRBD devices (drift correction) |
 
 See `defaults/main.yml` and `vars/` for additional variables.
 
-ZFS Support
------------
+## ZFS Support
 
 ZFS behavior varies by OS family.
 LINBIT does not support ZFS on non-Debian family operating systems, use at your own risk.
@@ -52,13 +48,11 @@ For all other distributions, set `satellite_install_zfs: true` to enable:
 On RedHat and SUSE, the role also creates `/etc/modules-load.d/zfs.conf` so the ZFS kernel module loads automatically at boot.
 Debian family distributions handle module auto-loading through their own package hooks.
 
-Dependencies
-------------
+## Dependencies
 
 `linbit.drbd.drbd_install`, `linbit.linstor.client_install`
 
-Example Playbook
-----------------
+## Example Playbook
 
 ```yaml
 - name: Install LINSTOR satellites
@@ -86,12 +80,10 @@ To enable ZFS on RedHat, SUSE, and non-Ubuntu Debian nodes:
         satellite_install_zfs: true
 ```
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

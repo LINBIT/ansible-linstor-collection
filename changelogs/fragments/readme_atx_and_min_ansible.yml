@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    All roles - clean up the READMEs with ATX headings and all-fragment table
+    cells (verbose cells moved to prose sections), and align min_ansible_version
+    with the collection requires_ansible (2.16).

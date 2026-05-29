@@ -1,5 +1,4 @@
-storage_pool
-============
+# storage_pool
 
 Create LINSTOR storage pools on diskful satellite nodes.
 
@@ -14,15 +13,13 @@ Pool entries support optional `nodes` and `groups` keys for targeting specific h
 When neither key is set, the pool applies to every host that sees the variable (existing behavior).
 When `nodes` or `groups` is set, the pool is created only on hosts in the union of the listed node names and inventory group members.
 
-Requirements
-------------
+## Requirements
 
 The LINSTOR satellite must be installed and running on target nodes (handled by `cluster_init` or `satellite_install`).
 
 The `community.general` collection is required for LVM and ZFS pool creation (`community.general.lvg`, `community.general.lvol`, `community.general.zpool`).
 
-Role Variables
---------------
+## Role Variables
 
 ### `linstor_storage_pools` (inventory variable)
 
@@ -31,12 +28,12 @@ Each item supports the following keys:
 
 | Key | Required | Default | Used by types |
 |---|---|---|---|
-| `name` | yes | — | all |
+| `name` | yes |  | all |
 | `type` | no | `lvmthin` | all |
-| `vg` | yes | — | lvm, lvmthin |
+| `vg` | yes |  | lvm, lvmthin |
 | `vg_thinpool` | no | `thinpool` | lvmthin |
-| `zpool` | yes | — | zfs, zfsthin |
-| `physical_devices` | yes (non-file) | — | lvm, lvmthin, zfs, zfsthin |
+| `zpool` | yes |  | zfs, zfsthin |
+| `physical_devices` | yes (non-file) |  | lvm, lvmthin, zfs, zfsthin |
 | `file_path` | no | `/var/lib/linstor-filethin/` | file, filethin |
 | `thinpool_size` | no | `95%VG` | lvmthin |
 | `pv_create_options` | no | `""` | lvm, lvmthin |
@@ -45,8 +42,8 @@ Each item supports the following keys:
 | `zpool_vdev_type` | no | `stripe` | zfs, zfsthin |
 | `zpool_properties` | no | `{}` | zfs, zfsthin |
 | `wipefs_force` | no | `false` | lvm, lvmthin, zfs, zfsthin |
-| `nodes` | no | — | all (targeting) |
-| `groups` | no | — | all (targeting) |
+| `nodes` | no |  | all (targeting) |
+| `groups` | no |  | all (targeting) |
 
 `nodes` is a list of `inventory_hostname` values.
 When set, the pool is created only on the listed nodes.
@@ -85,19 +82,16 @@ Delegation target for LINSTOR API tasks.
 Default `localhost` runs the python-linstor calls on the Ansible control node.
 Override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller API endpoint directly (SSH jump host, segmented management network).
 
-Behavior
---------
+## Behavior
 
 The role restarts `linstor-satellite.service` after creating new storage (LVM volume groups, thin pools, or zpools).
 Restarts are batched via handlers and flushed once before registering each pool with LINSTOR, preventing redundant restarts when multiple storage changes occur.
 
-Dependencies
-------------
+## Dependencies
 
 No hard role dependencies.
 
-Example Playbook
-----------------
+## Example Playbook
 
 The playbook does not need to pass any variables to the role:
 
@@ -115,8 +109,7 @@ The playbook does not need to pass any variables to the role:
 The role reads `linstor_storage_pools` directly from inventory.
 Choose the inventory pattern that best fits your cluster size and hardware layout.
 
-Inventory Patterns
-------------------
+## Inventory Patterns
 
 ### Pattern 1: Per-host definitions
 
@@ -185,7 +178,7 @@ Use Jinja2 variable references for per-host values like `physical_devices`.
 Create inventory groups for pool targeting (these groups need no `group_vars` of their own):
 
 ```yaml
-# hosts.yaml — groups used purely for storage pool targeting
+# hosts.yaml - groups used purely for storage pool targeting
 linstor_lvm_satellites:
   hosts:
     node-1:
@@ -252,8 +245,7 @@ linstor_storage_pools:
 
 When both `nodes` and `groups` are set on the same pool entry, the union is used.
 
-Variable Precedence
--------------------
+## Variable Precedence
 
 Ansible replaces variables rather than merging them.
 If a host defines `linstor_storage_pools` in `host_vars/`, that definition completely replaces any `group_vars` definition for the same variable.
@@ -261,12 +253,10 @@ Do not mix per-host and centralized definitions for the same variable on the sam
 
 Pattern 3 avoids this issue entirely: all pool definitions live in `group_vars/all`, and per-host differences are isolated in separate variables (for example `linstor_backing_devices`).
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

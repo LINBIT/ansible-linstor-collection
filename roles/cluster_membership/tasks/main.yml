@@ -193,7 +193,7 @@
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
-# Restart controller when its net interface was changed (e.g. Plain → SSL).
+# Restart controller when its net interface was changed (for example Plain → SSL).
 - name: Restart controller after net interface change
   ansible.builtin.systemd_service:
     name: linstor-controller.service

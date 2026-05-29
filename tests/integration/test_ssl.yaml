@@ -30,7 +30,7 @@
       ansible.builtin.assert:
         that:
           - not _ca_key_stat.stat.exists
-        fail_msg: "CA private key found at /etc/linstor/ssl/ca.key on {{ inventory_hostname }} — key must not leave the Ansible control node"
+        fail_msg: "CA private key found at /etc/linstor/ssl/ca.key on {{ inventory_hostname }} - key must not leave the Ansible control node"
         quiet: true
 
 - name: Verify SSL connectivity and configuration

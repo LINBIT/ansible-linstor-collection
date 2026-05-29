@@ -351,7 +351,7 @@
       failed_when: vg_del2_idem.changed
 
     # =================================================================
-    # linstor_resource — spawn mode
+    # linstor_resource - spawn mode
     # =================================================================
     - name: "Resource: spawn from resource group"
       linbit.linstor.resource:
@@ -382,7 +382,7 @@
       failed_when: res_check_idem.changed
 
     # =================================================================
-    # linstor_resource_definition — DRBD options on spawned resource
+    # linstor_resource_definition - DRBD options on spawned resource
     # =================================================================
     - name: "RD: set DRBD options on spawned resource"
       linbit.linstor.resource_definition:
@@ -445,7 +445,7 @@
       failed_when: res_del_idem.changed
 
     # =================================================================
-    # linstor_resource — spawn with definitions_only
+    # linstor_resource - spawn with definitions_only
     # =================================================================
     - name: "Resource: spawn definitions_only"
       linbit.linstor.resource:
@@ -478,7 +478,7 @@
         state: absent
 
     # =================================================================
-    # linstor_resource — autoplace mode
+    # linstor_resource - autoplace mode
     # =================================================================
     - name: "Resource: autoplace with 2 replicas"
       linbit.linstor.resource:
@@ -511,7 +511,7 @@
       failed_when: not res_auto_del.changed
 
     # =================================================================
-    # linstor_resource — multi-volume spawn
+    # linstor_resource - multi-volume spawn
     # =================================================================
     - name: "VG: create second VG for multi-volume"
       linbit.linstor.volume_group:
@@ -552,7 +552,7 @@
         state: absent
 
     # =================================================================
-    # linstor_resource_definition — create with inline volume defs
+    # linstor_resource_definition - create with inline volume defs
     # =================================================================
     - name: "RD: create with inline volume definitions"
       linbit.linstor.resource_definition:
@@ -633,7 +633,7 @@
       failed_when: rd_del_idem.changed
 
     # =================================================================
-    # linstor_resource — manual placement + diskless
+    # linstor_resource - manual placement + diskless
     # =================================================================
     - name: "RD: create for manual placement test"
       linbit.linstor.resource_definition:

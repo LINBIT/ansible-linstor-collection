@@ -1,5 +1,4 @@
-gateway_install
-===============
+# gateway_install
 
 Install the `linstor-gateway` binary and service.
 
@@ -11,8 +10,7 @@ Standalone controllers receive the `linstor-gateway` binary only.
 By default, satellite related components are installed on all `linstor_satellites`.
 In larger clusters, where LINSTOR Gateway resources might be restricted to a small subset of nodes, define hosts as members of the `linstor_gateway_satellites` group to restrict installation to those nodes only.
 
-Requirements
-------------
+## Requirements
 
 The following inventory groups must be defined:
 
@@ -22,23 +20,20 @@ The following inventory groups must be defined:
 | `linstor_satellites` | All satellite nodes |
 | `linstor_gateway_satellites` | (optional) Satellites to install LINSTOR Gateway components on; falls back to all `linstor_satellites` if not defined |
 
-Role Variables
---------------
+## Role Variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
 | `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
-| `gateway_install_force_reconfigure` | `false` | Force re-running the configure phase even when the package install reports unchanged. Re-asserts directory, `linstor-gateway.toml`, firewall ports, and `linstor-gateway.service` state. Also re-invokes `linbit.linstor.gateway_satellite` on satellite hosts, which transitively re-invokes `linbit.drbd_reactor.reactor_install`. Use for drift correction. |
+| `gateway_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged; also re-runs `gateway_satellite` on satellites (drift correction) |
 
-Dependencies
-------------
+## Dependencies
 
 No formal role dependencies.
 On satellite nodes, conditionally includes `linbit.linstor.gateway_satellite`.
 
-Example Playbook
-----------------
+## Example Playbook
 
 To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `cluster_init_linstor_gateway: true` when using the `linbit.linstor.cluster_init` role:
 
@@ -83,12 +78,10 @@ To use SCST as the iSCSI target backend, add `gateway_satellite_scst: true`:
         gateway_satellite_scst: true
 ```
 
-License
--------
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 [LINBIT](https://linbit.com)

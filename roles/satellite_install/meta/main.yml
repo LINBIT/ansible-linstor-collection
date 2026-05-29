@@ -41,7 +41,7 @@ galaxy_info:
         - 15SP6
         # - 15SP7
 
-  min_ansible_version: '2.9'
+  min_ansible_version: '2.16'
 
   galaxy_tags:
     - linbit
