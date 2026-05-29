@@ -33,9 +33,16 @@
     quiet: true
   when: ssl_init_https_mtls | bool
 
+# set_fact persists across plays in the same run, so a second invocation
+# of ssl_init would otherwise append to the prior list.
+- name: Reset active controller list
+  ansible.builtin.set_fact:
+    _active_controllers: []
+  run_once: true  # noqa: run-once[task]
+
 - name: Build list of active controller nodes
   ansible.builtin.set_fact:
-    _active_controllers: "{{ _active_controllers | default([]) + [item] }}"
+    _active_controllers: "{{ _active_controllers + [item] }}"
   when: hostvars[item].ansible_facts.services['linstor-controller.service'].state | default('') == 'running'
   loop: "{{ groups['linstor_controllers'] }}"
   run_once: true  # noqa: run-once[task]
@@ -152,6 +159,7 @@
   retries: 12
   delay: 5
   until:
+    - _ssl_init_node_status is succeeded
     - not (_ssl_init_node_status.exists | default(false))
       or _ssl_init_node_status.connection_status | default('') == 'ONLINE'
   failed_when:

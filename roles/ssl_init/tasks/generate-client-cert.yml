@@ -61,6 +61,7 @@
     owner: root
     group: root
     mode: '0644'
+  register: _ssl_init_client_pem_push
 
 - name: Distribute client key to all cluster nodes
   ansible.builtin.copy:
@@ -69,6 +70,14 @@
     owner: root
     group: root
     mode: '0600'
+
+- name: Remove stale client truststore when pushed client cert changed
+  ansible.builtin.file:
+    path: "{{ ssl_init_dir }}/truststore_client.jks"
+    state: absent
+  when:  # noqa: no-handler
+    - inventory_hostname in groups['linstor_controllers']
+    - _ssl_init_client_pem_push.changed
 
 - name: Build client truststore on controller nodes
   ansible.builtin.command:

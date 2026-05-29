@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    ssl_init - validate the cached per-node certificate's SAN against the
+    current inventory before reusing it. The role previously keyed
+    regeneration on file existence alone, so a host re-added with the same
+    hostname but a different IP would silently get the old certificate and
+    fail hostname verification at the TLS handshake.
+  - >
+    ssl_init - rebuild the JKS keystore on the managed node when the pushed
+    certificate, key, or CA changes. The ``creates: keystore.jks`` guard
+    previously skipped rebuild even after the pushed material changed, so
+    the keystore retained the old certificate and the notify-driven service
+    restart never fired.
+  - >
+    ssl_init - rebuild the Java truststore on the managed node when the
+    pushed CA certificate changes. Same ``creates:`` guard pattern as the
+    keystore, fixed the same way.
+  - >
+    ssl_init - rebuild the client mTLS truststore when the pushed client
+    certificate changes. Affects the ``ssl_init_https_mtls`` path on
+    controllers.
+  - >
+    ssl_init - require the controller status query to succeed before the
+    until-loop exits. The previous condition short-circuited on the first
+    attempt when the query raised, masking transient TLS or connection
+    failures and burning no retry budget.
+  - >
+    ssl_init - reset the active-controller accumulator at the start of the
+    detection loop so a second invocation of the role in the same playbook
+    session does not double-count controllers.

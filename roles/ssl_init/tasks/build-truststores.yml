@@ -4,6 +4,13 @@
 # on each node. All nodes trust the same CA, eliminating the need to
 # exchange individual peer certificates.
 # Supports concatenated PEM chains (root + intermediate CAs in ca.crt).
+
+- name: Remove stale truststore when pushed CA changed
+  ansible.builtin.file:
+    path: "{{ ssl_init_dir }}/certificates.jks"
+    state: absent
+  when: _ssl_init_ca_push.changed | default(false)  # noqa: no-handler
+
 - name: Import CA certificate chain into truststore
   ansible.builtin.shell:
     cmd: |

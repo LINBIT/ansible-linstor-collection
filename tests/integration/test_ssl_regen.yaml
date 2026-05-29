@@ -1,0 +1,335 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify ssl_init regenerates stale per-node certs when the control-node
+# cache no longer matches the current inventory.
+#
+# Run AFTER ssl_init has succeeded once on the cluster (test_ssl.yaml green).
+# The test tampers on-disk state to simulate "node destroyed and re-added
+# with same hostname, different IP" and then re-runs ssl_init.
+#
+# Invocation (from a stack directory, e.g. stacks/linstor_cluster):
+#   ANSIBLE_COLLECTIONS_PATH=$PWD/collections \
+#     ansible-playbook -i hosts.yaml -e linstor_ssl=true \
+#     <repo>/collections/ansible_collections/linbit/linstor/tests/integration/test_ssl_regen.yaml
+#
+# Scenarios:
+#   1. Stale per-node cert SAN. Per-node cert on control node has SAN
+#      entries that no longer match current inventory IPs. Today ssl_init
+#      keys regen on file existence and reuses the stale cert. Expected
+#      after fix: regenerate with current SAN.
+#   2. Stale keystore vs. fresh cert. The cert on the control node is
+#      regenerated (different key material) but the managed node's
+#      keystore.jks still exists from a prior run. Today the
+#      `creates: keystore.jks` gate skips rebuild, so the keystore
+#      retains the old cert even though /etc/linstor/ssl/node.crt is
+#      updated. Expected after fix: keystore rebuilt when the pushed
+#      cert content changes.
+#
+# Out of scope for this file (covered in follow-up):
+#   - CA rotation and truststore rebuild on managed node.
+#
+# Note on cleanup: the always-block restores the control-node cert cache.
+# If the assertion fails on the buggy code path, the managed node retains
+# the stale cert in /etc/linstor/ssl until the stack playbook is re-run.
+
+- name: Scenario 1 - stale per-node cert SAN reuse
+  hosts: "{{ test_regen_target | default('linstor-3') }}"
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  vars:
+    cluster_init_ssl: true
+    _local_dir: "{{ lookup('env', 'HOME') }}/.config/linstor/ssl/{{ inventory_hostname }}"
+    _bogus_ip: "198.51.100.99"
+
+  pre_tasks:
+    - name: Pre-gather controller service facts via delegation
+      ansible.builtin.service_facts:
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['linstor_controllers'] }}"
+
+  tasks:
+    - name: Tamper, re-run ssl_init, and assert SAN matches inventory
+      block:
+        - name: Confirm baseline cert exists on control node
+          ansible.builtin.stat:
+            path: "{{ _local_dir }}/node.crt"
+          delegate_to: localhost
+          become: false
+          register: _baseline_stat
+          failed_when: not _baseline_stat.stat.exists
+
+        - name: Back up baseline cert and key on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/{{ item }}"
+            dest: "{{ _local_dir }}/{{ item }}.baseline"
+            mode: preserve
+          loop:
+            - node.crt
+            - node.key
+          delegate_to: localhost
+          become: false
+
+        - name: Write stale openssl extension file
+          ansible.builtin.copy:
+            content: |
+              [v3_node]
+              subjectAltName = DNS:{{ inventory_hostname }},IP:{{ _bogus_ip }},IP:127.0.0.1
+              keyUsage = digitalSignature, keyEncipherment
+              extendedKeyUsage = serverAuth, clientAuth
+            dest: "{{ _local_dir }}/openssl-san-stale.cnf"
+            mode: '0600'
+          delegate_to: localhost
+          become: false
+
+        - name: Generate stale private key
+          ansible.builtin.command:
+            cmd: >-
+              openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048
+              -out {{ _local_dir }}/node.key.stale
+            creates: "{{ _local_dir }}/node.key.stale"
+          delegate_to: localhost
+          become: false
+
+        - name: Generate stale CSR
+          ansible.builtin.command:
+            cmd: >-
+              openssl req -new
+              -key {{ _local_dir }}/node.key.stale
+              -out {{ _local_dir }}/node.csr.stale
+              -subj "/CN={{ inventory_hostname }}"
+            creates: "{{ _local_dir }}/node.csr.stale"
+          delegate_to: localhost
+          become: false
+
+        - name: Sign stale cert with real CA
+          ansible.builtin.command:
+            cmd: >-
+              openssl x509 -req
+              -in {{ _local_dir }}/node.csr.stale
+              -CA {{ _local_dir | dirname }}/ca.crt
+              -CAkey {{ _local_dir | dirname }}/ca.key
+              -CAcreateserial
+              -out {{ _local_dir }}/node.crt.stale
+              -days 30
+              -extfile {{ _local_dir }}/openssl-san-stale.cnf
+              -extensions v3_node
+            creates: "{{ _local_dir }}/node.crt.stale"
+          delegate_to: localhost
+          become: false
+
+        - name: Install stale cert as the on-disk cert on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/node.crt.stale"
+            dest: "{{ _local_dir }}/node.crt"
+            mode: '0644'
+          delegate_to: localhost
+          become: false
+
+        - name: Install stale key as the on-disk key on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/node.key.stale"
+            dest: "{{ _local_dir }}/node.key"
+            mode: '0600'
+          delegate_to: localhost
+          become: false
+
+        - name: Wipe /etc/linstor/ssl on managed node (simulate fresh-box reuse)
+          ansible.builtin.file:
+            path: /etc/linstor/ssl
+            state: absent
+
+        - name: Stop linstor-satellite to force ssl_init re-run on this host
+          ansible.builtin.systemd:
+            name: linstor-satellite
+            state: stopped
+
+        - name: Re-run ssl_init
+          ansible.builtin.import_role:
+            name: linbit.linstor.ssl_init
+
+        - name: Read SAN of cert on control node after re-run
+          ansible.builtin.command:
+            cmd: >-
+              openssl x509 -in {{ _local_dir }}/node.crt
+              -noout -ext subjectAltName
+          register: _post_san
+          changed_when: false
+          delegate_to: localhost
+          become: false
+
+        - name: Assert SAN reflects current inventory IPs (not the stale bogus IP)
+          ansible.builtin.assert:
+            that:
+              - "'IP Address:' + (hostvars[inventory_hostname]['linstor_ip']) in _post_san.stdout"
+              - "'IP Address:' + (hostvars[inventory_hostname]['replication_ip']) in _post_san.stdout"
+              - "'IP Address:' + _bogus_ip not in _post_san.stdout"
+            fail_msg: |
+              ssl_init reused the stale cert on the control node.
+              Current SAN: {{ _post_san.stdout | trim }}
+              Expected to contain linstor_ip and replication_ip from inventory.
+            success_msg: SAN matches current inventory after re-run
+      always:
+        - name: Restore baseline cert and key on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/{{ item }}.baseline"
+            dest: "{{ _local_dir }}/{{ item }}"
+            mode: preserve
+          loop:
+            - node.crt
+            - node.key
+          delegate_to: localhost
+          become: false
+          failed_when: false
+
+        - name: Remove tamper artifacts from control node
+          ansible.builtin.file:
+            path: "{{ _local_dir }}/{{ item }}"
+            state: absent
+          loop:
+            - node.crt.stale
+            - node.key.stale
+            - node.csr.stale
+            - openssl-san-stale.cnf
+            - node.crt.baseline
+            - node.key.baseline
+          delegate_to: localhost
+          become: false
+          failed_when: false
+
+- name: Scenario 2 - stale keystore vs. fresh cert
+  hosts: "{{ test_regen_target | default('linstor-3') }}"
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  vars:
+    cluster_init_ssl: true
+    _local_dir: "{{ lookup('env', 'HOME') }}/.config/linstor/ssl/{{ inventory_hostname }}"
+
+  pre_tasks:
+    - name: Pre-gather controller service facts via delegation
+      ansible.builtin.service_facts:
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['linstor_controllers'] }}"
+
+  tasks:
+    - name: Force cert regen on control node, then assert keystore picks up the new cert
+      block:
+        - name: Confirm baseline cert exists on control node
+          ansible.builtin.stat:
+            path: "{{ _local_dir }}/node.crt"
+          delegate_to: localhost
+          become: false
+          register: _baseline_stat
+          failed_when: not _baseline_stat.stat.exists
+
+        - name: Back up baseline cert and key on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/{{ item }}"
+            dest: "{{ _local_dir }}/{{ item }}.baseline"
+            mode: preserve
+          loop:
+            - node.crt
+            - node.key
+          delegate_to: localhost
+          become: false
+
+        - name: Capture keystore SHA-256 fingerprint before re-run
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              keytool -list -keystore /etc/linstor/ssl/keystore.jks
+              -storepass {{ ssl_init_keystore_password | default('linstor') }}
+              -alias {{ inventory_hostname }} 2>/dev/null
+              | awk -F': ' '/Certificate fingerprint \(SHA-?256\)/ {print $2}'
+              | head -1
+            executable: /bin/bash
+          register: _keystore_fp_before
+          changed_when: false
+
+        - name: Delete control-node cert and key (simulate operator-forced regen)
+          ansible.builtin.file:
+            path: "{{ _local_dir }}/{{ item }}"
+            state: absent
+          loop:
+            - node.crt
+            - node.key
+          delegate_to: localhost
+          become: false
+
+        - name: Stop linstor-satellite to force ssl_init re-run on this host
+          ansible.builtin.systemd:
+            name: linstor-satellite
+            state: stopped
+
+        - name: Re-run ssl_init
+          ansible.builtin.import_role:
+            name: linbit.linstor.ssl_init
+
+        - name: Read SHA-256 fingerprint of cert on disk after re-run
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              openssl x509 -in /etc/linstor/ssl/node.crt -noout -fingerprint -sha256
+              | sed -E 's/^[Ss][Hh][Aa]-?256 Fingerprint=//'
+            executable: /bin/bash
+          register: _cert_fp_after
+          changed_when: false
+
+        - name: Read SHA-256 fingerprint of cert inside keystore after re-run
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              keytool -list -keystore /etc/linstor/ssl/keystore.jks
+              -storepass {{ ssl_init_keystore_password | default('linstor') }}
+              -alias {{ inventory_hostname }} 2>/dev/null
+              | awk -F': ' '/Certificate fingerprint \(SHA-?256\)/ {print $2}'
+              | head -1
+            executable: /bin/bash
+          register: _keystore_fp_after
+          changed_when: false
+
+        - name: Assert keystore was rebuilt with the new cert
+          ansible.builtin.assert:
+            that:
+              - _keystore_fp_after.stdout != _keystore_fp_before.stdout
+              - _keystore_fp_after.stdout | length > 0
+              - _cert_fp_after.stdout | length > 0
+              - _keystore_fp_after.stdout == _cert_fp_after.stdout
+            fail_msg: |
+              Keystore was not rebuilt to match the new pushed cert.
+              keystore fingerprint before: {{ _keystore_fp_before.stdout | trim }}
+              keystore fingerprint after:  {{ _keystore_fp_after.stdout | trim }}
+              cert on disk fingerprint:    {{ _cert_fp_after.stdout | trim }}
+            success_msg: Keystore fingerprint matches the new cert on disk
+      always:
+        - name: Restore baseline cert and key on control node
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ _local_dir }}/{{ item }}.baseline"
+            dest: "{{ _local_dir }}/{{ item }}"
+            mode: preserve
+          loop:
+            - node.crt
+            - node.key
+          delegate_to: localhost
+          become: false
+          failed_when: false
+
+        - name: Remove baseline backups from control node
+          ansible.builtin.file:
+            path: "{{ _local_dir }}/{{ item }}"
+            state: absent
+          loop:
+            - node.crt.baseline
+            - node.key.baseline
+          delegate_to: localhost
+          become: false
+          failed_when: false
