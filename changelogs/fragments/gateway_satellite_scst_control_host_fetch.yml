@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    gateway_satellite - download the SCST source once on the first satellite that
+    needs it and distribute it to the other nodes from the Ansible control host
+    cache, instead of every node cloning from GitHub. Reduces GitHub access to a
+    single clone regardless of cluster size.
+bugfixes:
+  - >
+    gateway_satellite - install ``tar`` before unpacking the SCST source so the
+    distribute step works on minimal images that do not ship it.
+  - >
+    gateway_satellite - install EPEL via ``oracle-epel-release-elN`` on Oracle
+    Linux, which does not provide the ``epel-release`` package.

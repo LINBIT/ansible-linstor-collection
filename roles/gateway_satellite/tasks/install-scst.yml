@@ -1,26 +1,74 @@
 # SPDX-License-Identifier: MIT
 ---
-# Install SCST iSCSI target from source.
-# Triggered when gateway_satellite_scst=true.
+# Install SCST iSCSI target from source
 
 - name: Check if SCST kernel module is already loaded
   ansible.builtin.stat:
     path: /sys/module/scst
   register: scst_module
 
-- name: Build and install SCST from source
-  when: not scst_module.stat.exists
+- name: Set SCST install flag
+  ansible.builtin.set_fact:
+    _scst_needs_install: "{{ not scst_module.stat.exists }}"
+
+- name: Select SCST fetch host and overall need
+  ansible.builtin.set_fact:
+    _scst_any_needed: >-
+      {{ ansible_play_hosts | map('extract', hostvars, '_scst_needs_install')
+         | map('bool') | select | list | length > 0 }}
+    _scst_fetch_host: >-
+      {{ ansible_play_hosts | map('extract', hostvars)
+         | selectattr('_scst_needs_install', 'truthy')
+         | map(attribute='inventory_hostname') | first | default('') }}
+  run_once: true  # noqa: run-once[task]
+
+- name: Fetch SCST source once to the control host cache
+  when: _scst_any_needed | bool
   block:
-    - name: Install git
+    - name: Install git on the SCST fetch host
       ansible.builtin.package:
         name: git
         state: present
+      delegate_to: "{{ _scst_fetch_host }}"
+      run_once: true  # noqa: run-once[task]
 
-    - name: Checkout SCST repo
-      ansible.builtin.git: # noqa: latest[git]
+    - name: Checkout SCST repo on the fetch host
+      ansible.builtin.git:  # noqa: latest[git]
         repo: 'https://github.com/SCST-project/scst.git'
         version: "{{ gateway_satellite_scst_version }}"
         dest: /tmp/scst
+      delegate_to: "{{ _scst_fetch_host }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Package SCST source on the fetch host
+      community.general.archive:
+        path: /tmp/scst
+        dest: /tmp/scst.tar.gz
+        format: gz
+        mode: '0644'
+      delegate_to: "{{ _scst_fetch_host }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Cache SCST source archive on the control host
+      ansible.builtin.fetch:
+        src: /tmp/scst.tar.gz
+        dest: "{{ _scst_cache }}/{{ gateway_satellite_scst_version }}.tar.gz"
+        flat: true
+      delegate_to: "{{ _scst_fetch_host }}"
+      run_once: true  # noqa: run-once[task]
+
+- name: Build and install SCST from source
+  when: _scst_needs_install | bool
+  block:
+    - name: Install tar for SCST source extraction
+      ansible.builtin.package:
+        name: tar
+        state: present
+
+    - name: Unpack SCST source from the control host cache
+      ansible.builtin.unarchive:
+        src: "{{ _scst_cache }}/{{ gateway_satellite_scst_version }}.tar.gz"
+        dest: /tmp
 
     - name: Install kernel headers for SCST DKMS
       ansible.builtin.package:
@@ -30,10 +78,17 @@
     - name: Build and install SCST (RHEL)
       when: ansible_facts['os_family'] | lower == 'redhat'
       block:
-        - name: Install EPEL repo
-          ansible.builtin.package:
+        - name: Install EPEL on Oracle Linux (DNF)
+          ansible.builtin.dnf:
+            name: "oracle-epel-release-el{{ ansible_facts['distribution_major_version'] }}"
+            state: present
+          when: ansible_facts['distribution'] | lower == 'oraclelinux'
+
+        - name: Install EPEL on other RPM distros (DNF)
+          ansible.builtin.dnf:
             name: epel-release
             state: present
+          when: ansible_facts['distribution'] | lower != 'oraclelinux'
 
         - name: Install SCST build prerequisites (RHEL)
           ansible.builtin.package:

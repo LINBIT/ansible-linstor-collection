@@ -1,2 +1,4 @@
 # SPDX-License-Identifier: MIT
 ---
+# Control node cache for the SCST source, fetched once then distributed to nodes
+_scst_cache: /tmp/linbit-scst
