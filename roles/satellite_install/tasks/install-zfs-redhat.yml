@@ -1,9 +1,20 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Install EPEL repository
+- name: Install EPEL on Oracle Linux (DNF)
+  ansible.builtin.dnf:
+    name: "oracle-epel-release-el{{ ansible_facts['distribution_major_version'] }}"
+    state: present
+  when: ansible_facts['distribution'] | lower == 'oraclelinux'
+  register: _satellite_install_epel_oracle
+  until: _satellite_install_epel_oracle is succeeded
+  retries: 3
+  delay: 10
+
+- name: Install EPEL on other RPM distros (DNF)
   ansible.builtin.dnf:
     name: epel-release
     state: present
+  when: ansible_facts['distribution'] | lower != 'oraclelinux'
   register: _satellite_install_epel
   until: _satellite_install_epel is succeeded
   retries: 3

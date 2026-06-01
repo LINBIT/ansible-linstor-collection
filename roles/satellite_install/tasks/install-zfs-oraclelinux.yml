@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
-# Oracle UEK uses DKMS (kmod repo has no UEK builds); EL8 needs gcc-toolset-11 to match the UEK build compiler.
+# Oracle UEK uses DKMS (kmod repo has no UEK builds) - EL8 needs gcc-toolset-11 to match the UEK build compiler
 - name: Install EPEL repository
   ansible.builtin.dnf:
-    name: epel-release
+    name: "oracle-epel-release-el{{ ansible_facts['distribution_major_version'] }}"
     state: present
   register: _satellite_install_epel
   until: _satellite_install_epel is succeeded
@@ -54,17 +54,14 @@
   retries: 3
   delay: 10
 
-- name: Build ZFS DKMS module with GCC toolset (EL8)
+- name: Build ZFS DKMS module
   ansible.builtin.shell:
-    cmd: source /opt/rh/gcc-toolset-11/enable && dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
+    cmd: >-
+      {% if ansible_facts['distribution_major_version'] == '8' %}
+        source /opt/rh/gcc-toolset-11/enable &&
+      {% endif %}
+      dkms autoinstall
     creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
-  when: ansible_facts['distribution_major_version'] == '8'
-
-- name: Build ZFS DKMS module (EL9+)
-  ansible.builtin.command:
-    cmd: dkms install zfs/$(rpm -q --qf '%{VERSION}' zfs-dkms)
-    creates: "/lib/modules/{{ ansible_facts['kernel'] }}/extra/zfs.ko.xz"
-  when: ansible_facts['distribution_major_version'] != '8'
 
 - name: Install ZFS utilities
   ansible.builtin.dnf:
