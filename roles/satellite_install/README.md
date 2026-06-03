@@ -12,7 +12,7 @@ The following inventory group must be defined:
 |---|---|
 | `linstor_satellites` | Nodes to install the LINSTOR satellite on |
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -24,7 +24,7 @@ The following inventory group must be defined:
 
 See `defaults/main.yml` and `vars/` for additional variables.
 
-## ZFS Support
+## ZFS support
 
 ZFS behavior varies by OS family.
 LINBIT does not support ZFS on non-Debian family operating systems, use at your own risk.
@@ -52,7 +52,7 @@ Debian family distributions handle module auto-loading through their own package
 
 `linbit.drbd.drbd_install`, `linbit.linstor.client_install`
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: Install LINSTOR satellites
@@ -84,6 +84,6 @@ To enable ZFS on Red Hat, SUSE, and non-Ubuntu Debian nodes:
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

@@ -25,7 +25,7 @@ The following inventory groups must be defined:
 | `linstor_controllers` | Nodes to install the LINSTOR controller on |
 | `linstor_diskful_satellites` | Diskful satellite nodes (required when `cluster_init_deploy_storage: true`) |
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -51,7 +51,7 @@ See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`
 
 Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.ssl_init`, `linbit.linstor.gateway_install`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database` (included dynamically based on variables)
 
-## Example Playbook
+## Example playbook
 
 Minimal deployment (install and register only):
 
@@ -154,7 +154,7 @@ linstor_gateway_satellites:
 Only `linstor-1` and `linstor-2` receive NFS/iSCSI resource agents, DRBD Reactor, and other satellite-side components.
 All other satellites are left untouched.
 
-## Equivalent Play Without `cluster_init`
+## Equivalent play without `cluster_init`
 
 For reference, the expanded form below calls each sub-role individually and is functionally equivalent to a single `cluster_init` call.
 Use this form when you want to insert custom tasks between roles, run a different subset, or pin per-role variables that `cluster_init` does not expose.
@@ -294,6 +294,6 @@ For everyday deployments, prefer `cluster_init`.
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

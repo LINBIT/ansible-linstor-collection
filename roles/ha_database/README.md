@@ -21,7 +21,7 @@ In a 2-node combined setup, LINSTOR auto-quorum adds a diskless TieBreaker on an
 
 DRBD Reactor is installed automatically if not already present via a dynamic `include_role` of `linbit.drbd_reactor.reactor_install`.
 
-## Role Variables
+## Role variables
 
 See `defaults/main.yml`.
 
@@ -48,7 +48,7 @@ When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_
 No hard role dependencies.
 `linbit.drbd_reactor.reactor_install` is included dynamically if DRBD Reactor is not present.
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: LINSTOR HA database conversion
@@ -84,6 +84,6 @@ With a floating VIP for the controller:
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

@@ -88,7 +88,7 @@ Custom Ansible modules for managing LINSTOR objects declaratively. Install [`pyt
 
 Most module tasks should use `run_once: true` or a single-host play. See [Using LINSTOR modules](#using-linstor-modules) for examples.
 
-## Filter Plugins
+## Filter plugins
 
 | Filter | Description |
 |---|---|
@@ -97,18 +97,18 @@ Most module tasks should use `run_once: true` or a single-host play. See [Using 
 | `gateway_placement` | Build the manual placement list for `resource` in `manual` mode (used internally by `ha_gateway`) |
 | `gateway_resolve_satellites` | Split LINSTOR-reported nodes per target into diskful and diskless lists (used internally by `ha_gateway`) |
 
-## Lookup Plugins
+## Lookup plugins
 
 | Lookup | Description |
 |---|---|
 | `controller_env` | Build a comma-joined `LS_CONTROLLERS` URI string from the `linstor_controllers` inventory group, reading `linstor_ssl` from the play context |
 | `group_addresses` | Return a list of LINSTOR addresses for all hosts in a given inventory group |
 
-## LINSTOR Controller Connection
+## LINSTOR controller connection
 
 LINSTOR modules need a valid [controller URI](https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-using_the_linstor_client). The URI is defined by setting the `LS_CONTROLLERS` environment variable. There are a few ways to define it, depending on your LINSTOR environment.
 
-### Set `LS_CONTROLLERS` Directly
+### Set `LS_CONTROLLERS` directly
 
 For non-SSL LINSTOR clusters:
 
@@ -132,7 +132,7 @@ environment:
   LS_CONTROLLERS: "linstor://10.0.0.10,linstor://10.0.0.11,linstor://10.0.0.12"  # default non-SSL TCP port 3370
 ```
 
-### From Inventory
+### From inventory
 
 ```yaml
 # group_vars/all/linstor.yml
@@ -144,7 +144,7 @@ environment:
   LS_CONTROLLERS: "{{ linstor_controllers_uri }}"
 ```
 
-### Auto-Discovered
+### Auto-discovered
 
 If your inventory uses the suggested [LINSTOR groups](#required-inventory-groups), the `linbit.linstor.controller_env` lookup auto-discovers controllers. For clusters initialized with SSL (see [`ssl_init`](roles/ssl_init/README.md)), set `linstor_ssl: true`:
 
@@ -164,11 +164,11 @@ LINSTOR modules resolve the controller URI in this order (first match wins), sim
 4. `/etc/linstor/linstor-client.conf` (system-wide; only consulted when the per-user file is absent)
 5. Default: `linstor://localhost`
 
-## Using LINSTOR Modules
+## Using LINSTOR modules
 
 With the controller connection configured (see above), invoke LINSTOR modules from any play. Each example below uses the `controller_env` lookup so the `LS_CONTROLLERS:` line stays inventory-driven.
 
-### Provision a Resource Group and Spawn a Resource
+### Provision a resource group and spawn a resource
 
 ```yaml
 - name: Provision LINSTOR storage
@@ -191,7 +191,7 @@ With the controller connection configured (see above), invoke LINSTOR modules fr
         size: 100G
 ```
 
-### Add a Node to a Cluster
+### Add a node to a cluster
 
 ```yaml
 - name: Add a LINSTOR node
@@ -207,7 +207,7 @@ With the controller connection configured (see above), invoke LINSTOR modules fr
         node_type: Satellite
 ```
 
-### Configure Cluster-Wide Controller Properties
+### Configure cluster-wide controller properties
 
 ```yaml
 - name: Configure LINSTOR controller properties
@@ -222,7 +222,7 @@ With the controller connection configured (see above), invoke LINSTOR modules fr
           DrbdOptions/auto-quorum: suspend-io
 ```
 
-## Required Inventory Groups
+## Required inventory groups
 
 The following inventory groups are used to control role targeting:
 

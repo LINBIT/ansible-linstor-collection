@@ -13,7 +13,7 @@ The following inventory groups must be defined:
 | `linstor_controllers` | Controller nodes (registers as `Controller` or `Combined`) |
 | `linstor_satellites` | Satellite nodes (registers as `Satellite` or `Combined`) |
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -58,7 +58,7 @@ For SSL clusters, `ssl_init` adds both `linstor_ip` and `replication_ip` to the 
 
 None.
 
-## Example Playbook
+## Example playbook
 
 Nodes in both `linstor_controllers` and `linstor_satellites` are registered as `Combined`.
 Nodes in only one group are registered as their respective type.
@@ -99,6 +99,6 @@ In this example, `linstor-1` and `linstor-2` appear in both groups and are regis
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

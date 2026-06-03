@@ -15,7 +15,7 @@ Re-running with the same `peer_trust_alias` and unchanged peer cert is a no-op v
 
 The peer cluster must be reachable over SSH from the local controller for the CA-cert read step (the role uses `delegate_to: "{{ peer_trust_peer_host }}"`).
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -29,7 +29,7 @@ The peer cluster must be reachable over SSH from the local controller for the CA
 
 None.
 
-## Example Playbook
+## Example playbook
 
 Trust a single peer cluster's CA on every controller in the local cluster:
 
@@ -68,6 +68,6 @@ After the role completes, run the `linbit.linstor.remote` module to register the
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

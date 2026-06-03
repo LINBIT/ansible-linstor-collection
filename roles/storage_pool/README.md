@@ -19,7 +19,7 @@ The LINSTOR satellite must be installed and running on target nodes (handled by 
 
 The `community.general` collection is required for LVM and ZFS pool creation (`community.general.lvg`, `community.general.lvol`, `community.general.zpool`).
 
-## Role Variables
+## Role variables
 
 ### `linstor_storage_pools` (inventory variable)
 
@@ -91,7 +91,7 @@ Restarts are batched via handlers and flushed once before registering each pool 
 
 No hard role dependencies.
 
-## Example Playbook
+## Example playbook
 
 The playbook does not need to pass any variables to the role:
 
@@ -109,9 +109,9 @@ The playbook does not need to pass any variables to the role:
 The role reads `linstor_storage_pools` directly from inventory.
 Choose the inventory pattern that best fits your cluster size and hardware layout.
 
-## Inventory Patterns
+## Inventory patterns
 
-### Pattern 1: Per-host definitions
+### Pattern 1: per-host definitions
 
 Best for small clusters or hosts with truly unique pool configurations.
 Define `linstor_storage_pools` per host in `host_vars/` files or inline in `hosts.yaml`:
@@ -151,7 +151,7 @@ linstor_diskful_satellites:
             - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W789012
 ```
 
-### Pattern 2: Cluster-wide uniform pool
+### Pattern 2: cluster-wide uniform pool
 
 Best when all hosts use the same device paths (for example `/dev/vdb` in virtual environments).
 Define `linstor_storage_pools` once in `group_vars/all` or `all: vars:`:
@@ -169,7 +169,7 @@ linstor_storage_pools:
 
 Every host in `linstor_diskful_satellites` creates this pool.
 
-### Pattern 3: Centralized with targeting (recommended for large clusters)
+### Pattern 3: centralized with targeting (recommended for large clusters)
 
 Best for large clusters with multiple pool types or per-host device paths.
 Define pool topology once in `group_vars/all` with `nodes` or `groups` keys for targeting.
@@ -245,7 +245,7 @@ linstor_storage_pools:
 
 When both `nodes` and `groups` are set on the same pool entry, the union is used.
 
-## Variable Precedence
+## Variable precedence
 
 Ansible replaces variables rather than merging them.
 If a host defines `linstor_storage_pools` in `host_vars/`, that definition completely replaces any `group_vars` definition for the same variable.
@@ -257,6 +257,6 @@ Pattern 3 avoids this issue entirely: all pool definitions live in `group_vars/a
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

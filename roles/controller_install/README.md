@@ -10,7 +10,7 @@ The following inventory group must be defined:
 |---|---|
 | `linstor_controllers` | Nodes to install the LINSTOR controller on |
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -26,7 +26,7 @@ See `defaults/main.yml` for additional variables.
 
 `linbit.linstor.client_install`
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: Install LINSTOR controller
@@ -42,6 +42,6 @@ See `defaults/main.yml` for additional variables.
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

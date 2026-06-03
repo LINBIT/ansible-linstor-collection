@@ -21,7 +21,7 @@ The following inventory groups must be defined:
 
 Java `keytool` must be available on all cluster nodes (installed by the `linstor-controller` and `linstor-satellite` packages) for JKS keystore conversion.
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -98,7 +98,7 @@ Place the following files in `ssl_init_dir` (`/etc/linstor/ssl` by default) on e
 
 The role asserts that all three files exist before proceeding.
 
-#### Subject Alternative Names (SANs)
+#### Subject alternative names (SANs)
 
 Request certificates from your CA with the following SANs per node:
 
@@ -145,7 +145,7 @@ The role updates node network interfaces to SSL automatically, so it can run bef
 
 When used through `cluster_init`, ordering is handled automatically.
 
-## Example Playbook
+## Example playbook
 
 Enable SSL through `cluster_init` (encrypts both REST API and satellite connections):
 
@@ -191,6 +191,6 @@ The role signs a new certificate for the new node without touching any running c
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

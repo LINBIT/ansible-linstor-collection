@@ -20,7 +20,7 @@ The following inventory groups must be defined:
 | `linstor_satellites` | All satellite nodes |
 | `linstor_gateway_satellites` | (optional) Satellites to install LINSTOR Gateway components on; falls back to all `linstor_satellites` if not defined |
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -33,7 +33,7 @@ The following inventory groups must be defined:
 No formal role dependencies.
 On satellite nodes, conditionally includes `linbit.linstor.gateway_satellite`.
 
-## Example Playbook
+## Example playbook
 
 To install LINSTOR Gateway as part of a new LINSTOR cluster deployment, set `cluster_init_linstor_gateway: true` when using the `linbit.linstor.cluster_init` role:
 
@@ -82,6 +82,6 @@ To use SCST as the iSCSI target backend, add `gateway_satellite_scst: true`:
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

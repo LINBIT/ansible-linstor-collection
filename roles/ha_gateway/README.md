@@ -45,7 +45,7 @@ It installs iSCSI and NFS resource agents, the portblock RA fix, and DRBD Reacto
         name: linbit.linstor.gateway_satellite
 ```
 
-## Role Variables
+## Role variables
 
 See `defaults/main.yml`.
 
@@ -66,7 +66,7 @@ See `defaults/main.yml`.
 | `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on a target; must include the `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
-## Resource Naming
+## Resource naming
 
 LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI can recognize them:
 
@@ -83,7 +83,7 @@ Promoter config files are stored in LINSTOR as external files with the path patt
 
 DRBD device paths follow the resource name, for example `/dev/drbd/by-res/shared/0`.
 
-## iSCSI Targets
+## iSCSI targets
 
 Each entry in `linstor_iscsi_targets`:
 
@@ -105,7 +105,7 @@ Each entry in `linstor_iscsi_targets`:
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
 
-## NFS Exports
+## NFS exports
 
 Each entry in `linstor_nfs_exports`:
 
@@ -137,7 +137,7 @@ The kernel NFS server cannot have more than one instance per node, so multiple N
 When multiple NFS exports use autoplace, `do_not_place_with_regex` prevents LINSTOR from placing two NFS resources on the same node.
 A post-placement validation confirms non-overlapping nodes across all NFS exports.
 
-## NVMe-oF Targets
+## NVMe-oF targets
 
 Each entry in `linstor_nvmeof_targets`:
 
@@ -155,7 +155,7 @@ Each entry in `linstor_nvmeof_targets`:
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
 
-## Per-target Placement
+## Per-target placement
 
 Each target supports two placement modes:
 
@@ -182,7 +182,7 @@ It installs DRBD Reactor (`linbit.drbd_reactor.reactor_install`) transitively.
 
 The `ansible.utils` collection and `netaddr` Python library are required on the Ansible control node (see Requirements above).
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: Deploy HA gateway targets
@@ -392,6 +392,6 @@ linstor_nvmeof_targets:
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

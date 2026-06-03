@@ -16,7 +16,7 @@ Target nodes must be LINSTOR satellites with `linstor-satellite` already install
 In larger clusters where only a subset of satellites serve LINSTOR Gateway resources, define a `linstor_gateway_satellites` inventory group (as a child of `linstor_satellites`) and `gateway_install` will automatically restrict satellite-side installation to those nodes.
 No group definition is needed for smaller clusters.
 
-## Role Variables
+## Role variables
 
 | Variable | Default | Description |
 |---|---|---|
@@ -31,7 +31,7 @@ No group definition is needed for smaller clusters.
 
 `linbit.drbd_reactor.reactor_install` (hard dependency via `meta/main.yml`), invoked with `reactor_install_drbd: false` and `reactor_install_resource_agents_upstream: true` so that the `drbd-reactor` package, the `drbd-reactor.service` enable state, and the OCF resource agents DRBD Reactor uses are always present before `gateway_satellite`'s tasks run.
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: Install LINSTOR Gateway satellite components
@@ -47,6 +47,6 @@ No group definition is needed for smaller clusters.
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)

@@ -6,7 +6,7 @@ Install and configure the LINSTOR client.
 
 None.
 
-## Role Variables
+## Role variables
 
 See `defaults/main.yml`.
 
@@ -23,7 +23,7 @@ If `linstor_ha_vip` is set in inventory it is used by the `ha_database` role to 
 
 None.
 
-## Example Playbook
+## Example playbook
 
 ```yaml
 - name: Install LINSTOR client
@@ -39,6 +39,6 @@ None.
 
 MIT
 
-## Author Information
+## Author information
 
 [LINBIT](https://linbit.com)
