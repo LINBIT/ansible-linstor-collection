@@ -5,7 +5,7 @@ The `linbit.linstor` Ansible collection for installing and configuring [LINSTORÂ
 ## Requirements
 
 - ansible-core 2.16 or newer
-- [`python-linstor`](https://pypi.org/project/python-linstor/) 1.27.1 or newer
+- [`python-linstor`](https://pypi.org/project/python-linstor/) 1.28.1 or newer
 
 ## Installation
 
