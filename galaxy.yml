@@ -5,9 +5,6 @@ version: 0.9.9
 readme: README.md
 authors:
   - Ryan Ronnander <rronnander@linbit.com>
-  - Matt Kereczman <matt@linbit.com>
-  - Michael Troutman <michael@linbit.com>
-  - Devin Vance <devin@linbit.com>
 description: >-
   Ansible roles and modules for deploying and managing LINSTOR storage
   clusters, including controller, satellite, client, and LINSTOR Gateway
