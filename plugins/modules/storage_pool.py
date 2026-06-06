@@ -85,7 +85,7 @@ notes:
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname).
   - The C(node) parameter must refer to a LINSTOR satellite that has local
-    storage (for example nodes in the C(linstor_diskful_satellites) inventory group).
+    storage (a node a pool targets, which is what makes it a diskful satellite).
   - "Over-provisioning: C(MaxFreeCapacityOversubscriptionRatio),
     C(MaxTotalCapacityOversubscriptionRatio), and C(MaxOversubscriptionRatio)
     (all default to 20). LINSTOR uses the lower of the free and total ratios.
@@ -143,7 +143,7 @@ EXAMPLES = r'''
     node: "{{ item }}"
     driver: lvmthin
     driver_pool: "drbdpool/thinpool"
-  loop: "{{ groups['linstor_diskful_satellites'] }}"
+  loop: "{{ groups['linstor_satellites'] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Set thin provisioning over-subscription ratios on a storage pool

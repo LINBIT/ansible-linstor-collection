@@ -5,7 +5,7 @@
 # or in a path on ANSIBLE_COLLECTIONS_PATH) so the linstor action group
 # resolves for module_defaults.
 # Expects standard LINSTOR inventory groups (linstor_controllers,
-# linstor_satellites, linstor_diskful_satellites).
+# linstor_satellites).
 # Override the test storage pool with -e test_storage_pool=<name>
 # (defaults to sp0). Works against both plain and SSL clusters:
 #   ansible-playbook ./test_modules_advanced.yaml
@@ -37,8 +37,8 @@
     _test_rd_vols: test-rd-vols
     _test_storage_pool: "{{ test_storage_pool | default('sp0') }}"
     _test_kvs: test-mod-kvs
-    _sat1: "{{ groups['linstor_diskful_satellites'][0] }}"
-    _sat2: "{{ groups['linstor_diskful_satellites'][1] }}"
+    _sat1: "{{ groups['linstor_satellites'][0] }}"
+    _sat2: "{{ groups['linstor_satellites'][1] }}"
 
   tasks:
     # =================================================================

@@ -1,32 +1,16 @@
 # SPDX-License-Identifier: MIT
 ---
-# Filter pools for this host. Pools without nodes/groups keys apply unconditionally.
-# Pools with nodes and/or groups keys apply only when the current host is listed
-# in nodes or is a member of one of the listed inventory groups (union).
 - name: Filter pools for this host
   ansible.builtin.set_fact:
     _my_pools: >-
-      {%- set result = [] -%}
-      {%- for pool in linstor_storage_pools | default([]) -%}
-        {%- if pool.nodes is not defined and pool.groups is not defined -%}
-          {%- set _ = result.append(pool) -%}
-        {%- else -%}
-          {%- set ns = namespace(targets=pool.nodes | default([])) -%}
-          {%- for grp in pool.groups | default([]) -%}
-            {%- set ns.targets = ns.targets + groups.get(grp, []) -%}
-          {%- endfor -%}
-          {%- if inventory_hostname in ns.targets | unique -%}
-            {%- set _ = result.append(pool) -%}
-          {%- endif -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ result }}
+      {{ linstor_storage_pools | default([])
+         | linbit.linstor.host_storage_pools(inventory_hostname, groups) }}
 
 - name: Check if storage pool exists
   linbit.linstor.storage_pool_info:
     name: "{{ _pool.name }}"
     node: "{{ inventory_hostname }}"
-  when: _storage_pool_is_diskful | bool
+  when: _storage_pool_has_pools | bool
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -41,7 +25,7 @@
 - name: Initialize pool creation list
   ansible.builtin.set_fact:
     _pools_to_create: []
-  when: _storage_pool_is_diskful | bool
+  when: _storage_pool_has_pools | bool
 
 - name: Build pool creation list
   ansible.builtin.set_fact:
@@ -51,7 +35,7 @@
            '_type': _check._pool.type | default(storage_pool_defaults.type)
          })] }}
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _check.storage_pools | default([]) | length == 0
   loop: "{{ _storage_pool_checks.results | default([]) }}"
   loop_control:
@@ -65,7 +49,7 @@
     that: item.name is defined and item.name | length > 0
     fail_msg: "Each storage pool must have a 'name' key"
     quiet: true
-  when: _storage_pool_is_diskful | bool
+  when: _storage_pool_has_pools | bool
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
@@ -75,7 +59,7 @@
     that: item._type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk']
     fail_msg: "storage pool type '{{ item._type }}' is not a valid LINSTOR storage pool driver"
     quiet: true
-  when: _storage_pool_is_diskful | bool
+  when: _storage_pool_has_pools | bool
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
@@ -86,7 +70,7 @@
     fail_msg: "physical_devices must be set for type '{{ item._type }}'"
     quiet: true
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - item._type not in ['file', 'filethin']
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
@@ -98,7 +82,7 @@
     fail_msg: "vg must be set for type '{{ item._type }}'"
     quiet: true
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - item._type in ['lvm', 'lvmthin']
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
@@ -110,7 +94,7 @@
     fail_msg: "zpool must be set for type '{{ item._type }}'"
     quiet: true
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - item._type in ['zfs', 'zfsthin']
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
@@ -122,7 +106,7 @@
     fail_msg: "vg_thinpool must be set for type 'lvmthin'"
     quiet: true
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - item._type == 'lvmthin'
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
@@ -134,7 +118,7 @@
   ansible.builtin.stat:
     path: "{{ _storage_pool_zfs_path }}"
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
   register: _storage_pool_zfs_check
 
@@ -145,7 +129,7 @@
       Install ZFS for ZFS-backed storage pools, or set
       `satellite_install_zfs: true` in linbit.linstor.satellite_install.
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
     - not (_storage_pool_zfs_check.stat.exists | default(true))
 
@@ -156,19 +140,19 @@
 - name: Create file storage pools
   ansible.builtin.include_tasks: file.yml
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['file', 'filethin']) | list | length > 0
 
 - name: Create LVM storage pools
   ansible.builtin.include_tasks: lvm.yml
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['lvm', 'lvmthin']) | list | length > 0
 
 - name: Create ZFS storage pools
   ansible.builtin.include_tasks: zfs.yml
   when:
-    - _storage_pool_is_diskful | bool
+    - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
 
 # --- Register pools with LINSTOR ---
@@ -204,7 +188,7 @@
           if item._type in ['zfs', 'zfsthin'] and (item.zfs_create_options
           | default(storage_pool_defaults.zfs_create_options)) | trim != '' else {})
       }}
-  when: _storage_pool_is_diskful | bool
+  when: _storage_pool_has_pools | bool
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

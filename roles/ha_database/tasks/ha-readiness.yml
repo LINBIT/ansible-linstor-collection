@@ -26,7 +26,7 @@
     that:
       - _ha_db_combined_nodes | length >= 3
         or ha_database_allow_2_replica | bool
-        or groups['linstor_diskful_satellites'] | length == 2
+        or _ha_db_diskful_nodes | length == 2
     fail_msg: "3+ diskful satellites: use 3 combined nodes, or set ha_database_allow_2_replica=true and rerun playbook"
     quiet: true
   run_once: true # noqa: run-once[task]

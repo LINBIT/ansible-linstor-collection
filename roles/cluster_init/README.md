@@ -17,13 +17,13 @@ Steps 2, 3, and 5 always run.
 
 ## Requirements
 
-The following inventory groups must be defined:
+The following inventory groups are used:
 
 | Group | Description |
 |---|---|
 | `linstor_satellites` | Nodes to install the LINSTOR satellite on |
 | `linstor_controllers` | Nodes to install the LINSTOR controller on |
-| `linstor_diskful_satellites` | Diskful satellite nodes (required when `cluster_init_deploy_storage: true`) |
+| `linstor_diskful_satellites` | Optional child of `linstor_satellites` for inventory organization; reference it from a pool's `groups` key to scope placement |
 
 ## Role variables
 
@@ -270,9 +270,7 @@ For everyday deployments, prefer `cluster_init`.
           tags:
             - linstor
             - linstor_storage_pool
-      when:
-        - cluster_init_deploy_storage | bool
-        - inventory_hostname in groups['linstor_diskful_satellites']
+      when: cluster_init_deploy_storage | bool
 
     # Requires a configured storage pool
     - name: Convert LINSTOR database to HA

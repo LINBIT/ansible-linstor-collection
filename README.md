@@ -110,6 +110,7 @@ Most module tasks should use `run_once: true` or a single-host play. See [Using 
 | `linstor_addr` | Resolve a host's LINSTOR address using the `linstor_ip → replication_ip → ansible_host` precedence |
 | `gateway_placement` | Build the manual placement list for `resource` in `manual` mode (used internally by `ha_gateway`) |
 | `gateway_resolve_satellites` | Split LINSTOR-reported nodes per target into diskful and diskless lists (used internally by `ha_gateway`) |
+| `host_storage_pools` | Select the `linstor_storage_pools` entries that target a host (via `nodes`/`groups`, or generic to the diskful satellites); used by `storage_pool` to build `_my_pools` |
 
 ## Lookup plugins
 
@@ -243,9 +244,9 @@ The following inventory groups are used to control role targeting:
 | Group | Description |
 |---|---|
 | `linstor_controllers` | LINSTOR controller nodes |
-| `linstor_satellites` | LINSTOR satellite nodes (`linstor_diskful_satellites` and `linstor_diskless_satellites`) |
-| `linstor_diskful_satellites` | Satellites with physical storage; storage pools and replicas land here |
-| `linstor_diskless_satellites` | Satellites without storage; DRBD client mode; Tiebreaker nodes |
+| `linstor_satellites` | LINSTOR satellite nodes, diskful when a storage pool targets the node, otherwise diskless |
+| `linstor_diskful_satellites` | Optional child of `linstor_satellites` for inventory organization; reference it from a pool's `groups` key to scope placement |
+| `linstor_diskless_satellites` | Optional child of `linstor_satellites` for organizing Tiebreaker or client-only nodes |
 | `linstor_gateway_satellites` | Optional subset of satellite nodes for LINSTOR Gateway resource placement |
 | `linstor_cluster` | All `linstor_controllers` and `linstor_satellites` |
 

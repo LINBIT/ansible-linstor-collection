@@ -65,17 +65,33 @@
     label: "{{ _target.name }}"
   run_once: true  # noqa: run-once[task]
 
-- name: "Validate diskful nodes are in linstor_diskful_satellites - {{ _protocol }}"
+- name: "Query storage pools to resolve diskful nodes - {{ _protocol }}"
+  linbit.linstor.storage_pool_info:
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_sp_info
+
+- name: "Resolve diskful nodes from live storage pools - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _gw_diskful_nodes: >-
+      {{ _gw_sp_info.storage_pools
+         | rejectattr('provider_kind', 'equalto', 'DISKLESS')
+         | map(attribute='node') | unique | list }}
+  run_once: true  # noqa: run-once[task]
+
+- name: "Validate the first place_count nodes are diskful satellites - {{ _protocol }}"
   ansible.builtin.assert:
     that: >-
       _target.nodes[:(_target.place_count | default(ha_gateway_place_count)) | int]
-      | difference(groups.get('linstor_diskful_satellites', []))
+      | difference(_gw_diskful_nodes)
       | length == 0
     fail_msg: >-
       The first {{ (_target.place_count | default(ha_gateway_place_count)) | int }}
-      nodes for target {{ _target.name }} must be diskful satellites.
+      nodes for target {{ _target.name }} must be diskful satellites (have a storage pool).
       Non-diskful: {{ _target.nodes[:(_target.place_count | default(ha_gateway_place_count)) | int]
-                      | difference(groups.get('linstor_diskful_satellites', []))
+                      | difference(_gw_diskful_nodes)
                       | join(', ') }}
     quiet: true
   loop: "{{ _gw_present | selectattr('nodes', 'defined') | rejectattr('nodes', 'equalto', []) | list }}"

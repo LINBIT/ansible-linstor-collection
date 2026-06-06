@@ -21,9 +21,8 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
-# Skip linstor_diskless_satellites as Reactor should not promote (6s delay)
 - name: Install HA dependencies
-  when: inventory_hostname not in groups.get('linstor_diskless_satellites', [])
+  when: inventory_hostname in groups.get('linstor_satellites', [])
   block:
     - name: Install LINSTOR Gateway supplemental packages
       ansible.builtin.package:

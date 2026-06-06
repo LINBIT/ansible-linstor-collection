@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    storage_pool - a single ``linstor_satellites`` group is now sufficient. A pool with no
+    ``nodes`` or ``groups`` targets every satellite; scope a pool to a subset with its own
+    ``nodes``/``groups`` keys. The ``linstor_diskful_satellites`` and
+    ``linstor_diskless_satellites`` groups are no longer special-cased by any role or filter.
+    They are optional inventory organization. The new ``host_storage_pools`` filter plugin
+    holds the per-host pool selection.
+  - >
+    cluster_membership - drop the assertion that a host is not in both
+    ``linstor_diskful_satellites`` and ``linstor_diskless_satellites``. Node types derive from
+    the controller and satellite groups, not from these groups.
+  - >
+    ha_database and ha_gateway - derive the diskful nodes from a live ``storage_pool_info``
+    query rather than from inventory groups, since both run after storage pools exist.
+  - >
+    gateway_satellite - install HA dependencies on every satellite, restricted only by the
+    ``linstor_gateway_satellites`` group, instead of gating on diskful or diskless.

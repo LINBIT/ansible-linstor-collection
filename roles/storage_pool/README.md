@@ -5,12 +5,12 @@ Create LINSTOR storage pools on diskful satellite nodes.
 Supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`.
 The role loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, or directories) before registering each pool with LINSTOR.
 
-The role filters internally to nodes in the `linstor_diskful_satellites` inventory group.
+Each satellite creates the pools from `linstor_storage_pools` that target it; a satellite no pool targets is left diskless.
 It can be called from any play targeting `linstor_cluster` or broader.
 Per-host overrides work naturally via Ansible variable precedence: define `linstor_storage_pools` on a specific host to give it different pools.
 
 Pool entries support optional `nodes` and `groups` keys for targeting specific hosts from a centralized definition.
-When neither key is set, the pool applies to every host that sees the variable (existing behavior).
+When neither key is set, the pool targets all `linstor_satellites`.
 When `nodes` or `groups` is set, the pool is created only on hosts in the union of the listed node names and inventory group members.
 
 ## Requirements
@@ -52,7 +52,7 @@ When set, the pool is created only on the listed nodes.
 When set, the pool is created only on hosts that are members of the listed groups.
 
 When both `nodes` and `groups` are set, the union is used: a host matches if it appears in `nodes` or belongs to any group in `groups`.
-When neither is set, the pool applies to every host that sees the variable (standard Ansible variable precedence).
+When neither is set, the pool targets all `linstor_satellites`.
 
 `pv_create_options` is passed to `pvcreate` when initializing physical volumes for the volume group.
 
@@ -135,7 +135,7 @@ linstor_storage_pools:
 Or inline in `hosts.yaml`:
 
 ```yaml
-linstor_diskful_satellites:
+linstor_satellites:
   hosts:
     linstor-3:
       linstor_storage_pools:
@@ -167,7 +167,7 @@ linstor_storage_pools:
       - /dev/nvme2n1
 ```
 
-Every host in `linstor_diskful_satellites` creates this pool.
+Every node in `linstor_satellites` creates this pool.
 
 ### Pattern 3: centralized with targeting (recommended for large clusters)
 

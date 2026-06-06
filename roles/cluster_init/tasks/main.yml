@@ -97,9 +97,7 @@
       tags:
         - linstor
         - linstor_storage_pool
-  when:
-    - cluster_init_deploy_storage | bool
-    - inventory_hostname in groups['linstor_diskful_satellites']
+  when: cluster_init_deploy_storage | bool
 
 # Requires a configured storage pool
 - name: Convert LINSTOR database to HA

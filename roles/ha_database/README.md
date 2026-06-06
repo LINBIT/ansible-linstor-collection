@@ -12,7 +12,7 @@ This makes it safe to include in deployment playbooks that run repeatedly, even 
 
 ## Requirements
 
-The role requires 2-3 Combined LINSTOR nodes: hosts that are members of both `linstor_controllers` and `linstor_diskful_satellites` inventory groups.
+The role requires 2-3 Combined LINSTOR nodes: hosts that are LINSTOR controllers and are also diskful satellites (a storage pool targets them).
 The play can target any host group that includes the combined nodes, such as `linstor_cluster`.
 The role determines which nodes to act on from inventory groups, not from the play's host list.
 

@@ -79,16 +79,6 @@
       in inventory to a routable IP, or fix ansible_host.
     quiet: true
 
-- name: Assert host is not in both linstor_diskless_satellites and linstor_diskful_satellites
-  ansible.builtin.assert:
-    that: >-
-      not (inventory_hostname in groups.get('linstor_diskless_satellites', []) and
-           inventory_hostname in groups.get('linstor_diskful_satellites', []))
-    fail_msg: >-
-      {{ inventory_hostname }} is a member of both linstor_diskless_satellites and
-      linstor_diskful_satellites. A node can only belong to one.
-    quiet: true
-
 - name: Verify delegated-node access to the LINSTOR controller
   linbit.linstor.controller:
   delegate_to: "{{ linstor_api_delegate }}"

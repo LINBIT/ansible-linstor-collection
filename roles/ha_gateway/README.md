@@ -169,7 +169,7 @@ Examples with `place_count: 2` (default):
 - `nodes: [A, B, C]`: 2 diskful on A and B, diskless on C (you control the TieBreaker node).
 
 With `place_count: 3` and `nodes: [A, B, C]`, all three are diskful and quorum is inherent.
-All diskful nodes must be in the `linstor_diskful_satellites` inventory group.
+All diskful nodes must be diskful satellites (a storage pool targets them).
 
 **Autoplace**: omit `nodes` (or set `nodes: []`) to let LINSTOR select nodes automatically based on `place_count`.
 The role queries LINSTOR after placement to discover the selected nodes and deploys promoter configs accordingly.

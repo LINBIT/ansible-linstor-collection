@@ -9,7 +9,8 @@ argument_specs:
       - >-
         The role loops over the C(linstor_storage_pools) inventory variable and creates the underlying
         storage before registering each pool with LINSTOR.
-      - Filters internally to nodes in the C(linstor_diskful_satellites) inventory group.
+      - >-
+        Each satellite creates the pools that target it; a satellite no pool targets is left diskless.
     options:
       linstor_storage_pools:
         type: list
@@ -24,7 +25,7 @@ argument_specs:
           - >-
             Optional targeting keys: C(nodes) (list of inventory hostnames) and C(groups) (list of inventory
             group names). When set, the pool is created only on hosts that match. When both are set, the
-            union is used. When neither is set, the pool applies to every host that sees the variable.
+            union is used. When neither is set, the pool targets all C(linstor_satellites).
       storage_pool_defaults:
         type: dict
         description:
