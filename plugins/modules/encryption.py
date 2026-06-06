@@ -19,7 +19,6 @@ description:
     if the passphrase is already unlocked.
   - C(state=modified) changes the passphrase. NOT idempotent, because the
     module cannot verify the current passphrase value.
-  - Use C(state=query) to retrieve encryption status without modification.
 options:
   state:
     description:
@@ -27,15 +26,13 @@ options:
       - C(created) sets the initial passphrase if none exists.
       - C(entered) unlocks the passphrase for use.
       - C(modified) changes the passphrase (requires O(old_passphrase)).
-      - C(query) returns the current encryption status without modification.
     type: str
     required: true
-    choices: [created, entered, modified, query]
+    choices: [created, entered, modified]
   passphrase:
     description:
       - The encryption passphrase.
       - Required for C(state=created), C(state=entered), and C(state=modified).
-      - Not required for C(state=query).
     type: str
   old_passphrase:
     description:
@@ -106,12 +103,6 @@ EXAMPLES = r'''
     old_passphrase: "{{ vault_old_passphrase }}"
   run_once: true  # noqa: run-once[task]
 
-- name: Query encryption status
-  linbit.linstor.encryption:
-    state: query
-  register: crypt_result
-  run_once: true  # noqa: run-once[task]
-
 # Delegate to a cluster controller when the control node cannot reach
 # the LINSTOR API directly (SSH jump host, segmented management network)
 - name: Enter the master passphrase via a delegated controller
@@ -162,7 +153,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         state=dict(type='str', required=True,
-                   choices=['created', 'entered', 'modified', 'query']),
+                   choices=['created', 'entered', 'modified']),
         passphrase=dict(type='str', no_log=True),
         old_passphrase=dict(type='str', no_log=True),
     ))
@@ -185,9 +176,6 @@ def main():
 
     try:
         status = get_crypt_status(lin)
-
-        if state == 'query':
-            module.exit_json(changed=False, status=status)
 
         if state == 'created':
             if status != 'unset':

@@ -35,9 +35,8 @@ DOCUMENTATION = '''
 
 EXAMPLES = '''
 - name: Use in environment on a delegated task
-  linbit.linstor.node:
+  linbit.linstor.node_info:
     name: "{{ inventory_hostname }}"
-    state: query
   delegate_to: localhost
   become: false
   environment:

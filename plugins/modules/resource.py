@@ -13,7 +13,6 @@ description:
   - Deploys or removes LINSTOR resources via spawn, autoplace, or manual placement.
   - Idempotent. If the resource definition already exists, the module returns
     C(changed=false) unless the resource needs placement.
-  - Use C(state=query) to retrieve resource information without modification.
 options:
   name:
     description: Name of the resource (becomes the resource definition name).
@@ -24,10 +23,9 @@ options:
       - Desired state of the resource.
       - When C(absent) with C(node) specified, removes the resource from that node only.
       - When C(absent) without C(node), deletes the entire resource definition and all replicas.
-      - When C(query), returns resource information without modification.
     type: str
     default: present
-    choices: [present, absent, query]
+    choices: [present, absent]
   mode:
     description:
       - Deployment mode.
@@ -255,13 +253,6 @@ EXAMPLES = r'''
     storage_pool: sp-lvm-thin
   run_once: true  # noqa: run-once[task]
 
-- name: Query a resource
-  linbit.linstor.resource:
-    name: res-data
-    state: query
-  register: rsc_result
-  run_once: true  # noqa: run-once[task]
-
 - name: Remove a resource from a specific node
   linbit.linstor.resource:
     name: res-data
@@ -295,10 +286,6 @@ name:
   description: Name of the resource.
   type: str
   returned: always
-exists:
-  description: Whether the resource exists. Only returned with C(state=query).
-  type: bool
-  returned: query
 mode:
   description: Deployment mode used.
   type: str
@@ -311,10 +298,6 @@ nodes:
   description: List of nodes where the resource is deployed.
   type: list
   returned: success
-flags:
-  description: Per-node resource flags (e.g. DRBD_DISKLESS, TIE_BREAKER). Only returned with C(state=query).
-  type: dict
-  returned: query
 properties:
   description: Resource properties after the operation.
   type: dict
@@ -383,7 +366,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
+        state=dict(type='str', default='present', choices=['present', 'absent']),
         mode=dict(type='str', default='autoplace',
                   choices=['autoplace', 'spawn', 'manual']),
         resource_group=dict(type='str', default='DfltRscGrp'),
@@ -440,20 +423,6 @@ def main():
 
     try:
         existing_rd = get_resource_definition(lin, name)
-
-        if state == 'query':
-            if existing_rd is None:
-                module.exit_json(changed=False, name=name, exists=False)
-            deployed = get_resources(lin, name)
-            node_list = get_resource_nodes(deployed)
-            flags = {}
-            for rsc in deployed:
-                flags[rsc.node_name] = list(getattr(rsc, 'flags', []))
-            module.exit_json(
-                changed=False, name=name, exists=True,
-                nodes=node_list,
-                flags=flags,
-                properties=get_rd_props(existing_rd))
 
         if state == 'absent':
             if existing_rd is None:

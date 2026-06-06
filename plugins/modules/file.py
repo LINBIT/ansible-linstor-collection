@@ -39,7 +39,7 @@ options:
     description: Desired state of the external file.
     type: str
     default: present
-    choices: [present, absent, query]
+    choices: [present, absent]
   deploy_to:
     description:
       - List of resource definition names to attach this file to.
@@ -83,13 +83,6 @@ EXAMPLES = r'''
   delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
-- name: Query an external file
-  linbit.linstor.file:
-    path: /etc/drbd-reactor.d/linstor-gateway-iscsi-example.toml
-    state: query
-  register: file_result
-  run_once: true  # noqa: run-once[task]
-
 - name: Remove an external file (auto-undeploys from all attached RDs)
   linbit.linstor.file:
     path: /etc/drbd-reactor.d/linstor-gateway-iscsi-example.toml
@@ -113,14 +106,6 @@ path:
   description: Path of the external file.
   type: str
   returned: always
-exists:
-  description: Whether the file exists. Only returned with C(state=query).
-  type: bool
-  returned: query
-content:
-  description: File content. Only returned with C(state=query) when the file exists.
-  type: str
-  returned: query
 '''
 
 import base64
@@ -167,7 +152,7 @@ def main():
         path=dict(type='str', required=True),
         content=dict(type='str'),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'query']),
+                   choices=['present', 'absent']),
         deploy_to=dict(type='list', elements='str', default=[]),
     )
 
@@ -190,17 +175,6 @@ def main():
 
     try:
         existing = get_file(lin, path)
-
-        if state == 'query':
-            if existing is None:
-                module.exit_json(changed=False, path=path, exists=False)
-            current_bytes = decode_content(existing)
-            module.exit_json(
-                changed=False,
-                path=path,
-                exists=True,
-                content=current_bytes.decode('utf-8', errors='replace'),
-            )
 
         if state == 'absent':
             if existing is None:

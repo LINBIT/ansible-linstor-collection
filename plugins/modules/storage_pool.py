@@ -12,7 +12,6 @@ version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR storage pools on cluster nodes.
   - Idempotent. If the pool already exists on the node, only property changes are applied.
-  - Use C(state=query) to check whether a storage pool exists and retrieve its details.
 options:
   name:
     description: Name of the storage pool.
@@ -26,7 +25,7 @@ options:
     description: Desired state of the storage pool.
     type: str
     default: present
-    choices: [present, absent, query]
+    choices: [present, absent]
   driver:
     description:
       - Storage driver type.
@@ -158,14 +157,6 @@ EXAMPLES = r'''
       MaxTotalCapacityOversubscriptionRatio: "3"
   run_once: true  # noqa: run-once[task]
 
-- name: Query a storage pool
-  linbit.linstor.storage_pool:
-    name: sp-lvm
-    node: node-1
-    state: query
-  register: sp_result
-  run_once: true  # noqa: run-once[task]
-
 - name: Remove a storage pool
   linbit.linstor.storage_pool:
     name: sp-lvm
@@ -196,10 +187,6 @@ node:
   description: Node name.
   type: str
   returned: always
-exists:
-  description: Whether the storage pool exists. Only returned with C(state=query).
-  type: bool
-  returned: query
 driver:
   description: Storage driver type.
   type: str
@@ -208,18 +195,6 @@ driver_pool:
   description: Backend storage identifier.
   type: str
   returned: success
-provider_kind:
-  description: LINSTOR provider kind string (e.g. C(LVM_THIN), C(ZFS)).
-  type: str
-  returned: query
-free_capacity:
-  description: Free capacity in KiB.
-  type: int
-  returned: query
-total_capacity:
-  description: Total capacity in KiB.
-  type: int
-  returned: query
 properties:
   description: Storage pool properties after the operation.
   type: dict
@@ -285,7 +260,7 @@ def main():
     argument_spec.update(dict(
         name=dict(type='str', required=True),
         node=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
+        state=dict(type='str', default='present', choices=['present', 'absent']),
         driver=dict(type='str', choices=list(DRIVER_MAP.keys())),
         driver_pool=dict(type='str'),
         shared_space=dict(type='str'),
@@ -312,20 +287,6 @@ def main():
 
     try:
         existing_pool = get_storage_pool(lin, node, name)
-
-        if state == 'query':
-            if existing_pool is None:
-                module.exit_json(changed=False, name=name, node=node, exists=False)
-            fs = getattr(existing_pool, 'free_space', None)
-            free_cap = getattr(fs, 'free_capacity', None) if fs else None
-            total_cap = getattr(fs, 'total_capacity', None) if fs else None
-            module.exit_json(
-                changed=False, name=name, node=node, exists=True,
-                provider_kind=str(getattr(existing_pool, 'provider_kind', '')),
-                driver_pool=getattr(existing_pool, 'backing_pool', ''),
-                free_capacity=free_cap,
-                total_capacity=total_cap,
-                properties=get_sp_props(existing_pool))
 
         if state == 'absent':
             if existing_pool is None:

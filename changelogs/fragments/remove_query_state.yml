@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+---
+breaking_changes:
+  - >
+    Remove the ``query`` value from the ``state`` parameter of the LINSTOR
+    manage modules (``controller``, ``node``, ``node_interface``,
+    ``storage_pool``, ``resource``, ``resource_definition``,
+    ``resource_group``, ``volume_group``, ``snapshot``, ``remote``,
+    ``schedule``, ``key_value_store``, and ``file``). Use the dedicated
+    ``_info`` modules to query these resources instead. This satisfies the
+    Ansible community-package rule against using special ``state`` values for
+    information retrieval. The action states (``evacuated``/``restored`` on
+    ``node``, ``rolled_back``/``restored`` on ``snapshot``,
+    ``created``/``entered``/``modified`` on ``encryption``) are unchanged.

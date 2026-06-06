@@ -13,15 +13,13 @@ description:
   - Reads, sets, and deletes cluster-wide properties on the LINSTOR controller.
   - The controller is a cluster-wide singleton, so no C(name) parameter is needed.
   - Idempotent. Only properties that differ from the current state are modified.
-  - Use C(state=query) to retrieve controller properties without modification.
 options:
   state:
     description: >-
       Operation mode. C(present) sets or deletes properties.
-      C(query) returns current properties without modification.
     type: str
     default: present
-    choices: [present, query]
+    choices: [present]
   properties:
     description: Dictionary of LINSTOR properties to set on the controller.
     type: dict
@@ -88,18 +86,12 @@ author:
 '''
 
 EXAMPLES = r'''
-- name: Query controller properties
-  linbit.linstor.controller:
-    state: query
-  register: ctrl_result
-  delegate_to: localhost
-  run_once: true  # noqa: run-once[task]
-
 - name: Set multiple controller properties
   linbit.linstor.controller:
     properties:
       MaxOversubscriptionRatio: "5"
       TcpPortAutoRange: "14000-16000"
+  delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
 - name: Set auxiliary property at the controller level
@@ -214,7 +206,7 @@ def get_controller_props(lin):
 def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
-        state=dict(type='str', default='present', choices=['present', 'query']),
+        state=dict(type='str', default='present', choices=['present']),
         properties=dict(type='dict', default={}),
         aux_properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
@@ -241,9 +233,6 @@ def main():
 
     try:
         current_props = get_controller_props(lin)
-
-        if state == 'query':
-            module.exit_json(changed=False, properties=current_props)
 
         props_to_set, props_to_delete = compute_property_diff(
             current_props, all_properties, delete_properties)

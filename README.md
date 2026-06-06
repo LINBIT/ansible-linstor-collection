@@ -69,7 +69,7 @@ Custom Ansible modules for managing LINSTOR objects declaratively. Install [`pyt
 | `controller_info` | Read-only query for controller properties (cluster-wide singleton) |
 | `node` | Manage cluster nodes (create, properties, auxiliary properties) |
 | `node_info` | Read-only query for nodes (filter by `name`, or omit for all) |
-| `node_interface` | Manage node net interfaces (create, modify, delete, query) |
+| `node_interface` | Manage node net interfaces (create, modify, delete) |
 | `node_interface_info` | Read-only query for a node's network interfaces (requires `node`, optional `name`) |
 | `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
 | `storage_pool_info` | Read-only query for storage pools (filter by `name` and/or `node`, or omit for all) |

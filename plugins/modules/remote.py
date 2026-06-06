@@ -15,7 +15,6 @@ description:
   - Idempotent. If the remote already exists, only changed parameters are modified.
   - The remote type cannot be changed after creation. The module warns if a
     type mismatch is detected.
-  - Use C(state=query) to check whether a remote exists and retrieve its properties.
   - S3 and EBS credentials (O(access_key), O(secret_key)) are write-only.
     The API does not return them, so the module cannot detect credential changes
     and always sends them on modify operations.
@@ -28,7 +27,7 @@ options:
     description: Desired state of the remote.
     type: str
     default: present
-    choices: [present, absent, query]
+    choices: [present, absent]
   type:
     description:
       - Remote type.
@@ -209,13 +208,6 @@ EXAMPLES = r'''
     secret_key: "{{ vault_aws_secret_key }}"
   run_once: true  # noqa: run-once[task]
 
-- name: Query a remote
-  linbit.linstor.remote:
-    name: remote-s3-backup
-    state: query
-  register: remote_result
-  run_once: true  # noqa: run-once[task]
-
 - name: Remove a remote
   linbit.linstor.remote:
     name: remote-s3-backup
@@ -250,34 +242,10 @@ name:
   description: Name of the remote.
   type: str
   returned: always
-exists:
-  description: Whether the remote exists. Only returned with C(state=query).
-  type: bool
-  returned: query
 type:
   description: Remote type (s3, linstor, or ebs).
   type: str
   returned: success
-url:
-  description: LINSTOR controller URL for LINSTOR-to-LINSTOR remotes.
-  type: str
-  returned: query, when type=linstor
-endpoint:
-  description: S3 or EBS endpoint URL.
-  type: str
-  returned: query, when type=s3 or type=ebs
-bucket:
-  description: S3 bucket name.
-  type: str
-  returned: query, when type=s3
-region:
-  description: S3 or EBS region.
-  type: str
-  returned: query, when type=s3 or type=ebs
-availability_zone:
-  description: AWS availability zone.
-  type: str
-  returned: query, when type=ebs
 '''
 
 import traceback
@@ -365,7 +333,7 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent', 'query']),
+        state=dict(type='str', default='present', choices=['present', 'absent']),
         type=dict(type='str', choices=['s3', 'linstor', 'ebs']),
         endpoint=dict(type='str'),
         bucket=dict(type='str'),
@@ -396,24 +364,6 @@ def main():
 
     try:
         existing_type, existing_remote = find_remote(lin, name)
-
-        if state == 'query':
-            if existing_type is None:
-                module.exit_json(changed=False, name=name, exists=False)
-            result = dict(changed=False, name=name, exists=True,
-                          type=existing_type)
-            if existing_type == 's3':
-                result['endpoint'] = getattr(existing_remote, 'endpoint', None)
-                result['bucket'] = getattr(existing_remote, 'bucket', None)
-                result['region'] = getattr(existing_remote, 'region', None)
-            elif existing_type == 'linstor':
-                result['url'] = getattr(existing_remote, 'url', None)
-            elif existing_type == 'ebs':
-                result['endpoint'] = getattr(existing_remote, 'endpoint', None)
-                result['region'] = getattr(existing_remote, 'region', None)
-                result['availability_zone'] = getattr(
-                    existing_remote, 'availability_zone', None)
-            module.exit_json(**result)
 
         if state == 'absent':
             if existing_type is None:

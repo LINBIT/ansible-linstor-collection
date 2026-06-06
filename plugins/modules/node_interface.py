@@ -12,7 +12,6 @@ version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes network interfaces on LINSTOR nodes.
   - Idempotent. If the interface already exists, only changed attributes are updated.
-  - Use C(state=query) to retrieve interface information without modification.
 options:
   node:
     description: Name of the LINSTOR node.
@@ -49,7 +48,7 @@ options:
     description: Desired state of the network interface.
     type: str
     default: present
-    choices: [present, absent, query]
+    choices: [present, absent]
   controllers:
     description:
       - Comma-separated list of LINSTOR controller URIs.
@@ -105,14 +104,6 @@ EXAMPLES = r'''
     satellite_connection: true
   run_once: true  # noqa: run-once[task]
 
-- name: Query a network interface
-  linbit.linstor.node_interface:
-    node: node-1
-    name: replication
-    state: query
-  register: netif_result
-  run_once: true  # noqa: run-once[task]
-
 - name: Remove a network interface
   linbit.linstor.node_interface:
     node: node-1
@@ -142,10 +133,6 @@ name:
   description: Name of the network interface.
   type: str
   returned: always
-exists:
-  description: Whether the interface exists. Only returned with C(state=query).
-  type: bool
-  returned: query
 ip:
   description: IP address of the network interface.
   type: str
@@ -205,7 +192,7 @@ def main():
         com_type=dict(type='str', choices=['Plain', 'SSL']),
         satellite_connection=dict(type='bool'),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'query']),
+                   choices=['present', 'absent']),
     ))
 
     module = AnsibleModule(
@@ -225,14 +212,6 @@ def main():
 
     try:
         existing = get_netif(lin, node, name)
-
-        if state == 'query':
-            if existing is None:
-                module.exit_json(changed=False, node=node, name=name,
-                                 exists=False)
-            info = netif_to_dict(existing)
-            module.exit_json(changed=False, node=node, name=name,
-                             exists=True, **info)
 
         if state == 'absent':
             if existing is None:
