@@ -494,6 +494,19 @@
         that: res_auto.nodes | length >= 2
         fail_msg: "Expected >= 2 nodes, got {{ res_auto.nodes | length }}"
 
+    - name: "Info: query autoplaced resource"
+      linbit.linstor.resource_info:
+        name: test-autoplace-res
+      register: res_auto_info
+
+    - name: "Info: resource_info returns the resource with its nodes"
+      ansible.builtin.assert:
+        that:
+          - res_auto_info.resources | length == 1
+          - res_auto_info.resources[0].nodes | length >= 2
+          - not res_auto_info.changed
+        fail_msg: "resource_info should return test-autoplace-res with >= 2 nodes"
+
     - name: "Resource: autoplace idempotent"
       linbit.linstor.resource:
         name: test-autoplace-res
@@ -567,6 +580,19 @@
       ansible.builtin.assert:
         that: rd_vols.volume_definitions | length == 2
         fail_msg: "Expected 2 volume definitions, got {{ rd_vols.volume_definitions | length }}"
+
+    - name: "Info: query resource definition with volume defs"
+      linbit.linstor.resource_definition_info:
+        name: test-rd-vols
+      register: rd_vols_info
+
+    - name: "Info: resource_definition_info returns two volume definitions"
+      ansible.builtin.assert:
+        that:
+          - rd_vols_info.resource_definitions | length == 1
+          - rd_vols_info.resource_definitions[0].volume_definitions | length == 2
+          - not rd_vols_info.changed
+        fail_msg: "resource_definition_info should return test-rd-vols with 2 volume definitions"
 
     - name: "RD: inline volume defs idempotent"
       linbit.linstor.resource_definition:
@@ -707,6 +733,140 @@
         controllers: "linstor://192.168.222.130,linstor://192.168.222.131,linstor://192.168.222.132"
       register: ctrl_explicit
       failed_when: ctrl_explicit.changed
+
+    # =================================================================
+    # Read-only *_info modules (query the objects still live at this point)
+    # =================================================================
+    - name: "Info: controller_info returns properties"
+      linbit.linstor.controller_info:
+      register: ctrl_info
+
+    - name: "Info: controller_info has a properties mapping and changed=false"
+      ansible.builtin.assert:
+        that:
+          - ctrl_info.properties is mapping
+          - not ctrl_info.changed
+        fail_msg: "controller_info should return a properties dict"
+
+    - name: "Info: node_info for a single node"
+      linbit.linstor.node_info:
+        name: proxmox-0
+      register: node_info_one
+
+    - name: "Info: node_info returns the node with a connection status"
+      ansible.builtin.assert:
+        that:
+          - node_info_one.nodes | length == 1
+          - node_info_one.nodes[0].connection_status is defined
+        fail_msg: "node_info should return proxmox-0"
+
+    - name: "Info: node_info returns all nodes when unfiltered"
+      linbit.linstor.node_info:
+      register: node_info_all
+
+    - name: "Info: node_info unfiltered lists every node"
+      ansible.builtin.assert:
+        that: node_info_all.nodes | length >= 1
+        fail_msg: "node_info without a filter should list all nodes"
+
+    - name: "Info: node_interface_info for a node"
+      linbit.linstor.node_interface_info:
+        node: proxmox-0
+      register: netif_info
+
+    - name: "Info: node_interface_info lists at least one interface"
+      ansible.builtin.assert:
+        that: netif_info.net_interfaces | length >= 1
+        fail_msg: "node_interface_info should list proxmox-0 interfaces"
+
+    - name: "Info: storage_pool_info for a pool"
+      linbit.linstor.storage_pool_info:
+        name: pve-storage
+      register: sp_info
+
+    - name: "Info: storage_pool_info finds the pool"
+      ansible.builtin.assert:
+        that: sp_info.storage_pools | length >= 1
+        fail_msg: "storage_pool_info should find pve-storage"
+
+    - name: "Info: resource_group_info for a group"
+      linbit.linstor.resource_group_info:
+        name: test-mod-rg
+      register: rg_info
+
+    - name: "Info: resource_group_info returns the group with place_count"
+      ansible.builtin.assert:
+        that:
+          - rg_info.resource_groups | length == 1
+          - rg_info.resource_groups[0].place_count == 2
+        fail_msg: "resource_group_info should return test-mod-rg with place_count 2"
+
+    - name: "Info: volume_group_info for a resource group"
+      linbit.linstor.volume_group_info:
+        resource_group: test-mod-rg
+      register: vg_info
+
+    - name: "Info: volume_group_info lists at least one volume group"
+      ansible.builtin.assert:
+        that: vg_info.volume_groups | length >= 1
+        fail_msg: "volume_group_info should list test-mod-rg volume groups"
+
+    - name: "Info: encryption_info returns a status"
+      linbit.linstor.encryption_info:
+      register: crypt_info
+
+    - name: "Info: encryption_info status is a known value"
+      ansible.builtin.assert:
+        that: crypt_info.status in ['unset', 'locked', 'unlocked']
+        fail_msg: "encryption_info returned an unexpected status: {{ crypt_info.status }}"
+
+    - name: "Info: remote_info returns a list"
+      linbit.linstor.remote_info:
+      register: remote_info_all
+
+    - name: "Info: remote_info result is a list and changed=false"
+      ansible.builtin.assert:
+        that:
+          - remote_info_all.remotes is sequence
+          - not remote_info_all.changed
+        fail_msg: "remote_info should return a list"
+
+    - name: "Info: schedule_info returns a list"
+      linbit.linstor.schedule_info:
+      register: schedule_info_all
+
+    - name: "Info: schedule_info result is a list"
+      ansible.builtin.assert:
+        that: schedule_info_all.schedules is sequence
+        fail_msg: "schedule_info should return a list"
+
+    - name: "Info: resource_definition_info returns a list when unfiltered"
+      linbit.linstor.resource_definition_info:
+      register: rd_info_all
+
+    - name: "Info: resource_definition_info unfiltered is a list"
+      ansible.builtin.assert:
+        that: rd_info_all.resource_definitions is sequence
+        fail_msg: "resource_definition_info should return a list"
+
+    - name: "Info: resource_info returns a list when unfiltered"
+      linbit.linstor.resource_info:
+      register: res_info_all
+
+    - name: "Info: resource_info unfiltered is a list"
+      ansible.builtin.assert:
+        that: res_info_all.resources is sequence
+        fail_msg: "resource_info should return a list"
+
+    - name: "Info: file_info reports a missing file as absent"
+      linbit.linstor.file_info:
+        path: /nonexistent-info-test-file.toml
+      register: file_info_missing
+
+    - name: "Info: file_info exists is false for a missing file"
+      ansible.builtin.assert:
+        that: not file_info_missing.exists
+        fail_msg: "file_info should report a missing file as exists=false"
 
     # =================================================================
     # Final cleanup

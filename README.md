@@ -66,24 +66,38 @@ Custom Ansible modules for managing LINSTOR objects declaratively. Install [`pyt
 | Module | Description |
 |---|---|
 | `controller` | Manage controller properties (cluster-wide singleton) |
+| `controller_info` | Read-only query for controller properties (cluster-wide singleton) |
 | `node` | Manage cluster nodes (create, properties, auxiliary properties) |
+| `node_info` | Read-only query for nodes (filter by `name`, or omit for all) |
 | `node_interface` | Manage node net interfaces (create, modify, delete, query) |
+| `node_interface_info` | Read-only query for a node's network interfaces (requires `node`, optional `name`) |
 | `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
+| `storage_pool_info` | Read-only query for storage pools (filter by `name` and/or `node`, or omit for all) |
 | `resource_group` | Manage resource groups with placement rules, DRBD options, properties |
+| `resource_group_info` | Read-only query for resource groups (filter by `name`, or omit for all) |
 | `volume_group` | Manage volume groups within a resource group |
+| `volume_group_info` | Read-only query for a resource group's volume groups (requires `resource_group`, optional `volume_nr`) |
 | `resource_definition` | Manage resource definitions with inline volume definitions and DRBD options |
+| `resource_definition_info` | Read-only query for resource definitions and volume definitions (filter by `name`, or omit for all) |
 | `resource` | Deploy resources via spawn, autoplace, or manual placement |
+| `resource_info` | Read-only query for resources, placement, and flags (filter by `name`, or omit for all) |
 | `snapshot` | Manage snapshots (create, delete, rollback, restore to new resource) |
+| `snapshot_info` | Read-only query for a resource's snapshots (requires `resource`, optional `name`) |
 | `remote` | Manage remotes for backup shipping (S3, LINSTOR-to-LINSTOR, EBS) |
+| `remote_info` | Read-only query for remotes (filter by `name`, or omit for all) |
 | `backup` | Create or delete LINSTOR backups on a remote (`state: present\|absent`) |
 | `backup_info` | Read-only query for backups, backup details, and queue (`kind: query\|list\|info\|queued`) |
 | `backup_ship` | Initiate a backup shipment between clusters or to S3 (event module, not idempotent) |
 | `backup_restore` | Restore a backup to a new resource (idempotent on target RD existence) |
 | `backup_abort` | Abort an in-progress backup operation (event module, not idempotent) |
 | `schedule` | Manage backup schedules (cron-based) with enable and disable |
+| `schedule_info` | Read-only query for backup schedules (filter by `name`, or omit for all) |
 | `encryption` | Manage cluster-wide encryption passphrase (create, enter, modify) |
+| `encryption_info` | Read-only query for cluster-wide encryption (master passphrase) status |
 | `key_value_store` | Manage LINSTOR key-value store instances |
+| `key_value_store_info` | Read-only query for a key-value store's entries (requires `name`) |
 | `file` | Manage LINSTOR external files (used by `ha_gateway` to push promoter configs) |
+| `file_info` | Read-only query for a LINSTOR external file's content (requires `path`) |
 | `linstor_installed` | Read-only check returning whether `linstor-controller` or `linstor-satellite` is installed on a node (used to gate integration plays) |
 
 Most module tasks should use `run_once: true` or a single-host play. See [Using LINSTOR modules](#using-linstor-modules) for examples.

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    Add read-only ``_info`` modules for the queryable LINSTOR resource types:
+    ``controller_info``, ``node_info``, ``node_interface_info``,
+    ``storage_pool_info``, ``resource_group_info``, ``resource_info``,
+    ``resource_definition_info``, ``volume_group_info``, ``snapshot_info``,
+    ``remote_info``, ``schedule_info``, ``key_value_store_info``,
+    ``file_info``, and ``encryption_info``. These follow the Ansible
+    community-package convention of moving information retrieval out of
+    ``state``/``kind`` values into dedicated ``_info`` modules (as already done
+    for ``backup_info``). Each reports ``changed=false``, supports check mode,
+    and is read-only. Listable resources return a list under a plural key with
+    optional filters that default to returning all objects; singletons
+    (``controller_info``, ``encryption_info``) and single-object lookups
+    (``file_info`` by ``path``, ``key_value_store_info`` by ``name``) return a
+    flat result. The existing ``state: query`` branches on the manage modules
+    remain unchanged for now.

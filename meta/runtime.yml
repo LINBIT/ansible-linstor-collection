@@ -10,16 +10,30 @@ action_groups:
     - backup_restore
     - backup_ship
     - controller
+    - controller_info
     - encryption
+    - encryption_info
     - file
+    - file_info
     - key_value_store
+    - key_value_store_info
     - node
+    - node_info
     - node_interface
+    - node_interface_info
     - remote
+    - remote_info
     - resource
     - resource_definition
+    - resource_definition_info
     - resource_group
+    - resource_group_info
+    - resource_info
     - schedule
+    - schedule_info
     - snapshot
+    - snapshot_info
     - storage_pool
+    - storage_pool_info
     - volume_group
+    - volume_group_info
