@@ -130,9 +130,8 @@
   run_once: true  # noqa: run-once[task]
 
 - name: Check if satellite SSL is already active
-  linbit.linstor.node:
+  linbit.linstor.node_info:
     name: "{{ inventory_hostname }}"
-    state: query
   when:
     - ssl_init_satellite | bool
     - _ssl_init_local_check.stat.exists
@@ -149,8 +148,9 @@
       {{ _ssl_init_local_check.stat.exists and
          ssl_init_satellite | bool and
          _ssl_init_satellite_check is succeeded and
-         _ssl_init_satellite_check.connection_status | default('') == 'ONLINE' and
-         _ssl_init_satellite_check.com_type | default('') == 'SSL' }}
+         _ssl_init_satellite_check.nodes | default([]) | length > 0 and
+         _ssl_init_satellite_check.nodes[0].connection_status | default('') == 'ONLINE' and
+         _ssl_init_satellite_check.nodes[0].com_type | default('') == 'SSL' }}
 
 - name: Initialize SSL/TLS
   ansible.builtin.include_tasks: initialize-ssl.yml

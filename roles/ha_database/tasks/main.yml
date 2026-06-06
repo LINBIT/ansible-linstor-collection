@@ -18,8 +18,7 @@
 # Idempotency gate: skip if already converted, fewer than 2 combined nodes,
 # or fewer than 3 total satellites (insufficient for quorum)
 - name: Check LINSTOR database to see if HA migration is needed
-  linbit.linstor.controller:
-    state: query
+  linbit.linstor.controller_info:
   when: _ha_db_combined_nodes | length >= 2
   delegate_to: "{{ linstor_api_delegate }}"
   environment:

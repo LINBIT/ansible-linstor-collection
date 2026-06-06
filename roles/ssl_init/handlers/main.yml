@@ -51,8 +51,7 @@
   listen: ssl_controller_changed
 
 - name: Wait for LINSTOR controller API to become responsive
-  linbit.linstor.controller:
-    state: query
+  linbit.linstor.controller_info:
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -72,9 +71,8 @@
   listen: ssl_controller_changed
 
 - name: Check if node is already registered
-  linbit.linstor.node:
+  linbit.linstor.node_info:
     name: "{{ inventory_hostname }}"
-    state: query
   when: _ssl_init_flip_when | bool
   vars:
     _ssl_init_flip_when: >-
@@ -94,7 +92,7 @@
     com_type: SSL
   when:
     - _ssl_init_flip_when | bool
-    - _ssl_init_node_check.exists | default(false)
+    - _ssl_init_node_check.nodes | default([]) | length > 0
   vars:
     _ssl_init_flip_when: >-
       {{ (ssl_init_satellite | bool and inventory_hostname in groups['linstor_satellites'])

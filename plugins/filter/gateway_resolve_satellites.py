@@ -52,8 +52,10 @@ def gateway_resolve_satellites(query_results):
 
         diskful = []
         diskless = []
-        flags = result.get('flags', {})
-        for ln in result.get('nodes', []):
+        resources = result.get('resources') or []
+        info = resources[0] if resources else {}
+        flags = info.get('flags', {})
+        for ln in info.get('nodes', []):
             node_flags = flags.get(ln, [])
             if 'DRBD_DISKLESS' in node_flags or 'TIE_BREAKER' in node_flags:
                 diskless.append(ln)

@@ -71,10 +71,10 @@ RETURN = '''
 
 def gateway_placement(explicit, rg_check_results, place_count_default,
                       storage_pool_default, sizes_key, tickle_dir_size):
-    rg_pc = {
-        r['_target']['name']: int(r.get('place_count') or 2)
-        for r in (rg_check_results or [])
-    }
+    rg_pc = {}
+    for r in (rg_check_results or []):
+        rgs = r.get('resource_groups') or []
+        rg_pc[r['_target']['name']] = int(rgs[0].get('place_count') or 2) if rgs else 2
 
     result = []
     for t in explicit:

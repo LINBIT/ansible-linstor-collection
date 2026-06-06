@@ -79,9 +79,8 @@
 # --- Validate custom resource groups ---
 
 - name: "Validate custom resource groups exist - {{ _protocol }}"
-  linbit.linstor.resource_group:
+  linbit.linstor.resource_group_info:
     name: "{{ _target.resource_group }}"
-    state: query
   loop: "{{ _gw_present | selectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
@@ -94,7 +93,7 @@
 
 - name: "Fail if custom resource group does not exist - {{ _protocol }}"
   ansible.builtin.assert:
-    that: _check.exists
+    that: _check.resource_groups | default([]) | length > 0
     fail_msg: >-
       Resource group '{{ _check._target.resource_group }}' specified for
       target '{{ _check._target.name }}' does not exist. Create it before
@@ -108,10 +107,10 @@
 
 - name: "Validate resource group place_count - {{ _protocol }}"
   ansible.builtin.assert:
-    that: (_check.place_count | default(2)) | int in [2, 3]
+    that: (_check.resource_groups[0].place_count | default(2)) | int in [2, 3]
     fail_msg: >-
       Resource group '{{ _check._target.resource_group }}' has
-      place_count {{ _check.place_count }}, must be 2 or 3
+      place_count {{ _check.resource_groups[0].place_count }}, must be 2 or 3
     quiet: true
   loop: "{{ _gw_rg_check.results | default([]) }}"
   loop_control:
@@ -218,9 +217,8 @@
 # --- Discover placement and build resolved targets ---
 
 - name: "Query resource placement - {{ _protocol }}"
-  linbit.linstor.resource:
+  linbit.linstor.resource_info:
     name: "{{ _target._rd_name }}"
-    state: query
   when: _gw_present | length > 0
   loop: "{{ _gw_present }}"
   loop_control:

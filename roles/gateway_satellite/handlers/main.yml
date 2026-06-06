@@ -27,14 +27,13 @@
   when: inventory_hostname in groups.get('linstor_satellites', [])
 
 - name: Wait for satellite to be ONLINE after restart
-  linbit.linstor.node:
+  linbit.linstor.node_info:
     name: "{{ inventory_hostname }}"
-    state: query
   when:
     - groups.get('linstor_controllers', []) | length > 0
     - inventory_hostname in groups.get('linstor_satellites', [])
   register: _gw_satellite_status
-  until: _gw_satellite_status.connection_status | default('') == 'ONLINE'
+  until: _gw_satellite_status.nodes | default([]) | length > 0 and _gw_satellite_status.nodes[0].connection_status | default('') == 'ONLINE'
   retries: 9
   delay: 5
   delegate_to: "{{ linstor_api_delegate }}"

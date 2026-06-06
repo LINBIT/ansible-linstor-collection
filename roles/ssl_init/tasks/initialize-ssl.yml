@@ -148,9 +148,8 @@
   when: ssl_init_https | bool
 
 - name: Verify node is ONLINE over SSL
-  linbit.linstor.node:
+  linbit.linstor.node_info:
     name: "{{ inventory_hostname }}"
-    state: query
   when: inventory_hostname in groups['linstor_satellites']
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
@@ -160,8 +159,8 @@
   delay: 5
   until:
     - _ssl_init_node_status is succeeded
-    - not (_ssl_init_node_status.exists | default(false))
-      or _ssl_init_node_status.connection_status | default('') == 'ONLINE'
+    - _ssl_init_node_status.nodes | default([]) | length == 0
+      or _ssl_init_node_status.nodes[0].connection_status | default('') == 'ONLINE'
   failed_when:
-    - _ssl_init_node_status.exists | default(false)
-    - _ssl_init_node_status.connection_status | default('') != 'ONLINE'
+    - _ssl_init_node_status.nodes | default([]) | length > 0
+    - _ssl_init_node_status.nodes[0].connection_status | default('') != 'ONLINE'
