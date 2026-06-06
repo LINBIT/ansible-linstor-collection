@@ -1,13 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Pin localhost Python interpreter for module delegation
-  ansible.builtin.add_host:
-    name: localhost
-    ansible_connection: local
-    ansible_python_interpreter: "{{ ansible_playbook_python }}"
-  run_once: true  # noqa: run-once[task]
-  changed_when: false
-
 # Filter pools for this host. Pools without nodes/groups keys apply unconditionally.
 # Pools with nodes and/or groups keys apply only when the current host is listed
 # in nodes or is a member of one of the listed inventory groups (union).

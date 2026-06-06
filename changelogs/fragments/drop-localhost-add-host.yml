@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    roles - remove the localhost interpreter-pin ``add_host`` task from every
+    delegating role. It added ``localhost`` to the ``all`` inventory group as a
+    side effect, so any later play with ``hosts: all`` and ``become: true``
+    gathered facts on localhost and failed with a sudo prompt on control nodes
+    without passwordless root. The implicit localhost already uses
+    ``ansible_playbook_python`` for ``delegate_to: localhost`` module calls, so
+    the pin was redundant.

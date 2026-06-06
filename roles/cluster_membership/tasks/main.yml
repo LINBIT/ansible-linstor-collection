@@ -1,13 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Pin localhost Python interpreter for module delegation
-  ansible.builtin.add_host:
-    name: localhost
-    ansible_connection: local
-    ansible_python_interpreter: "{{ ansible_playbook_python }}"
-  run_once: true  # noqa: run-once[task]
-  changed_when: false
-
 - name: Read satellite TOML config for SSL detection
   ansible.builtin.slurp:
     src: /etc/linstor/linstor_satellite.toml
