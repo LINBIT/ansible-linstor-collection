@@ -19,6 +19,7 @@
     src: linstor-gateway.j2
     dest: /etc/linstor-gateway/linstor-gateway.toml
     mode: '0644'
+  notify: restart_linstor_gateway
 
 - name: Open firewall ports for LINSTOR Gateway
   ansible.builtin.include_tasks: open-firewall.yml

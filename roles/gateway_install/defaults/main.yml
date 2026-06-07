@@ -2,6 +2,8 @@
 ---
 # defaults file for gateway_install
 
+gateway_install_package_state: present
+
 gateway_install_firewall_rules: true
 
 gateway_install_firewall_ports:

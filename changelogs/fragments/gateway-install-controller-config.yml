@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    gateway_install - write a usable LINSTOR controller address into
+    linstor-gateway.toml. The address was emitted as a control character, so
+    linstor-gateway fell back to localhost and failed on SSL clusters. It now
+    includes the scheme and port: https 3371 when linstor_ssl is set, http
+    3370 otherwise.
+  - >
+    gateway_install - restart linstor-gateway when linstor-gateway.toml changes.
+minor_changes:
+  - >
+    gateway_install - add gateway_install_package_state (default present) for
+    parity with the other install roles; set latest to upgrade.

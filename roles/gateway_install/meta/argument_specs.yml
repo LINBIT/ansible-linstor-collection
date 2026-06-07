@@ -9,6 +9,15 @@ argument_specs:
         and start the service.
       - On satellite nodes, also installs satellite-side components via C(linbit.linstor.gateway_satellite).
     options:
+      gateway_install_package_state:
+        type: str
+        default: present
+        choices:
+          - latest
+          - present
+        description:
+          - Package state for the C(linstor-gateway) package.
+          - Set C(latest) to upgrade, C(present) to skip upgrades.
       gateway_install_firewall_rules:
         type: bool
         default: true

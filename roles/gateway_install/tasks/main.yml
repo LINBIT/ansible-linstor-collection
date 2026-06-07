@@ -3,7 +3,7 @@
 - name: Install LINSTOR Gateway from package manager
   ansible.builtin.package:
     name: linstor-gateway
-    state: present
+    state: "{{ gateway_install_package_state }}"
   failed_when: false
   register: _gateway_install_package
   notify: restart_linstor_gateway

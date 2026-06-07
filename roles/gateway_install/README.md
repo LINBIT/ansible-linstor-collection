@@ -24,6 +24,7 @@ The following inventory groups must be defined:
 
 | Variable | Default | Description |
 |---|---|---|
+| `gateway_install_package_state` | `present` | Package state for `linstor-gateway`; set `latest` to upgrade |
 | `gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
 | `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 | `gateway_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged; also re-runs `gateway_satellite` on satellites (drift correction) |
