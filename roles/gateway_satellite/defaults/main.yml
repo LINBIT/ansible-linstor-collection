@@ -20,7 +20,9 @@ gateway_satellite_firewall_ports: >-
 
 # SCST iSCSI target - compile and install from source
 gateway_satellite_scst: false
-gateway_satellite_scst_version: '3.10.x'
+# Empty resolves the latest SCST release tag; or pin a tag, branch, or SHA
+# Newer EL kernels (EL9.8+, EL10) need 'master' until SCST 3.11 - see README
+gateway_satellite_scst_version: ""
 
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint

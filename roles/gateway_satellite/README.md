@@ -24,8 +24,12 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048); matches the `ha_gateway_nfsv4_only` default |
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
-| `gateway_satellite_scst_version` | `3.10.x` | SCST git tag to build from source (see [tags](https://github.com/SCST-project/scst/tags)); only used when `gateway_satellite_scst=true` |
+| `gateway_satellite_scst_version` | `""` | Empty resolves the latest SCST release tag (see [releases](https://github.com/SCST-project/scst/releases)); or pin a tag, branch, or commit SHA; only used when `gateway_satellite_scst=true` |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+
+By default the latest SCST release is built (`v3.10` today).
+Its RPM build fails on newer Enterprise Linux kernels (EL9.8+, EL10), so on those nodes set `gateway_satellite_scst_version: master` until SCST 3.11 is released.
+The Debian packaging of the same release carries kernel-compatibility patches, so it builds on newer Debian and Ubuntu kernels (for example Debian 13 on 6.12 and Ubuntu 24.04 on 6.8).
 
 ## Dependencies
 

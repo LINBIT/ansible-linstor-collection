@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    gateway_satellite - resolve the SCST version automatically. With the default
+    empty ``gateway_satellite_scst_version`` the role builds the latest SCST
+    release tag (resolved once on the control host) and picks up new releases
+    automatically. Set a tag, branch (for example ``master``), or commit SHA to pin.
+bugfixes:
+  - >
+    gateway_satellite - report SCST build failures at the compile step. The RHEL
+    compile ended its shell with ``rm -f`` of the debug RPMs, hiding a failed
+    ``make rpm-dkms`` until the install step; the Debian compile used
+    ``failed_when: false``. Both now run as plain command tasks that fail on a
+    non-zero return code, with RHEL debug-RPM cleanup split into its own step.
+  - >
+    gateway_satellite - add ``dkms`` to the Debian SCST build prerequisites so the
+    ``scst-dkms`` package installs (it depends on ``dkms``).

@@ -25,6 +25,11 @@
 - name: Fetch SCST source once to the control host cache
   when: _scst_any_needed | bool
   block:
+    - name: Resolve SCST version on the control host
+      ansible.builtin.set_fact:
+        _scst_resolved_version: "{{ _scst_version }}"
+      run_once: true  # noqa: run-once[task]
+
     - name: Install git on the SCST fetch host
       ansible.builtin.package:
         name: git
@@ -35,7 +40,7 @@
     - name: Checkout SCST repo on the fetch host
       ansible.builtin.git:  # noqa: latest[git]
         repo: 'https://github.com/SCST-project/scst.git'
-        version: "{{ gateway_satellite_scst_version }}"
+        version: "{{ _scst_resolved_version }}"
         dest: /tmp/scst
       delegate_to: "{{ _scst_fetch_host }}"
       run_once: true  # noqa: run-once[task]
@@ -52,7 +57,7 @@
     - name: Cache SCST source archive on the control host
       ansible.builtin.fetch:
         src: /tmp/scst.tar.gz
-        dest: "{{ _scst_cache }}/{{ gateway_satellite_scst_version }}.tar.gz"
+        dest: "{{ _scst_cache }}/{{ _scst_resolved_version }}.tar.gz"
         flat: true
       delegate_to: "{{ _scst_fetch_host }}"
       run_once: true  # noqa: run-once[task]
@@ -67,7 +72,7 @@
 
     - name: Unpack SCST source from the control host cache
       ansible.builtin.unarchive:
-        src: "{{ _scst_cache }}/{{ gateway_satellite_scst_version }}.tar.gz"
+        src: "{{ _scst_cache }}/{{ _scst_resolved_version }}.tar.gz"
         dest: /tmp
 
     - name: Install kernel headers for SCST DKMS
@@ -102,12 +107,24 @@
             state: present
 
         - name: Compile SCST RPMs
-          ansible.builtin.shell: |
-            cd /tmp/scst
-            make rpm-dkms
-            rm -f /usr/src/packages/RPMS/x86_64/*debug*
-          args:
+          ansible.builtin.command:
+            cmd: make rpm-dkms
+            chdir: /tmp/scst
             creates: /usr/src/packages/RPMS/x86_64/scst-dkms-*.rpm
+
+        - name: Find SCST debug RPMs
+          ansible.builtin.find:
+            paths: /usr/src/packages/RPMS/x86_64
+            patterns: '*debug*'
+          register: _scst_debug_rpms
+
+        - name: Remove SCST debug RPMs before install
+          ansible.builtin.file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ _scst_debug_rpms.files }}"
+          loop_control:
+            label: "{{ item.path }}"
 
         - name: Install SCST RPMs
           ansible.builtin.shell: |
@@ -124,18 +141,23 @@
               - build-essential
               - debhelper
               - devscripts
+              - dkms
               - gcc
               - make
               - lintian
               - quilt
             state: present
 
+        - name: Prepare SCST release tree (Debian)
+          ansible.builtin.command:
+            cmd: make 2release
+            chdir: /tmp/scst
+          changed_when: true
+
         - name: Compile SCST .deb packages
-          ansible.builtin.shell: |
-            cd /tmp/scst
-            make 2release
-            make dpkg 1>/dev/null 2>/dev/null
-          failed_when: false
+          ansible.builtin.command:
+            cmd: make dpkg
+            chdir: /tmp/scst
           changed_when: true
 
         - name: Install SCST .deb packages

@@ -2,3 +2,13 @@
 ---
 # Control node cache for the SCST source, fetched once then distributed to nodes
 _scst_cache: /tmp/linbit-scst
+
+_scst_github_repo: SCST-project/scst
+_scst_github_api: "https://api.github.com/repos/{{ _scst_github_repo }}/releases/latest"
+
+# Build the override verbatim (tag, branch, or SHA), else the latest SCST release tag
+_scst_version: >-
+  {{ gateway_satellite_scst_version
+     if gateway_satellite_scst_version | length > 0
+     else (lookup('ansible.builtin.url', _scst_github_api, split_lines=false)
+           | from_json).tag_name }}
