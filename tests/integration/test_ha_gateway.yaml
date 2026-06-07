@@ -1,0 +1,484 @@
+# SPDX-License-Identifier: MIT
+---
+# Standalone integration test for the ha_gateway role.
+#
+# Run against a deployed LINSTOR cluster with the standard inventory groups
+# (linstor_controllers, linstor_satellites, linstor_cluster) and at least two
+# diskful satellites. The test installs the LINSTOR Gateway prerequisites, then
+# exercises all three protocols, both placement modes, layer_list (LUKS), and
+# the full interop and teardown matrix:
+#   - protocols: iSCSI, NFS, and NVMe-oF
+#   - placement: explicit nodes (manual) and resource group (autoplace)
+#   - layer_list: a LUKS layer via manual placement and via a resource group
+#   - teardown: role state=absent and the linstor-gateway CLI delete, each
+#     covering a LUKS and a non-LUKS target
+#   - reverse interop: a target created by the linstor-gateway CLI is removed
+#     by the role's state=absent
+#   - negative: a target setting both nodes and resource_group must be rejected
+#
+# The kernel NFS server allows only one export instance per node, so a single
+# NFS export is used here (two HA NFS exports cannot fit non-overlapping on a
+# 3-node cluster). iSCSI and NVMe-oF, which have no such limit, carry the
+# two-target LUKS/non-LUKS and teardown-method coverage.
+#
+# Override the storage pool with -e test_storage_pool=<name> (default sp0).
+#
+#   ansible-playbook -i <inventory> ./test_ha_gateway.yaml
+
+- name: Fetch OCF resource agents on satellites
+  hosts: linstor_satellites
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Install all supported OCF resource agents from upstream
+      ansible.builtin.import_role:
+        name: linbit.drbd_reactor.resource_agents_upstream
+
+- name: Install LINSTOR Gateway on the cluster
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  tasks:
+    - name: Install LINSTOR Gateway
+      ansible.builtin.import_role:
+        name: linbit.linstor.gateway_install
+
+- name: Pre-cleanup leftover test targets from prior runs
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  vars:
+    linstor_iscsi_targets:
+      - {name: gw-iscsi-plain, state: absent}
+      - {name: gw-iscsi-luks, state: absent}
+      - {name: gw-clicreate, state: absent}
+    linstor_nfs_exports:
+      - {name: gw-nfs, state: absent}
+    linstor_nvmeof_targets:
+      - {name: gw-nvme-plain, state: absent}
+      - {name: gw-nvme-luks, state: absent}
+  tasks:
+    - name: Remove any leftover test gateway targets
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
+
+- name: Create the test resource groups and encryption passphrase
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Create the autoplace test resource group
+      linbit.linstor.resource_group:
+        name: rg-gw-test
+        place_count: 2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+
+    - name: Ensure a LINSTOR master passphrase exists (required for LUKS)
+      ansible.builtin.command: >-
+        linstor encryption create-passphrase
+        -p {{ test_luks_passphrase | default('testpassphrase') }}
+      changed_when: false
+      failed_when: false
+      run_once: true  # noqa: run-once[task]
+
+    - name: Create the LUKS test resource group
+      linbit.linstor.resource_group:
+        name: rg-luks
+        place_count: 2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+        layer_list:
+          - DRBD
+          - LUKS
+          - STORAGE
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+
+- name: Deploy ha_gateway test targets across all protocols
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  vars:
+    linstor_iscsi_targets:
+      - name: gw-iscsi-plain
+        service_ips:
+          - 192.168.222.241/24
+        volumes:
+          - size: 100M
+        nodes:
+          - linstor-1
+          - linstor-2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      - name: gw-iscsi-luks
+        iqn: iqn.2026-06.com.linbit:gw-iscsi-luks
+        service_ips:
+          - 192.168.222.242/24
+        volumes:
+          - size: 100M
+        resource_group: rg-luks
+    linstor_nfs_exports:
+      - name: gw-nfs
+        service_ips:
+          - 192.168.222.245/24
+        exports:
+          - path: /data
+            size: 100M
+        nodes:
+          - linstor-1
+          - linstor-2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+        layer_list:
+          - DRBD
+          - LUKS
+          - STORAGE
+    linstor_nvmeof_targets:
+      - name: gw-nvme-plain
+        nqn: nqn.2026-06.io.linbit:nvme:gw-nvme-plain
+        service_ips:
+          - 192.168.222.243/24
+        volumes:
+          - size: 100M
+        nodes:
+          - linstor-1
+          - linstor-2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      - name: gw-nvme-luks
+        service_ips:
+          - 192.168.222.246/24
+        volumes:
+          - size: 100M
+        resource_group: rg-luks
+  tasks:
+    - name: Create HA gateway targets across iSCSI, NFS, and NVMe-oF
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
+
+- name: Verify ha_gateway deployments
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Query gw-iscsi-plain placement (manual)
+      linbit.linstor.resource_info:
+        name: gw-iscsi-plain
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+      register: _manual_info
+
+    - name: Query gw-iscsi-luks placement (autoplace via resource group)
+      linbit.linstor.resource_info:
+        name: gw-iscsi-luks
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+      register: _auto_info
+
+    - name: Assert gw-iscsi-plain is diskful on the requested nodes
+      ansible.builtin.assert:
+        that:
+          - _manual_info.resources | length == 1
+          - "'linstor-1' in _diskful"
+          - "'linstor-2' in _diskful"
+        fail_msg: "gw-iscsi-plain diskful nodes are {{ _diskful }}, expected linstor-1 and linstor-2"
+        success_msg: "gw-iscsi-plain placed diskful on linstor-1 and linstor-2 (manual)"
+        quiet: true
+      vars:
+        _res: "{{ _manual_info.resources[0] }}"
+        _diskless: >-
+          {{ (_res.flags | default({}) | dict2items
+              | selectattr('value', 'contains', 'TIE_BREAKER')
+              | map(attribute='key') | list)
+             + (_res.flags | default({}) | dict2items
+                | selectattr('value', 'contains', 'DRBD_DISKLESS')
+                | map(attribute='key') | list) }}
+        _diskful: "{{ _res.nodes | difference(_diskless) }}"
+
+    - name: Assert gw-iscsi-luks has two diskful replicas on satellites
+      ansible.builtin.assert:
+        that:
+          - _auto_info.resources | length == 1
+          - _diskful | length == 2
+          - _diskful | difference(groups['linstor_satellites']) | length == 0
+        fail_msg: "gw-iscsi-luks diskful nodes are {{ _diskful }}, expected two satellites"
+        success_msg: "gw-iscsi-luks autoplaced two diskful replicas: {{ _diskful }}"
+        quiet: true
+      vars:
+        _res: "{{ _auto_info.resources[0] }}"
+        _diskless: >-
+          {{ (_res.flags | default({}) | dict2items
+              | selectattr('value', 'contains', 'TIE_BREAKER')
+              | map(attribute='key') | list)
+             + (_res.flags | default({}) | dict2items
+                | selectattr('value', 'contains', 'DRBD_DISKLESS')
+                | map(attribute='key') | list) }}
+        _diskful: "{{ _res.nodes | difference(_diskless) }}"
+
+    - name: Query promoter external files for all five targets
+      linbit.linstor.file_info:
+        path: "/etc/drbd-reactor.d/linstor-gateway-{{ item }}.toml"
+      loop:
+        - iscsi-gw-iscsi-plain
+        - iscsi-gw-iscsi-luks
+        - nfs-gw-nfs
+        - nvmeof-gw-nvme-plain
+        - nvmeof-gw-nvme-luks
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+      register: _gw_files
+
+    - name: Assert all promoter external files exist (linstor-gateway interop)
+      ansible.builtin.assert:
+        that: _gw_files.results | selectattr('exists') | list | length == 5
+        fail_msg: >-
+          Missing promoter external files:
+          {{ _gw_files.results | rejectattr('exists') | map(attribute='item') | list }}
+        success_msg: "All five gateway promoter external files exist in LINSTOR"
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: List resources to inspect deployment and layer stacks
+      ansible.builtin.command: linstor resource list
+      register: _rl
+      changed_when: false
+
+    - name: Assert every target deployed and the LUKS targets carry a LUKS layer
+      ansible.builtin.assert:
+        that:
+          - _rl.stdout is search('gw-iscsi-plain')
+          - _rl.stdout is search('gw-iscsi-luks.*LUKS')
+          - _rl.stdout is search('gw-nfs.*LUKS')
+          - _rl.stdout is search('gw-nvme-plain')
+          - _rl.stdout is search('gw-nvme-luks.*LUKS')
+        fail_msg: "A target is missing or a LUKS layer is absent:\n{{ _rl.stdout }}"
+        success_msg: "All five targets deployed; the three LUKS targets carry a LUKS layer"
+        quiet: true
+
+    - name: List each protocol via linstor-gateway (best-effort interop signal)
+      ansible.builtin.command: "linstor-gateway {{ item }} list"
+      loop:
+        - iscsi
+        - nfs
+        - nvme
+      register: _gw_lists
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm every target appears in linstor-gateway when the CLI is reachable
+      ansible.builtin.assert:
+        that:
+          - "'gw-iscsi-plain' in _gw_lists.results[0].stdout"
+          - "'gw-iscsi-luks' in _gw_lists.results[0].stdout"
+          - "'gw-nfs' in _gw_lists.results[1].stdout"
+          - "'gw-nvme-plain' in _gw_lists.results[2].stdout"
+          - "'gw-nvme-luks' in _gw_lists.results[2].stdout"
+        fail_msg: "linstor-gateway lists reachable but missing targets"
+        success_msg: "All five targets visible across linstor-gateway iscsi, nfs, and nvme list"
+        quiet: true
+      when: _gw_lists.results | selectattr('rc', 'eq', 0) | list | length == 3
+
+    - name: Note when the linstor-gateway CLI cannot reach the controller
+      ansible.builtin.debug:
+        msg: >-
+          linstor-gateway CLI list interop skipped: the CLI could not reach the
+          controller. Promoter external files were verified through the API.
+      when: _gw_lists.results | selectattr('rc', 'eq', 0) | list | length != 3
+
+- name: Interop - remove targets via the linstor-gateway CLI
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Check the linstor-gateway CLI can reach the controller
+      ansible.builtin.command: linstor-gateway iscsi list
+      register: _cli_reach
+      changed_when: false
+      failed_when: false
+
+    - name: Delete one target per protocol with the linstor-gateway CLI
+      ansible.builtin.command: "linstor-gateway {{ item.proto }} delete {{ item.id }} -f"
+      when: _cli_reach.rc == 0
+      loop:
+        - {proto: iscsi, id: "iqn.2026-06.com.linbit:gw-iscsi-luks"}
+        - {proto: nvme, id: "nqn.2026-06.io.linbit:nvme:gw-nvme-plain"}
+      loop_control:
+        label: "{{ item.proto }} delete {{ item.id }}"
+      register: _cli_delete
+      changed_when: "'Deleted' in _cli_delete.stdout"
+
+    - name: Confirm the CLI deletes removed the targets
+      when: _cli_reach.rc == 0
+      block:
+        - name: Re-list resources after the CLI deletes
+          ansible.builtin.command: linstor resource list
+          register: _rl_after
+          changed_when: false
+
+        - name: Assert the CLI-deleted targets are gone from LINSTOR
+          ansible.builtin.assert:
+            that:
+              - _rl_after.stdout is not search('gw-iscsi-luks')
+              - _rl_after.stdout is not search('gw-nvme-plain')
+            fail_msg: "linstor-gateway CLI delete left a target behind:\n{{ _rl_after.stdout }}"
+            success_msg: "linstor-gateway CLI removed the iSCSI (LUKS) and NVMe-oF targets"
+            quiet: true
+
+    - name: Note when CLI delete interop was skipped
+      ansible.builtin.debug:
+        msg: >-
+          linstor-gateway CLI delete interop skipped: the CLI could not reach
+          the controller. The role teardown removes those targets instead.
+      when: _cli_reach.rc != 0
+
+- name: Interop - role removes a linstor-gateway CLI-created target
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  vars:
+    linstor_iscsi_targets:
+      - name: gw-clicreate
+        state: absent
+    linstor_nfs_exports: []
+    linstor_nvmeof_targets: []
+  tasks:
+    - name: Check the linstor-gateway CLI can reach the controller
+      ansible.builtin.command: linstor-gateway iscsi list
+      register: _cli_reach2
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ groups['linstor_controllers'][0] }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Create an iSCSI target with the linstor-gateway CLI (autoplace via RG)
+      ansible.builtin.command: >-
+        linstor-gateway iscsi create iqn.2026-06.com.linbit:gw-clicreate
+        192.168.222.247/24 100M --resource-group rg-gw-test
+      when: _cli_reach2.rc == 0
+      register: _cli_create
+      changed_when: "'Created' in _cli_create.stdout"
+      delegate_to: "{{ groups['linstor_controllers'][0] }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Assert the linstor-gateway CLI created the target
+      ansible.builtin.assert:
+        that: "'Created' in _cli_create.stdout"
+        fail_msg: "linstor-gateway CLI failed to create gw-clicreate"
+        success_msg: "linstor-gateway CLI created gw-clicreate via resource group autoplace"
+        quiet: true
+      when: _cli_reach2.rc == 0
+      run_once: true  # noqa: run-once[task]
+
+    - name: Remove the CLI-created target via the ha_gateway role
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
+      when: _cli_reach2.rc == 0
+
+    - name: Re-list resources after the role teardown
+      ansible.builtin.command: linstor resource list
+      when: _cli_reach2.rc == 0
+      register: _rl_rev
+      changed_when: false
+      delegate_to: "{{ groups['linstor_controllers'][0] }}"
+      run_once: true  # noqa: run-once[task]
+
+    - name: Assert the role removed the CLI-created target
+      ansible.builtin.assert:
+        that: _rl_rev.stdout is not search('gw-clicreate')
+        fail_msg: "Role state=absent did not remove the CLI-created gw-clicreate:\n{{ _rl_rev.stdout }}"
+        success_msg: "Role state=absent cleanly removed the CLI-created gw-clicreate"
+        quiet: true
+      when: _cli_reach2.rc == 0
+      run_once: true  # noqa: run-once[task]
+
+    - name: Note when reverse interop was skipped
+      ansible.builtin.debug:
+        msg: >-
+          Reverse interop skipped: the linstor-gateway CLI could not reach the
+          controller, so no CLI-created target was available to remove.
+      when: _cli_reach2.rc != 0
+      run_once: true  # noqa: run-once[task]
+
+- name: Negative test - reject nodes combined with resource_group
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify ha_gateway rejects a target with both nodes and resource_group
+      block:
+        - name: Run ha_gateway with an ambiguous target
+          ansible.builtin.import_role:
+            name: linbit.linstor.ha_gateway
+          vars:
+            linstor_iscsi_targets:
+              - name: gw-bad
+                service_ips:
+                  - 192.168.222.249/24
+                volumes:
+                  - size: 100M
+                nodes:
+                  - linstor-1
+                  - linstor-2
+                resource_group: rg-gw-test
+            linstor_nfs_exports: []
+            linstor_nvmeof_targets: []
+        - name: Fail because the role accepted the ambiguous target
+          ansible.builtin.fail:
+            msg: "ha_gateway accepted a target with both nodes and resource_group"
+      rescue:
+        - name: Confirm the failure was the mutual-exclusivity guard
+          ansible.builtin.assert:
+            that: _failed_text is search('mutually exclusive')
+            fail_msg: "ha_gateway failed for the wrong reason: {{ _failed_text }}"
+            success_msg: "ha_gateway correctly rejected nodes combined with resource_group"
+            quiet: true
+          vars:
+            _failed_text: >-
+              {{ (ansible_failed_result.msg | default('')) ~ ' '
+                 ~ (ansible_failed_result.results | default([])
+                    | selectattr('msg', 'defined') | map(attribute='msg') | join(' ')) }}
+
+- name: Teardown remaining test gateway targets
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  vars:
+    linstor_iscsi_targets:
+      - {name: gw-iscsi-plain, state: absent}
+      - {name: gw-iscsi-luks, state: absent}
+      - {name: gw-clicreate, state: absent}
+    linstor_nfs_exports:
+      - {name: gw-nfs, state: absent}
+    linstor_nvmeof_targets:
+      - {name: gw-nvme-plain, state: absent}
+      - {name: gw-nvme-luks, state: absent}
+  tasks:
+    - name: Remove all test gateway targets
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
+
+- name: Teardown test resource groups
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Remove test resource groups
+      linbit.linstor.resource_group:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - rg-gw-test
+        - rg-luks
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]

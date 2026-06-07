@@ -76,6 +76,12 @@ options:
   storage_pool:
     description: Storage pool to use for placement.
     type: str
+  layer_list:
+    description:
+      - Layer stack for the resource definition (for example C([DRBD, LUKS, STORAGE])).
+      - Applied in C(manual) and C(autoplace) modes; C(spawn) takes layers from the resource group.
+    type: list
+    elements: str
   place_count:
     description:
       - Number of replicas for autoplace mode.
@@ -381,6 +387,7 @@ def main():
         diskless=dict(type='bool', default=False),
         properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
+        layer_list=dict(type='list', elements='str'),
     ))
 
     module = AnsibleModule(
@@ -417,6 +424,7 @@ def main():
     diskless = module.params['diskless']
     properties = module.params['properties'] or {}
     delete_properties = module.params['delete_properties'] or []
+    layer_list = module.params.get('layer_list')
 
     lin = get_linstor_connection(module)
     changed = False
@@ -620,6 +628,8 @@ def main():
             create_kwargs = dict(name=name)
             if resource_group:
                 create_kwargs['resource_group'] = resource_group
+            if layer_list:
+                create_kwargs['layer_list'] = layer_list
             replies = lin.resource_dfn_create(**create_kwargs)
             check_api_response(module, replies,
                                'create resource definition %s' % name)
@@ -650,6 +660,8 @@ def main():
             create_kwargs = dict(name=name)
             if resource_group:
                 create_kwargs['resource_group'] = resource_group
+            if layer_list:
+                create_kwargs['layer_list'] = layer_list
             replies = lin.resource_dfn_create(**create_kwargs)
             check_api_response(module, replies,
                                'create resource definition %s' % name)

@@ -12,6 +12,7 @@ This role processes three inventory variables (`linstor_iscsi_targets`, `linstor
 1. Push promoter TOML configs to LINSTOR as external files and attach them to each resource definition
 
 Targets with explicit `nodes` use manual placement; targets without `nodes` use LINSTOR autoplace.
+A `resource_group` drives autoplace and is mutually exclusive with `nodes`.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
 
@@ -92,10 +93,11 @@ Each entry in `linstor_iscsi_targets`:
 | `name` | yes | | Target name (WWN portion of IQN; see Resource Naming) |
 | `service_ips` | yes | | List of VIPs in CIDR notation (iSCSI portals) |
 | `volumes` | yes | | List of volume definitions (`size` key) |
-| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
-| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
-| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
+| `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
+| `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool for manual placement (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count for manual placement; the `resource_group` controls this for autoplace |
+| `layer_list` | no | (LINSTOR default) | DRBD layer stack, e.g. `[DRBD, LUKS, STORAGE]`; applies to manual or autoplace, ignored when `resource_group` is set (the group defines layers) |
 | `iqn` | no | `{{ iqn_base }}:{{ name }}` | iSCSI Qualified Name |
 | `target_port` | no | `3260` | iSCSI target port |
 | `implementation` | no | (auto) | iSCSI implementation: `lio`, `tgt`, or `scst` |
@@ -114,10 +116,11 @@ Each entry in `linstor_nfs_exports`:
 | `name` | yes | | Export name (becomes the LINSTOR resource name; see Resource Naming) |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `exports` | yes | | List of export definitions (see below) |
-| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
-| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
-| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
+| `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
+| `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool for manual placement (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count for manual placement; the `resource_group` controls this for autoplace |
+| `layer_list` | no | (LINSTOR default) | DRBD layer stack, e.g. `[DRBD, LUKS, STORAGE]`; applies to manual or autoplace, ignored when `resource_group` is set (the group defines layers) |
 | `fstype` | no | `ext4` | Default filesystem for all volumes |
 | `port` | no | `2049` | NFS service port |
 | `state` | no | `present` | `present` or `absent` |
@@ -147,10 +150,11 @@ Each entry in `linstor_nvmeof_targets`:
 | `nqn` | no | `{{ nqn_base }}:{{ name }}` | NVMe Qualified Name; auto-generated from `ha_gateway_nvmeof_nqn_base` and target name if omitted |
 | `service_ips` | yes | | List of VIPs in CIDR notation |
 | `volumes` | yes | | List of volume definitions (`size` key) |
-| `nodes` | no | (autoplace) | List of inventory hostnames for placement (at least `place_count`, max 3); omit for autoplace |
-| `resource_group` | no | | Pre-existing LINSTOR resource group (must already exist) |
-| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool (ignored when `resource_group` is set) |
-| `place_count` | no | `ha_gateway_place_count` | Replica count; for autoplace targets with `resource_group`, the resource group controls this |
+| `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
+| `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
+| `storage_pool` | no | `ha_gateway_storage_pool` | Storage pool for manual placement (ignored when `resource_group` is set) |
+| `place_count` | no | `ha_gateway_place_count` | Replica count for manual placement; the `resource_group` controls this for autoplace |
+| `layer_list` | no | (LINSTOR default) | DRBD layer stack, e.g. `[DRBD, LUKS, STORAGE]`; applies to manual or autoplace, ignored when `resource_group` is set (the group defines layers) |
 | `target_port` | no | `4420` | NVMe-oF target port |
 | `fstype` | no | `ext4` | Portblock tickle_dir filesystem |
 | `state` | no | `present` | `present` or `absent` |
@@ -173,6 +177,8 @@ All diskful nodes must be diskful satellites (a storage pool targets them).
 
 **Autoplace**: omit `nodes` (or set `nodes: []`) to let LINSTOR select nodes automatically based on `place_count`.
 The role queries LINSTOR after placement to discover the selected nodes and deploys promoter configs accordingly.
+Set a `resource_group` to have the group control placement (storage pool, replica count, and constraints).
+A `resource_group` implies autoplace and cannot be combined with `nodes`.
 
 ## Dependencies
 
@@ -324,7 +330,8 @@ linstor_nfs_exports:
       - node-5
 ```
 
-Targets with a pre-existing resource group (storage pool, replica count, and constraints managed externally):
+Targets with a pre-existing resource group (storage pool, replica count, and constraints managed externally).
+A `resource_group` drives LINSTOR autoplace, so do not set `nodes` on these targets:
 
 ```yaml
 # group_vars/all/ha-custom-rg.yaml
@@ -335,9 +342,6 @@ linstor_iscsi_targets:
     volumes:
       - size: 100G
     resource_group: rg-ssd-fast
-    nodes:
-      - node-1
-      - node-2
 
 linstor_nfs_exports:
   - name: archive

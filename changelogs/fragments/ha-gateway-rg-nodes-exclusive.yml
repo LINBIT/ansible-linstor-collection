@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    ha_gateway - reject targets that set both nodes and resource_group. The
+    combination silently failed during placement because a manual resource
+    create does not apply a resource group's storage pool or layer settings.
+    Set either nodes for manual placement or resource_group for autoplace,
+    matching the linstor-gateway model.

@@ -9,7 +9,6 @@
     _gw_autoplace: []
     _gw_placements: []
     _gw_rg_check: { results: [] }
-    _gw_spawn_defs: { changed: false, results: [] }
     _gw_manual_place: { changed: false, results: [] }
     _gw_spawn_rg: { changed: false, results: [] }
     _gw_spawn_auto: { changed: false, results: [] }
@@ -118,34 +117,12 @@
     label: "{{ _check._target.name }}:{{ _check._target.resource_group }}"
   run_once: true  # noqa: run-once[task]
 
-# --- Resource group targets: spawn definitions ---
-
-- name: "Spawn resource definitions from resource groups (explicit nodes) - {{ _protocol }}"
-  linbit.linstor.resource:
-    name: "{{ _target._rd_name }}"
-    mode: spawn
-    resource_group: "{{ _target.resource_group }}"
-    definitions_only: true
-    sizes: >-
-      {{ [ha_gateway_tickle_dir_size]
-         + _target[_sizes_key] | map(attribute='size') | list }}
-  loop: "{{ _gw_explicit | selectattr('resource_group', 'defined') | list }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target._rd_name }}"
-  delegate_to: "{{ linstor_api_delegate }}"
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  run_once: true  # noqa: run-once[task]
-  register: _gw_spawn_defs
-
 # --- Explicit-node targets: manual placement ---
 
 - name: "Build manual placement list - {{ _protocol }}"
   ansible.builtin.set_fact:
     _gw_placements: >-
       {{ _gw_explicit | linbit.linstor.gateway_placement(
-           _gw_rg_check.results | default([]),
            ha_gateway_place_count,
            ha_gateway_storage_pool,
            _sizes_key,
@@ -162,6 +139,7 @@
     mode: manual
     nodes: "{{ _placement.nodes }}"
     sizes: "{{ _placement.sizes | default(omit, true) }}"
+    layer_list: "{{ _placement.layer_list | default(omit, true) }}"
   loop: "{{ _gw_placements | default([]) }}"
   loop_control:
     loop_var: _placement
@@ -203,6 +181,7 @@
          + _target[_sizes_key] | map(attribute='size') | list }}
     place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
     storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
+    layer_list: "{{ _target.layer_list | default(omit, true) }}"
     do_not_place_with_regex: "{{ _gw_present | map(attribute='_rd_name') | join('|') if _sizes_key == 'exports' and _gw_present | length > 1 else omit }}"
   loop: "{{ _gw_autoplace | rejectattr('resource_group', 'defined') | list }}"
   loop_control:
@@ -267,7 +246,7 @@
   ansible.builtin.wait_for:
     path: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
   when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
+    _gw_manual_place is changed
     or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
@@ -282,7 +261,7 @@
     dev: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
+    _gw_manual_place is changed
     or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
@@ -297,7 +276,7 @@
     dev: "/dev/drbd/by-res/{{ _export.0._rd_name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
-    _gw_spawn_defs is changed or _gw_manual_place is changed
+    _gw_manual_place is changed
     or _gw_spawn_rg is changed or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
@@ -353,30 +332,10 @@
     loop_var: _target
     label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
 
-- name: "Remove promoter config external file for absent targets - {{ _protocol }}"
-  linbit.linstor.file:
-    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
-    state: absent
-  loop: "{{ _gw_absent }}"
-  loop_control:
-    loop_var: _target
-    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
-  delegate_to: "{{ linstor_api_delegate }}"
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  run_once: true  # noqa: run-once[task]
-
-- name: "Remove LINSTOR resources for absent targets - {{ _protocol }}"
-  linbit.linstor.resource_definition:
-    name: "{{ _target._rd_name }}"
-    state: absent
+- name: "Tear down absent targets one at a time - {{ _protocol }}"
+  ansible.builtin.include_tasks: remove-target.yml
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
-  delegate_to: "{{ linstor_api_delegate }}"
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
-  retries: 5
-  delay: 5

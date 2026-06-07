@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    ha_gateway - tear down absent targets one at a time. Removing every
+    promoter config at once made DRBD Reactor demote several resources
+    concurrently, which could leave one promoted, more likely with a slower
+    LUKS layer, so its delete never succeeded. Each target's resource delete
+    is now retried until the resource is no longer in use before the next.

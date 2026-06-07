@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Tear down one absent target at a time so DRBD Reactor only stops a single
+# resource per step, mirroring the linstor-gateway CLI delete. Removing every
+# promoter config at once makes Reactor demote many resources concurrently,
+# which can wedge one (it stays Primary, esp. with a slower LUKS stop) and the
+# delete then never succeeds. Here the delete is retried until the resource
+# leaves the in-use state before the caller moves to the next target.
+---
+- name: "Remove promoter config external file - {{ _target.name }}"
+  linbit.linstor.file:
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    state: absent
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: "Remove LINSTOR resource once no longer in use - {{ _target._rd_name }}"
+  linbit.linstor.resource_definition:
+    name: "{{ _target._rd_name }}"
+    state: absent
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  run_once: true  # noqa: run-once[task]
+  register: _gw_rd_delete
+  until: _gw_rd_delete is succeeded
+  retries: 12
+  delay: 5

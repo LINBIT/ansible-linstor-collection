@@ -16,7 +16,7 @@ DOCUMENTATION = '''
     - Transforms an ha_gateway target dict into the C(nodes) list shape consumed
       by the M(linbit.linstor.resource) module in C(mode=manual).
     - Computes per-node C(diskless) and C(storage_pool) entries from the
-      target's resource group, place count, and storage pool defaults.
+      target's place count and storage pool defaults.
     - Internal helper for the C(linbit.linstor.ha_gateway) role.
   options:
     _input:
@@ -24,17 +24,12 @@ DOCUMENTATION = '''
       type: list
       elements: dict
       required: true
-    rg_check_results:
-      description: Resource-group lookup results used to source per-target place counts.
-      type: list
-      elements: dict
-      required: true
     place_count_default:
-      description: Fallback place count when neither the target nor its resource group provides one.
+      description: Fallback place count when the target does not provide one.
       type: int
       required: true
     storage_pool_default:
-      description: Fallback storage pool name for diskful nodes when the target has no resource group.
+      description: Fallback storage pool name for diskful nodes.
       type: str
       required: true
     sizes_key:
@@ -55,33 +50,23 @@ EXAMPLES = '''
     placements: >-
       {{
         explicit_targets
-        | linbit.linstor.gateway_placement(
-            rg_results, 2, 'sp0', 'volumes', '1M'
-          )
+        | linbit.linstor.gateway_placement(2, 'sp0', 'volumes', '1M')
       }}
 '''
 
 RETURN = '''
   _value:
-    description: List of placement dicts with keys C(resource_name), C(nodes), and C(sizes).
+    description: List of placement dicts with keys C(resource_name), C(nodes), C(sizes), and C(layer_list).
     type: list
     elements: dict
 '''
 
 
-def gateway_placement(explicit, rg_check_results, place_count_default,
-                      storage_pool_default, sizes_key, tickle_dir_size):
-    rg_pc = {}
-    for r in (rg_check_results or []):
-        rgs = r.get('resource_groups') or []
-        rg_pc[r['_target']['name']] = int(rgs[0].get('place_count') or 2) if rgs else 2
-
+def gateway_placement(explicit, place_count_default, storage_pool_default,
+                      sizes_key, tickle_dir_size):
     result = []
     for t in explicit:
-        has_rg = 'resource_group' in t
-        pc_default = int(t.get('place_count') or place_count_default)
-        pc = rg_pc.get(t['name'], pc_default) if has_rg else pc_default
-
+        pc = int(t.get('place_count') or place_count_default)
         vol_sizes = [tickle_dir_size] + [v['size'] for v in t[sizes_key]]
         sp = t.get('storage_pool') or storage_pool_default or ''
 
@@ -91,13 +76,14 @@ def gateway_placement(explicit, rg_check_results, place_count_default,
             node_entries.append({
                 'node': n,
                 'diskless': is_diskless,
-                'storage_pool': sp if (not has_rg and not is_diskless) else '',
+                'storage_pool': sp if not is_diskless else '',
             })
 
         result.append({
             'resource_name': t['_rd_name'],
             'nodes': node_entries,
-            'sizes': vol_sizes if not has_rg else [],
+            'sizes': vol_sizes,
+            'layer_list': t.get('layer_list'),
         })
     return result
 

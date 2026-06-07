@@ -102,6 +102,7 @@ argument_specs:
           - List of iSCSI target definitions.
           - Each entry requires C(name), C(service_ips), and C(volumes).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
+          - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
       linstor_nfs_exports:
         type: list
         elements: dict
@@ -110,6 +111,7 @@ argument_specs:
           - List of NFS export definitions.
           - Each entry requires C(name), C(service_ips), and C(exports).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
+          - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
       linstor_nvmeof_targets:
         type: list
         elements: dict
@@ -120,6 +122,7 @@ argument_specs:
             Each entry requires C(name), C(service_ips), and C(volumes). C(nqn) is optional and defaults to
             C(ha_gateway_nvmeof_nqn_base:name).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
+          - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
       linstor_api_delegate:
         type: str
         required: false

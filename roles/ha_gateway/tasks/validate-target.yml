@@ -3,6 +3,22 @@
 # Validate target definitions for ha_gateway.
 # Included from prepare-target.yml when: _gw_present | length > 0
 ---
+- name: "Validate target placement mode is not ambiguous - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: >-
+      not (_target.resource_group is defined
+           and (_target.nodes | default([]) | length > 0))
+    fail_msg: >-
+      Target {{ _target.name }} sets both resource_group and a non-empty nodes
+      list. These are mutually exclusive: use resource_group for autoplace
+      (omit nodes or set nodes: []), or use nodes for manual placement.
+    quiet: true
+  loop: "{{ _gw_present }}"
+  loop_control:
+    loop_var: _target
+    label: "{{ _target.name }}"
+  run_once: true  # noqa: run-once[task]
+
 - name: Validate NFS exports with explicit nodes have non-overlapping nodes
   ansible.builtin.assert:
     that: >-
@@ -18,10 +34,10 @@
          | map(attribute='nodes')
          | reject('equalto', [])
          | flatten }}
-  run_once: true  # noqa: run-once[task]
   when:
     - _sizes_key == 'exports'
     - _gw_present | length > 1
+  run_once: true  # noqa: run-once[task]
 
 - name: "Validate target place_count - {{ _protocol }}"
   ansible.builtin.assert:
