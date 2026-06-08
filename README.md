@@ -106,7 +106,6 @@ Most module tasks should use `run_once: true` or a single-host play. See [Using 
 
 | Filter | Description |
 |---|---|
-| `controller_env` | Build an `LS_CONTROLLERS` URI string from inventory (used in templates such as `linstor-client.j2`) |
 | `linstor_addr` | Resolve a host's LINSTOR address using the `linstor_ip → replication_ip → ansible_host` precedence |
 | `gateway_placement` | Build the manual placement list for `resource` in `manual` mode (used internally by `ha_gateway`) |
 | `gateway_resolve_satellites` | Split LINSTOR-reported nodes per target into diskful and diskless lists (used internally by `ha_gateway`) |

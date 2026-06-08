@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT
+---
+removed_features:
+  - >
+    The ``controller_env`` filter
+    (``groups | linbit.linstor.controller_env(hostvars, ssl)``) has been
+    removed. It duplicated the ``controller_env`` lookup, which builds the same
+    comma-joined ``LS_CONTROLLERS`` URI string from the ``linstor_controllers``
+    group. Use ``lookup('linbit.linstor.controller_env')`` instead; it reads
+    ``linstor_ssl`` from the variable context, so set ``linstor_ssl: true`` to
+    select the SSL scheme.
+minor_changes:
+  - >
+    client_install - the control-node ``~/.config/linstor/linstor-client.conf``
+    is now rendered from the shared ``linstor-client.j2`` template through a
+    reusable ``configure-control-node`` task, replacing duplicated inline
+    ``copy`` tasks in ``ssl_init``. The template gained an optional
+    ``linstor_client_cafile`` for the HTTPS CA path, and ``ssl_init`` no longer
+    references the playbook-level ``linstor_ssl`` variable.
+bugfixes:
+  - >
+    The ``controller_env`` lookup and the ``linstor-client.j2`` template now
+    emit the canonical ``linstor+ssl://`` URI scheme for SSL clusters instead
+    of ``linstors://``. python-linstor only recognizes ``linstor+ssl://`` (or
+    ``https``) as TLS; ``linstors://`` connected only because the controller
+    redirects the plain HTTP port to HTTPS and the client auto-upgrades. With
+    the canonical scheme, clients connect directly to the HTTPS port and no
+    longer depend on the plain port remaining open.

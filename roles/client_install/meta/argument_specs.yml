@@ -13,6 +13,29 @@ argument_specs:
         description:
           - List of controller IPs for C(linstor-client.conf).
           - Auto-discovered from the C(linstor_controllers) group C(replication_ip) values.
+      linstor_client_https:
+        type: bool
+        default: false
+        description:
+          - Use the C(linstor+ssl://) URI scheme in C(linstor-client.conf).
+      linstor_client_cafile:
+        type: str
+        default: ""
+        description:
+          - Path to the CA certificate that verifies the controller over HTTPS.
+          - Emitted as C(cafile=) in C(linstor-client.conf) when set.
+      linstor_client_certfile:
+        type: str
+        default: ""
+        description:
+          - Path to the client certificate for mutual TLS authentication.
+          - Emitted as C(certfile=) in C(linstor-client.conf) when set.
+      linstor_client_keyfile:
+        type: str
+        default: ""
+        description:
+          - Path to the client private key for mutual TLS authentication.
+          - Emitted as C(keyfile=) in C(linstor-client.conf) when set.
       client_install_force_reconfigure:
         type: bool
         default: false

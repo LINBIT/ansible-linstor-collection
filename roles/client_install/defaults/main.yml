@@ -5,6 +5,7 @@ client_install_package_state: present
 linstor_controller_addresses: "{{ query('linbit.linstor.group_addresses', 'linstor_controllers') }}"
 
 linstor_client_https: false
+linstor_client_cafile: ""
 linstor_client_certfile: ""
 linstor_client_keyfile: ""
 

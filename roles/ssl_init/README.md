@@ -8,7 +8,7 @@ An optional third feature, REST API mTLS, adds client certificate authentication
 
 The role generates a private CA, signs per-node certificates with Subject Alternative Names (SANs), converts them to Java keystores for LINSTOR's Java components, and installs the CA certificate into the operating system trust store.
 This CA-based approach ensures that all clients (Java, Python, Go, Perl) trust the LINSTOR certificates without manual trust store configuration.
-After the role completes, `linstor-client.conf` is updated with the `linstors://` scheme so that subsequent module calls (for example `cluster_membership`) connect over HTTPS.
+After the role completes, `linstor-client.conf` is updated with the `linstor+ssl://` scheme so that subsequent module calls (for example `cluster_membership`) connect over HTTPS.
 
 ## Requirements
 
@@ -72,7 +72,7 @@ The following files are pushed to each cluster node at `ssl_init_dir`:
 | `keystore.jks` | Java keystore containing node key and certificate |
 | `certificates.jks` | Java truststore containing the CA certificate |
 
-After completing the SSL configuration, `~/.config/linstor/linstor-client.conf` is written on the Ansible control node with the `linstors://` controller address and `cafile` pointing to `ssl_init_local_dir/ca.crt`.
+After completing the SSL configuration, `~/.config/linstor/linstor-client.conf` is written on the Ansible control node with the `linstor+ssl://` controller address and `cafile` pointing to `ssl_init_local_dir/ca.crt`.
 
 The CA certificate is also installed into the operating system trust store:
 

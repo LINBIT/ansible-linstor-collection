@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Ensure control-node linstor config directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env', 'HOME') }}/.config/linstor"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Render control-node linstor-client.conf
+  ansible.builtin.template:
+    src: linstor-client.j2
+    dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
+    mode: '0600'
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]

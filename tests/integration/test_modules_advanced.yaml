@@ -14,7 +14,7 @@
 #
 # All module tasks run on the Ansible control node (connection: local).
 # The controller URI is injected via module_defaults on the linbit.linstor
-# action group, and switches between linstor:// and linstors:// automatically
+# action group, and switches between linstor:// and linstor+ssl:// automatically
 # based on linstor_ssl via the controller_env lookup.
 
 - name: Test LINSTOR modules

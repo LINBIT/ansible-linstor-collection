@@ -30,26 +30,5 @@
     (_client_install_package is changed) or
     (client_install_force_reconfigure | bool)
 
-- name: Ensure control-node linstor config directory exists
-  ansible.builtin.file:
-    path: "{{ lookup('env', 'HOME') }}/.config/linstor"
-    state: directory
-    mode: '0700'
-  when: not (linstor_ssl | default(false) | bool)
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
-
-- name: Render control-node linstor-client.conf
-  ansible.builtin.template:
-    src: "linstor-client.j2"
-    dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
-    mode: '0600'
-  vars:
-    linstor_client_https: false
-    linstor_client_certfile: ""
-    linstor_client_keyfile: ""
-  when: not (linstor_ssl | default(false) | bool)
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
+- name: Configure control-node linstor-client.conf
+  ansible.builtin.include_tasks: configure-control-node.yml

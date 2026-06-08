@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-# Re-template linstor-client.conf with HTTPS (and optional mTLS cert/key
-# paths) by delegating to client_install. Single template lives in
-# client_install - this role just supplies the SSL paths.
+# Re-template linstor-client.conf with HTTPS/mTLS
 - name: Render linstor-client.conf via client_install with SSL paths
   ansible.builtin.include_role:
     name: linbit.linstor.client_install
@@ -12,27 +10,12 @@
     linstor_client_certfile: "{{ (ssl_init_dir + '/client.pem') if ssl_init_https_mtls | default(false) | bool else '' }}"
     linstor_client_keyfile: "{{ (ssl_init_dir + '/client.key') if ssl_init_https_mtls | default(false) | bool else '' }}"
 
-- name: Ensure control node linstor config directory exists
-  ansible.builtin.file:
-    path: "{{ ssl_init_local_dir | dirname }}"
-    state: directory
-    mode: '0700'
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
-
-- name: Configure control node linstor-client.conf for HTTPS
-  ansible.builtin.copy:
-    dest: "{{ ssl_init_local_dir | dirname }}/linstor-client.conf"
-    content: |
-      [global]
-      controllers={{ groups | linbit.linstor.controller_env(hostvars, true) }}
-      cafile={{ ssl_init_local_dir }}/ca.crt
-      {% if ssl_init_https_mtls | default(false) | bool %}
-      certfile={{ ssl_init_local_dir }}/client.pem
-      keyfile={{ ssl_init_local_dir }}/client.key
-      {% endif %}
-    mode: '0600'
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
+- name: Render control-node linstor-client.conf for HTTPS
+  ansible.builtin.include_role:
+    name: linbit.linstor.client_install
+    tasks_from: configure-control-node
+  vars:
+    linstor_client_https: true
+    linstor_client_cafile: "{{ ssl_init_local_dir }}/ca.crt"
+    linstor_client_certfile: "{{ (ssl_init_local_dir + '/client.pem') if ssl_init_https_mtls | default(false) | bool else '' }}"
+    linstor_client_keyfile: "{{ (ssl_init_local_dir + '/client.key') if ssl_init_https_mtls | default(false) | bool else '' }}"

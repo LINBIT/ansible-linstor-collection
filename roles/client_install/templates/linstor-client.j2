@@ -1,11 +1,15 @@
 {# SPDX-License-Identifier: MIT #}
 {# Controller address fallback: linstor_ip → replication_ip → ansible_host → localhost #}
-{%- set _https = 'linstors://' if linstor_client_https | default(false) | bool else '' -%}
+{%- set _https = 'linstor+ssl://' if linstor_client_https | default(false) | bool else '' -%}
 {%- set _controllers = linstor_controller_addresses | map('regex_replace', '^', _https) | join(',') -%}
+{%- set _cafile = linstor_client_cafile | default('') -%}
 {%- set _certfile = linstor_client_certfile | default('') -%}
 {%- set _keyfile = linstor_client_keyfile | default('') -%}
 [global]
 controllers={{ _controllers }}
+{% if _cafile %}
+cafile={{ _cafile }}
+{% endif -%}
 {% if _certfile %}
 certfile={{ _certfile }}
 {% endif -%}

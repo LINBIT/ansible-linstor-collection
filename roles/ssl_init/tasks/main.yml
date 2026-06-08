@@ -94,32 +94,16 @@
   register: _ssl_init_local_client_cert
   changed_when: false
 
-- name: Ensure control-node linstor config directory exists
-  ansible.builtin.file:
-    path: "{{ ssl_init_local_dir | dirname }}"
-    state: directory
-    mode: '0700'
+- name: Render control-node linstor-client.conf for HTTPS
+  ansible.builtin.include_role:
+    name: linbit.linstor.client_install
+    tasks_from: configure-control-node
+  vars:
+    linstor_client_https: true
+    linstor_client_cafile: "{{ ssl_init_local_dir }}/ca.crt"
+    linstor_client_certfile: "{{ (ssl_init_local_dir + '/client.pem') if _ssl_init_local_client_cert.stat.exists | default(false) else '' }}"
+    linstor_client_keyfile: "{{ (ssl_init_local_dir + '/client.key') if _ssl_init_local_client_cert.stat.exists | default(false) else '' }}"
   when: _ssl_init_cluster_ca.content is defined
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
-
-- name: Materialize control-node linstor-client.conf
-  ansible.builtin.copy:
-    content: |
-      [global]
-      controllers={{ groups | linbit.linstor.controller_env(hostvars, true) }}
-      cafile={{ ssl_init_local_dir }}/ca.crt
-      {% if _ssl_init_local_client_cert.stat.exists | default(false) %}
-      certfile={{ ssl_init_local_dir }}/client.pem
-      keyfile={{ ssl_init_local_dir }}/client.key
-      {% endif %}
-    dest: "{{ ssl_init_local_dir | dirname }}/linstor-client.conf"
-    mode: '0600'
-  when: _ssl_init_cluster_ca.content is defined
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
 
 - name: Check if satellite SSL is already active
   linbit.linstor.node_info:

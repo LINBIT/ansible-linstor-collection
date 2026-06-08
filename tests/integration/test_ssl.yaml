@@ -9,7 +9,7 @@
 # Tests:
 #   1. CA private key did not leak to managed nodes
 #   2. SSL ports are listening (3371 controller, 3367 satellites)
-#   3. Control node linstor-client.conf uses linstors://
+#   3. Control node linstor-client.conf uses linstor+ssl://
 #   4. CA cert is present on the control node
 #   5. LINSTOR controller module reachable over HTTPS (validates delegation)
 #   6. Satellite nodes are idempotent in LINSTOR over HTTPS (validates delegation)
@@ -132,19 +132,19 @@
         label: "{{ item }}"
 
     # =================================================================
-    # Control node: linstor-client.conf uses linstors://
+    # Control node: linstor-client.conf uses linstor+ssl://
     # =================================================================
     - name: Read linstor-client.conf on control node
       ansible.builtin.slurp:
         src: "~/.config/linstor/linstor-client.conf"
       register: _client_conf
 
-    - name: Assert linstor-client.conf uses linstors:// scheme
+    - name: Assert linstor-client.conf uses linstor+ssl:// scheme
       ansible.builtin.assert:
         that:
-          - "'linstors://' in (_client_conf.content | b64decode)"
+          - "'linstor+ssl://' in (_client_conf.content | b64decode)"
         fail_msg: >-
-          ~/.config/linstor/linstor-client.conf does not contain linstors://.
+          ~/.config/linstor/linstor-client.conf does not contain linstor+ssl://.
           ssl_init may not have written the control node client config.
         quiet: true
 

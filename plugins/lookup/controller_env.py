@@ -23,7 +23,7 @@ DOCUMENTATION = '''
       and joined with commas. The client walks the list and connects to the
       first responder.
     - When C(linstor_ssl) is true, the scheme switches from C(linstor://)
-      to C(linstors://).
+      to C(linstor+ssl://).
     - If C(linstor_controllers_env) is set in inventory or playbook vars it is
       returned as-is, allowing full override without touching role internals.
   options:
@@ -76,7 +76,7 @@ class LookupModule(LookupBase):
             return [override]
 
         ssl = self._tmpl(variables.get('linstor_ssl', False), variables)
-        scheme = 'linstors' if ssl else 'linstor'
+        scheme = 'linstor+ssl' if ssl else 'linstor'
 
         groups = variables.get('groups', {})
         hostvars = variables.get('hostvars', {})
