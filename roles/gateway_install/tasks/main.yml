@@ -4,8 +4,8 @@
   ansible.builtin.package:
     name: linstor-gateway
     state: "{{ gateway_install_package_state }}"
-  failed_when: false
   register: _gateway_install_package
+  ignore_errors: true
   notify: restart_linstor_gateway
 
 # Currently only shipping amd64 builds for GitHub
@@ -14,6 +14,7 @@
     url: 'https://github.com/LINBIT/linstor-gateway/releases/latest/download/linstor-gateway-linux-amd64'
     dest: '/usr/sbin/linstor-gateway'
     mode: '0755'
+    force: "{{ gateway_install_package_state == 'latest' }}"
   when: _gateway_install_package is failed
   register: _gateway_installed_from_github
   until: _gateway_installed_from_github is succeeded
@@ -27,3 +28,7 @@
     (_gateway_install_package is changed) or
     (_gateway_installed_from_github is changed) or
     (gateway_install_force_reconfigure | bool)
+
+- name: Verify the linstor-gateway binary is present and runnable
+  ansible.builtin.command: linstor-gateway version
+  changed_when: false
