@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    galaxy.yml - raise the ``community.general`` dependency floor to
+    ``>=11.0.0``, the release that added the ``community.general.zpool``
+    module used by the ``storage_pool`` ZFS path. The previous ``>=10.4.0``
+    floor allowed versions without ``zpool``, where ZFS storage pool
+    creation failed with an unresolved-module error.
