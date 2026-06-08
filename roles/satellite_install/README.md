@@ -42,7 +42,7 @@ For all other distributions, set `satellite_install_zfs: true` to enable:
 |---|---|---|
 | Debian (non-Ubuntu, non-Proxmox) | Enables `contrib` repository, installs `zfsutils-linux` via DKMS | |
 | Red Hat (standard kernel) | Installs EPEL and ZFS kmod repository, uses prebuilt kernel modules | Disables DKMS repo, enables kmod repo |
-| Red Hat (UEK kernel) | Installs EPEL and ZFS DKMS repository, builds module from source | Requires `gcc-toolset-11` on EL8 to match the UEK build compiler; EL9+ uses the system GCC |
+| Red Hat (UEK kernel) | Installs EPEL and ZFS DKMS repository, builds module from source | Matches the UEK kernel's build compiler with `gcc-toolset-N` (11 on EL8, 14 on EL9); skipped when the system GCC already matches (EL10) |
 | SUSE | Adds openSUSE filesystems repository, installs prebuilt `zfs` package | Configures `allow_unsupported_modules` for kernel module loading; installs `zfs-ueficert` and reboots on UEFI systems for Secure Boot MOK enrollment |
 
 On Red Hat and SUSE, the role also creates `/etc/modules-load.d/zfs.conf` so the ZFS kernel module loads automatically at boot.

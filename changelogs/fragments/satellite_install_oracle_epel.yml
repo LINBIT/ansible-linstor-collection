@@ -6,9 +6,10 @@ bugfixes:
     Linux for the ZFS repository setup; Oracle Linux does not provide the
     ``epel-release`` package. Covers both the UEK and RHCK ZFS task paths.
   - >
-    satellite_install - fix the Oracle UEK ZFS DKMS build, which used
+    satellite_install - fix the Oracle UEK ZFS DKMS build. Replaces an
     ``ansible.builtin.command`` with a ``$(rpm -q ...)`` substitution that a
-    non-shell command never expands. Consolidate the EL8 and EL9+ build steps
-    into one ``ansible.builtin.shell`` task that runs ``dkms autoinstall`` (with
-    the EL8 gcc-toolset-11 prefix), so the build path is identical across
-    EL8/9/10.
+    non-shell command never expands, and detects the compiler the UEK kernel
+    was built with to install and source the matching ``gcc-toolset`` (for
+    example gcc-toolset-11 on EL8, gcc-toolset-14 on EL9) only when it differs
+    from the system GCC. Fixes EL9/UEKR8, which failed with a misleading
+    "CONFIG_MODULES is defined... no" error.
