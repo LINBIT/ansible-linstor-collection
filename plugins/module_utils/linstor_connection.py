@@ -34,8 +34,8 @@ def get_linstor_connection(module):
     Controller URI resolution order (mirrors the linstor CLI):
     1. Module 'controllers' parameter (if provided)
     2. LS_CONTROLLERS environment variable
-    3. /etc/linstor/linstor-client.conf [global] controllers= key
-    4. ~/.config/linstor/linstor-client.conf (XDG user config)
+    3. ~/.config/linstor/linstor-client.conf (XDG user config)
+    4. /etc/linstor/linstor-client.conf [global] controllers= key
     5. Fallback: linstor://localhost
 
     Steps 2-5 are handled by linstor.Config.get_controllers().
