@@ -84,7 +84,7 @@ The CA certificate is also installed into the operating system trust store:
 
 Set `ssl_init_generate_certs: false` to use certificates from an external CA instead of the built-in private CA.
 Place PEM certificate files on each node before running the role.
-The role handles JKS keystore conversion, truststore creation, OS trust store installation, and LINSTOR configuration.
+It handles JKS keystore conversion, truststore creation, OS trust store installation, and LINSTOR configuration.
 
 #### Required files
 
@@ -178,7 +178,7 @@ Use the role standalone (after controller and satellite are installed):
 ### Converting an existing cluster to SSL
 
 Run the role against an existing non-SSL cluster to enable SSL.
-The role generates certificates, configures TOML files, updates node network interfaces to SSL, and restarts services.
+It generates certificates, configures TOML files, updates node network interfaces to SSL, and restarts services.
 Use `--limit` for staged rollouts: the role detects which nodes still need SSL and only processes those.
 
 ### Adding a new node
