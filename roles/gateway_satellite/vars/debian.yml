@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 ---
-# vars file for gateway_satellite
+# vars file for gateway_satellite - Debian family (Debian and Ubuntu)
 gateway_satellite_supplemental_packages:
   - iptables # for portblock
   - nfs-kernel-server
   - nfs-common
-  - psmisc # Missing from Debian? Might not be included in minimal installs
+  - psmisc
   - rpcbind
   - targetcli-fb
-  - xfsprogs  # for debian
+  - xfsprogs

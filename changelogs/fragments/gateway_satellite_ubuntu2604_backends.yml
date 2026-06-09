@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    gateway_satellite - install the NFS and iSCSI backend packages reliably.
+    A failed backend install is no longer silently masked, which previously
+    left iSCSI and NFS targets unable to promote (notably on Ubuntu 26.04,
+    where an unavailable ``linux-modules-extra`` package failed the install).
+minor_changes:
+  - >
+    gateway_satellite - support Ubuntu 26.04 (Resolute), pulling the
+    ``nvmet-tcp`` kernel module from ``linux-modules-extra`` only on Ubuntu
+    releases before 26.04, where it is not yet in the base kernel.

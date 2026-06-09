@@ -28,8 +28,25 @@
       ansible.builtin.package:
         name: "{{ gateway_satellite_supplemental_packages }}"
         state: present
-      failed_when: false # for now, clear up packaging assumptions later
+      register: _gateway_satellite_packages
+      until: _gateway_satellite_packages is succeeded
+      retries: 3
+      delay: 10
       notify: disable_and_stop_nfs
+
+    # nvmet-tcp moved into the base kernel in Ubuntu 26.04; earlier releases need linux-modules-extra
+    - name: Install linux-modules-extra for nvmet-tcp (Ubuntu before 26.04)
+      ansible.builtin.apt:
+        name: "linux-modules-extra-{{ ansible_facts['kernel'] }}"
+        state: present
+        update_cache: true
+      when:
+        - ansible_facts['distribution'] | lower == 'ubuntu'
+        - ansible_facts['distribution_major_version'] | int < 26
+      register: _gateway_satellite_modules_extra
+      until: _gateway_satellite_modules_extra is succeeded
+      retries: 3
+      delay: 10
 
     - name: Install SCST
       ansible.builtin.include_tasks: install-scst.yml
