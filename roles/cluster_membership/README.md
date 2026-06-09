@@ -1,7 +1,7 @@
 # cluster_membership
 
 Register LINSTOR nodes into the cluster.
-Runs `linstor node create` for controller, combined (controller+satellite), and satellite node types.
+The role runs `linstor node create` for controller, combined (controller+satellite), and satellite node types.
 Idempotent: nodes already registered are skipped.
 
 ## Requirements

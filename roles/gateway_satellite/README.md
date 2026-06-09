@@ -2,9 +2,9 @@
 
 Install LINSTOR Gateway satellite-side components on LINSTOR satellite nodes.
 
-Installs NFS/iSCSI resource agents, supplemental packages, and patches `linstor_satellite.toml` to allow DRBD Reactor to manage systemd drop-in files.
-Sets the `Aux/GatewaySatellite=True` node property so that gateway resource groups can constrain placement to gateway-ready nodes.
-Depends on `linbit.drbd_reactor.reactor_install` so OCF resource agents and the `drbd-reactor.service` enable state are guaranteed regardless of whether DRBD Reactor was previously installed by another path.
+The role installs NFS/iSCSI resource agents, supplemental packages, and patches `linstor_satellite.toml` to allow DRBD Reactor to manage systemd drop-in files.
+It sets the `Aux/GatewaySatellite=True` node property so that gateway resource groups can constrain placement to gateway-ready nodes.
+A hard dependency on `linbit.drbd_reactor.reactor_install` guarantees OCF resource agents and the `drbd-reactor.service` enable state regardless of whether DRBD Reactor was previously installed by another path.
 
 This role is the prerequisite for both `linbit.linstor.gateway_install` (satellite nodes) and `linbit.linstor.ha_gateway`.
 It does **not** install the `linstor-gateway` binary; that is handled by `gateway_install`.

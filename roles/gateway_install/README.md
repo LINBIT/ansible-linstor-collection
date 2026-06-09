@@ -2,9 +2,9 @@
 
 Install the `linstor-gateway` binary and service.
 
-Installs the `linstor-gateway` daemon (via package manager or GitHub release), deploys its configuration, opens firewall port `8337/tcp`, and starts the service.
+The role installs the `linstor-gateway` daemon (via package manager or GitHub release), deploys its configuration, opens firewall port `8337/tcp`, and starts the service.
 
-On satellite nodes, also installs satellite-side components via `linbit.linstor.gateway_satellite` (NFS/iSCSI resource agents, DRBD Reactor, supplemental packages).
+On satellite nodes, the role also installs satellite-side components via `linbit.linstor.gateway_satellite` (NFS/iSCSI resource agents, DRBD Reactor, supplemental packages).
 Standalone controllers receive the `linstor-gateway` binary only.
 
 By default, satellite related components are installed on all `linstor_satellites`.

@@ -2,8 +2,8 @@
 
 Create LINSTOR storage pools on diskful satellite nodes.
 
-Supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`.
-The role loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, or directories) before registering each pool with LINSTOR.
+The role supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`.
+It loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, or directories) before registering each pool with LINSTOR.
 
 Each satellite creates the pools from `linstor_storage_pools` that target it; a satellite no pool targets is left diskless.
 It can be called from any play targeting `linstor_cluster` or broader.

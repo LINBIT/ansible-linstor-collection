@@ -1,7 +1,7 @@
 # cluster_init
 
-Convenience role that deploys a complete LINSTOR cluster with a single role call.
-Includes the following roles in order:
+Deploy a complete LINSTOR cluster with a single role call.
+The role includes the following roles in order:
 
 1. `linbit.common.customer_repo` or `linbit.common.public_repo` (based on `cluster_init_repo_access`)
 2. `linbit.linstor.satellite_install` (on `linstor_satellites` nodes)
