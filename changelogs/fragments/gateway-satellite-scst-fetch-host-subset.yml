@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    gateway_satellite - the SCST fetch-host election no longer fails when the
+    play includes hosts that do not run the role (for example a standalone
+    controller in a ``cluster_init`` play). Hosts without the per-host install
+    flag are now filtered out before evaluation.
+  - >
+    gateway_satellite - when SCST is already installed on every host, the
+    fetch-host fact resolved to an empty string and ``delegate_to`` failed
+    with "Empty hostname" even though the fetch block was skipped. The fact
+    now falls back to the first play host.

@@ -15,11 +15,13 @@
   ansible.builtin.set_fact:
     _scst_any_needed: >-
       {{ ansible_play_hosts | map('extract', hostvars, '_scst_needs_install')
-         | map('bool') | select | list | length > 0 }}
+         | select('defined') | map('bool') | select | list | length > 0 }}
     _scst_fetch_host: >-
       {{ ansible_play_hosts | map('extract', hostvars)
+         | selectattr('_scst_needs_install', 'defined')
          | selectattr('_scst_needs_install', 'truthy')
-         | map(attribute='inventory_hostname') | first | default('') }}
+         | map(attribute='inventory_hostname') | first
+         | default(ansible_play_hosts | first) }}
   run_once: true  # noqa: run-once[task]
 
 - name: Fetch SCST source once to the control host cache

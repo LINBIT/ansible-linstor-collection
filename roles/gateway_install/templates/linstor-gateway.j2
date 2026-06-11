@@ -1,6 +1,6 @@
-{# SPDX-License-Identifier: MIT #}
+{# SPDX-License-Identifier: MIT -#}
+{% set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') -%}
+{% set scheme = 'https' if linstor_ssl | default(false) | bool else 'http' -%}
+{% set port = '3371' if linstor_ssl | default(false) | bool else '3370' -%}
 [linstor]
-{%- set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') %}
-{%- set scheme = 'https' if linstor_ssl | default(false) | bool else 'http' %}
-{%- set port = '3371' if linstor_ssl | default(false) | bool else '3370' %}
 controllers = [ {% for a in addrs %}"{{ scheme }}://{{ a }}:{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %} ]

@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    gateway_install - the rendered ``linstor-gateway.toml`` collapsed the
+    ``[linstor]`` section header and the ``controllers`` key onto one line
+    (Jinja whitespace trimming ate the newline), producing invalid TOML. The
+    gateway then silently fell back to ``localhost:3370`` for the LINSTOR
+    API. The template now renders valid TOML.
