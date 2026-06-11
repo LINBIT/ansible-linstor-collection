@@ -40,7 +40,7 @@ When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor
 See the `storage_pool` role README for the full variable reference.
 
 When `cluster_init_ha_database` is enabled, the role includes `linbit.linstor.ha_database`.
-Set `ha_database_pool` in the playbook vars to specify which storage pool to use.
+Set `ha_database_pool` in the playbook vars to specify which storage pool to use; when omitted, the role auto-selects from the diskful pools on the combined nodes.
 See the `ha_database` role README for additional variables.
 
 See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, and `linbit.linstor.cluster_membership` for their available variables.

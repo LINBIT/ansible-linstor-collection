@@ -16,8 +16,8 @@ argument_specs:
         default: ""
         description:
           - Storage pool for the HA database resource.
-          - When empty, LINSTOR auto-selects from available pools.
-          - Set explicitly when nodes have multiple storage pools.
+          - When empty, the role auto-selects the first diskful pool name alphabetically on the combined nodes.
+          - An explicitly set pool must exist as a diskful pool on every combined node.
       ha_database_rg:
         type: str
         default: linstor-db-grp

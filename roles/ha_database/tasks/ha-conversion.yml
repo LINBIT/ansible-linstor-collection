@@ -3,6 +3,28 @@
 - name: Validate inventory topology for HA database
   ansible.builtin.include_tasks: ha-readiness.yml
 
+- name: Verify the requested HA database storage pool exists on the combined nodes
+  ansible.builtin.assert:
+    that: _ha_db_pool_nodes | length == _ha_db_combined_nodes | length
+    fail_msg: >-
+      Storage pool '{{ ha_database_pool }}' is not a diskful pool on every
+      combined node ({{ _ha_db_combined_nodes | join(', ') }}).
+      Found on: {{ _ha_db_pool_nodes | join(', ') | default('no nodes', true) }}.
+    quiet: true
+  when: ha_database_pool | length > 0
+  run_once: true  # noqa: run-once[task]
+
+- name: Note auto-selected storage pool when multiple pools exist
+  ansible.builtin.debug:
+    msg: >-
+      Multiple storage pools exist on the combined nodes
+      ({{ _ha_db_pool_names | join(', ') }}).
+      Auto-selected '{{ _ha_db_pool }}' - set ha_database_pool to override.
+  when:
+    - ha_database_pool | length == 0
+    - _ha_db_pool_names | length > 1
+  run_once: true  # noqa: run-once[task]
+
 # DRBD Reactor package (idempotent); OCF agents handled separately below
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
@@ -46,7 +68,7 @@
 - name: Create HA database resource group
   linbit.linstor.resource_group:
     name: "{{ ha_database_rg }}"
-    storage_pool: "{{ ha_database_pool | default(omit, true) }}"
+    storage_pool: "{{ _ha_db_pool }}"
     place_count: "{{ _ha_db_combined_nodes | length }}"
     drbd_options: "{{ ha_database_drbd_options }}"
   delegate_to: "{{ linstor_api_delegate }}"
@@ -64,7 +86,7 @@
     sizes:
       - "{{ ha_database_res_size }}"
     nodes: "{{ _ha_db_placement_nodes }}"
-    storage_pool: "{{ ha_database_pool | default(omit, true) }}"
+    storage_pool: "{{ _ha_db_pool }}"
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

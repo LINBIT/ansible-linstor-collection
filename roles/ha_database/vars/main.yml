@@ -27,3 +27,41 @@ _ha_db_placement_nodes: >-
   {{ _ha_db_combined_nodes
      | map('community.general.dict_kv', 'node')
      | list }}
+
+# Derived from the live storage pool query (_ha_db_sp_info) - only valid
+# after the "Query storage pools to find diskful nodes" task has registered
+
+# Nodes holding at least one diskful storage pool
+_ha_db_diskful_nodes: >-
+  {{ _ha_db_sp_info.storage_pools | default([])
+     | rejectattr('provider_kind', 'equalto', 'DISKLESS')
+     | map(attribute='node') | unique | list }}
+
+# Combined nodes: controllers that are also diskful satellites
+_ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(_ha_db_diskful_nodes) }}"
+
+# Conversion gate: 2+ combined nodes, 3+ satellites, not already converted
+_ha_db_conversion_needed: >-
+  {{ (_ha_db_combined_nodes | length >= 2) and
+     (groups['linstor_satellites'] | length >= 3) and
+     ((_ha_db_conversion_check.properties['Aux/ClusterIsHA'] | default('')) != 'True') }}
+
+# Diskful pool names on the combined nodes, sorted for deterministic selection
+_ha_db_pool_names: >-
+  {{ _ha_db_sp_info.storage_pools | default([])
+     | rejectattr('provider_kind', 'equalto', 'DISKLESS')
+     | selectattr('node', 'in', _ha_db_combined_nodes)
+     | map(attribute='name') | unique | sort }}
+
+# Combined nodes where the explicitly requested ha_database_pool is diskful
+_ha_db_pool_nodes: >-
+  {{ _ha_db_sp_info.storage_pools | default([])
+     | rejectattr('provider_kind', 'equalto', 'DISKLESS')
+     | selectattr('name', 'equalto', ha_database_pool)
+     | selectattr('node', 'in', _ha_db_combined_nodes)
+     | map(attribute='node') | unique | list }}
+
+# Resolved pool: explicit ha_database_pool, else first pool name alphabetically
+_ha_db_pool: >-
+  {{ ha_database_pool if ha_database_pool | length > 0
+     else _ha_db_pool_names | first }}

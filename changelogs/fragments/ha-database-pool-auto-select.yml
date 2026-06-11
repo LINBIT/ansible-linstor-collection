@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    ha_database - an empty ``ha_database_pool`` now auto-selects the first diskful
+    pool name alphabetically on the combined nodes, as documented, instead of
+    failing the conversion with a LINSTOR API error.
+minor_changes:
+  - >
+    ha_database - an explicitly set ``ha_database_pool`` is validated as a diskful pool
+    on every combined node before the conversion starts, replacing a mid-conversion
+    LINSTOR API error with a clear assertion message.
+  - >
+    ha_database - the role notes the auto-selected pool when the combined nodes have
+    multiple storage pools; set ``ha_database_pool`` to override the selection.

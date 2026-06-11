@@ -174,6 +174,7 @@ Every node in `linstor_satellites` creates this pool.
 Best for large clusters with multiple pool types or per-host device paths.
 Define pool topology once in `group_vars/all` with `nodes` or `groups` keys for targeting.
 Use Jinja2 variable references for per-host values like `physical_devices`.
+Guard each per-host devices reference with `default([])`: every host in the play resolves the full `linstor_storage_pools` structure, so an unguarded reference fails on hosts that do not define the variable.
 
 Create inventory groups for pool targeting (these groups need no `group_vars` of their own):
 
@@ -193,7 +194,7 @@ linstor_zfs_satellites:
     node-5:
 ```
 
-Define pool topology centrally, referencing a per-host variable for device paths:
+Define pool topology centrally, referencing a descriptively named per-host variable for each pool's device paths:
 
 ```yaml
 # group_vars/all/storage.yaml
@@ -201,14 +202,15 @@ linstor_storage_pools:
   - name: sp0
     type: lvmthin
     vg: drbdpool
-    physical_devices: "{{ linstor_backing_devices }}"
+    physical_devices: "{{ physical_devices_lvm_striped | default([]) }}"
     groups:
       - linstor_lvm_satellites
 
   - name: sp0
     type: zfsthin
     zpool: drbdpool
-    physical_devices: "{{ linstor_backing_devices }}"
+    zpool_vdev_type: raidz1
+    physical_devices: "{{ physical_devices_zfs_raidz1 | default([]) }}"
     groups:
       - linstor_zfs_satellites
 ```
@@ -217,16 +219,19 @@ Define the per-host device mapping in `host_vars/`:
 
 ```yaml
 # host_vars/node-1.yaml
-linstor_backing_devices:
+physical_devices_lvm_striped:
   - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+  - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ0987654321
 
 # host_vars/node-2.yaml
-linstor_backing_devices:
+physical_devices_zfs_raidz1:
   - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH12345
+  - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH23456
+  - /dev/disk/by-id/scsi-SATA_ST4000NM0035_ZDH34567
 ```
 
 The pool topology is defined once regardless of cluster size.
-Each host resolves `linstor_backing_devices` to its own device paths at task time.
+Each host resolves its per-host device variable to its own device paths at task time, and the variable name documents the pool layout it feeds (striped LVM, raidz1 ZFS).
 For uniform device paths (for example `/dev/vdb` in virtual environments), use a literal value instead of a variable reference.
 
 You can also target specific nodes by hostname instead of groups:
@@ -237,7 +242,7 @@ linstor_storage_pools:
   - name: sp-local-ssd
     type: lvmthin
     vg: ssdpool
-    physical_devices: "{{ linstor_backing_devices }}"
+    physical_devices: "{{ physical_devices_local_ssd | default([]) }}"
     nodes:
       - node-10
       - node-11
@@ -251,7 +256,7 @@ Ansible replaces variables rather than merging them.
 If a host defines `linstor_storage_pools` in `host_vars/`, that definition completely replaces any `group_vars` definition for the same variable.
 Do not mix per-host and centralized definitions for the same variable on the same host.
 
-Pattern 3 avoids this issue entirely: all pool definitions live in `group_vars/all`, and per-host differences are isolated in separate variables (for example `linstor_backing_devices`).
+Pattern 3 avoids this issue entirely: all pool definitions live in `group_vars/all`, and per-host differences are isolated in separate variables (for example `physical_devices_lvm_striped`).
 
 ## License
 

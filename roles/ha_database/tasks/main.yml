@@ -7,24 +7,12 @@
       - min
   when: ansible_facts['os_family'] is not defined
 
-# Per host (not run_once) - _ha_db_combined_nodes drives the per-host when: conditions below
 - name: Query storage pools to find diskful nodes
   linbit.linstor.storage_pool_info:
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ha_db_sp_info
-
-- name: Resolve diskful nodes from live storage pools
-  ansible.builtin.set_fact:
-    _ha_db_diskful_nodes: >-
-      {{ _ha_db_sp_info.storage_pools | default([])
-         | rejectattr('provider_kind', 'equalto', 'DISKLESS')
-         | map(attribute='node') | unique | list }}
-
-- name: Determine combined controller and diskful nodes
-  ansible.builtin.set_fact:
-    _ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(_ha_db_diskful_nodes) }}"
 
 # Idempotency gate: skip if already converted, fewer than 2 combined nodes,
 # or fewer than 3 total satellites (insufficient for quorum)
@@ -36,14 +24,6 @@
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _ha_db_conversion_check
   run_once: true  # noqa: run-once[task]
-
-- name: Determine if HA database conversion is needed
-  ansible.builtin.set_fact:
-    _ha_db_conversion_needed: >-
-      {{ (_ha_db_combined_nodes | length >= 2) and
-         (groups['linstor_satellites'] | length >= 3) and
-         ((_ha_db_conversion_check.properties['Aux/ClusterIsHA'] | default('')) != 'True') }}
-  run_once: true # noqa: run-once[task]
 
 - name: Convert LINSTOR database to HA
   ansible.builtin.include_tasks: ha-conversion.yml

@@ -27,7 +27,7 @@ See `defaults/main.yml`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `ha_database_pool` | `""` | Storage pool for the HA database resource; empty lets LINSTOR auto-select (set explicitly when nodes have multiple pools) |
+| `ha_database_pool` | `""` | Storage pool for the HA database resource; empty auto-selects the first diskful pool name alphabetically on the combined nodes; an explicitly set pool must exist as a diskful pool on every combined node |
 | `ha_database_rg` | `linstor-db-grp` | LINSTOR resource group name |
 | `ha_database_res` | `linstor_db` | LINSTOR resource name |
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
@@ -60,7 +60,8 @@ No hard role dependencies.
       ansible.builtin.import_role:
         name: linbit.linstor.ha_database
       vars:
-        # If ha_database_pool is omitted, LINSTOR auto-selects from available pools
+        # If ha_database_pool is omitted, the role auto-selects from the
+        # diskful pools on the combined nodes
         ha_database_pool: my-pool
 ```
 
