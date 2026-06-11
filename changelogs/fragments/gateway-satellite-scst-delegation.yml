@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    gateway_satellite - SCST installation moved to the new
+    ``linbit.drbd_reactor.scst_install`` role; the role now delegates to it
+    when ``gateway_satellite_scst=true``. Requires a linbit.drbd_reactor
+    version that ships ``scst_install``.
+breaking_changes:
+  - >
+    gateway_satellite - ``gateway_satellite_scst_version`` is removed. Set
+    ``scst_install_version`` (the delegated role's variable) to pin the SCST
+    build reference instead.

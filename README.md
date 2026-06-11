@@ -54,7 +54,7 @@ See [using Ansible collections](https://docs.ansible.com/ansible/latest/collecti
 | [`ssl_init`](roles/ssl_init/README.md) | Configure SSL/TLS for the LINSTOR REST API (HTTPS) and satellite connections (mutual TLS), including private CA, per-node certs, and Java keystores |
 | [`peer_trust`](roles/peer_trust/README.md) | Trust a peer LINSTOR cluster's CA in the local Java truststore for cross-cluster backup shipping over HTTPS |
 | [`gateway_install`](roles/gateway_install/README.md) | Install the LINSTOR Gateway binary and service, with satellite components on satellite nodes |
-| [`gateway_satellite`](roles/gateway_satellite/README.md) | Install LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor), optionally compiling and installing SCST iSCSI target when `scst=true` |
+| [`gateway_satellite`](roles/gateway_satellite/README.md) | Install LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor), optionally installing the SCST iSCSI target through `linbit.drbd_reactor.scst_install` when `gateway_satellite_scst=true` |
 | [`storage_pool`](roles/storage_pool/README.md) | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
 | [`ha_database`](roles/ha_database/README.md) | Configure highly available LINSTOR database storage for new deployments and existing production clusters |
 | [`ha_gateway`](roles/ha_gateway/README.md) | Ansible-driven alternative to `linstor-gateway` CLI: create HA NFS/iSCSI resources via DRBD Reactor promoter configs |

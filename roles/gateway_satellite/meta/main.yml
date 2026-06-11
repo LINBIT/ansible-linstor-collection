@@ -56,3 +56,6 @@ dependencies:
     vars:
       reactor_install_drbd: false
       reactor_install_resource_agents_upstream: true
+      # SCST is delegated from tasks/main.yml with the mapped version; keep
+      # the meta dependency from installing it a second time
+      reactor_install_scst: false
