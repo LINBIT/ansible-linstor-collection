@@ -73,6 +73,21 @@
         - linstor
         - linstor_cluster_membership
 
+# Run after cluster_membership so init distributes tokens for all satellites
+- name: Initialize LINSTOR token authentication
+  tags:
+    - linstor
+    - linstor_auth
+  ansible.builtin.include_role:
+    name: linbit.linstor.auth_init
+    apply:
+      tags:
+        - linstor
+        - linstor_auth
+  vars:
+    auth_init_no_https: "{{ cluster_init_ssl | bool }}"
+  when: cluster_init_token_auth | bool
+
 - name: Install LINSTOR Gateway
   tags:
     - linstor

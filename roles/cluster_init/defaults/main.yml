@@ -19,3 +19,6 @@ cluster_init_repo_access: customer
 cluster_init_ssl: false
 # Restrict REST API to clients with a valid certificate (requires cluster_init_ssl)
 cluster_init_ssl_mtls: false
+
+# Token authentication: require a valid token for all REST API requests.
+cluster_init_token_auth: true

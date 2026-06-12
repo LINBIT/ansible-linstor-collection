@@ -4,6 +4,9 @@ requires_ansible: '>=2.16.0'
 
 action_groups:
   linstor:
+    - auth_init
+    - auth_token
+    - auth_token_info
     - backup
     - backup_abort
     - backup_info

@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify token authentication state of a deployed LINSTOR cluster after
+# auth_init has run.
+# Expects standard LINSTOR inventory groups (linstor_cluster,
+# linstor_controllers, linstor_satellites).
+# Run after deploying with cluster_init_token_auth=true against LINSTOR 1.34.0 or later:
+#   ansible-playbook ./test_auth_token.yaml
+#
+# Tests:
+#   1. Satellite token file was distributed to every satellite
+#   2. REST API rejects unauthenticated requests (401)
+#   3. Control node linstor-client.conf carries an auth-token
+#   4. LINSTOR controller module reaches the API with the saved token
+#   5. Token authentication is enabled in the controller properties
+#   6. A user token exists in the token list
+#
+# The satellite token file mode is a controller-side concern, verified
+# separately, not asserted here.
+
+- name: Verify satellite token file permissions
+  hosts: linstor_satellites
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Stat the satellite token file
+      ansible.builtin.stat:
+        path: /var/lib/linstor.d/auth.json
+      register: _auth_json_stat
+
+    - name: Assert the satellite token file exists
+      ansible.builtin.assert:
+        that:
+          - _auth_json_stat.stat.exists
+        fail_msg: >-
+          /var/lib/linstor.d/auth.json is missing on {{ inventory_hostname }}.
+          auth_init should have distributed a satellite token to every
+          connected satellite.
+        quiet: true
+
+- name: Verify token authentication and connectivity
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+  tasks:
+    # =================================================================
+    # REST API rejects unauthenticated requests
+    # =================================================================
+    # HA clusters promote linstor-controller on one node at a time, so
+    # 3371 only answers on the promoted node. Probe all, require >= 1
+    # that returns 401 without a token.
+    - name: Probe controller HTTPS endpoint without a token
+      ansible.builtin.uri:
+        url: "https://{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}:3371/v1/nodes"
+        validate_certs: false
+        status_code: [401, -1]
+      register: _unauth_probe
+      failed_when: false
+      loop: "{{ groups['linstor_controllers'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Assert at least one controller rejected the unauthenticated request with 401
+      ansible.builtin.assert:
+        that:
+          - _unauth_probe.results | selectattr('status', 'eq', 401) | list | length >= 1
+        fail_msg: >-
+          No controller returned 401 for an unauthenticated /v1/nodes request.
+          Token authentication may not be enabled.
+        quiet: true
+
+    # =================================================================
+    # Control node: linstor-client.conf carries an auth-token
+    # =================================================================
+    - name: Read linstor-client.conf on control node
+      ansible.builtin.slurp:
+        src: "~/.config/linstor/linstor-client.conf"
+      register: _client_conf
+
+    - name: Assert linstor-client.conf carries an auth-token
+      ansible.builtin.assert:
+        that:
+          - "'auth-token' in (_client_conf.content | b64decode)"
+        fail_msg: >-
+          ~/.config/linstor/linstor-client.conf has no auth-token entry.
+          auth_init may not have saved the token to the control node config.
+        quiet: true
+
+    # =================================================================
+    # Module connectivity: API reachable with the saved token
+    # =================================================================
+    - name: Read controller properties with the saved token
+      linbit.linstor.controller_info:
+      register: _ctrl_info
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Assert token authentication is enabled
+      ansible.builtin.assert:
+        that:
+          - _ctrl_info.properties['Auth/TokenAuthenticationEnabled'] | default('false') | bool
+        fail_msg: >-
+          Auth/TokenAuthenticationEnabled is not true in the controller
+          properties. auth_init did not enable token authentication.
+        quiet: true
+
+    # =================================================================
+    # A user token exists
+    # =================================================================
+    - name: List auth tokens
+      linbit.linstor.auth_token_info:
+      register: _tokens
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Assert at least one user token exists
+      ansible.builtin.assert:
+        that:
+          - _tokens.tokens | selectattr('is_user_token') | list | length >= 1
+        fail_msg: >-
+          No user token found in the token list. auth_init should have created
+          the initial user token.
+        quiet: true

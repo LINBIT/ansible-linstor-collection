@@ -5,6 +5,7 @@
 {%- set _cafile = linstor_client_cafile | default('') -%}
 {%- set _certfile = linstor_client_certfile | default('') -%}
 {%- set _keyfile = linstor_client_keyfile | default('') -%}
+{%- set _auth_token = linstor_client_auth_token | default('') -%}
 [global]
 controllers={{ _controllers }}
 {% if _cafile %}
@@ -15,4 +16,7 @@ certfile={{ _certfile }}
 {% endif -%}
 {% if _keyfile %}
 keyfile={{ _keyfile }}
+{% endif -%}
+{% if _auth_token %}
+auth-token = {{ _auth_token }}
 {% endif -%}

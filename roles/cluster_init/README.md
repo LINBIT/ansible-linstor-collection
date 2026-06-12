@@ -8,11 +8,12 @@ The role includes the following roles in order:
 3. `linbit.linstor.controller_install` (on `linstor_controllers` nodes)
 4. `linbit.linstor.ssl_init` (when `cluster_init_ssl: true`)
 5. `linbit.linstor.cluster_membership` (register all nodes)
-6. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
-7. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
-8. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
+6. `linbit.linstor.auth_init` (when `cluster_init_token_auth: true`)
+7. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
+8. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
+9. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
 
-Steps 1, 4, 6, 7, and 8 are optional and controlled by role variables.
+Steps 1, 4, 6, 7, 8, and 9 are optional and controlled by role variables.
 Steps 2, 3, and 5 always run.
 
 ## Requirements
@@ -35,6 +36,7 @@ The following inventory groups are used:
 | `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA (requires `cluster_init_deploy_storage`, at least 2 combined controller+satellite nodes, and at least 3 total satellites) |
 | `cluster_init_ssl` | `false` | Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL) |
 | `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl`) |
+| `cluster_init_token_auth` | `true` | Require token authentication for the REST API; the `auth_init` role is skipped on controllers older than version 1.34.0. Set to `false` to disable |
 
 When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor.storage_pool` which reads the `linstor_storage_pools` inventory variable.
 See the `storage_pool` role README for the full variable reference.
@@ -49,7 +51,7 @@ See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`
 
 `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, `linbit.linstor.cluster_membership`
 
-Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.ssl_init`, `linbit.linstor.gateway_install`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database` (included dynamically based on variables)
+Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.ssl_init`, `linbit.linstor.auth_init`, `linbit.linstor.gateway_install`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database` (included dynamically based on variables)
 
 ## Example playbook
 
@@ -172,6 +174,7 @@ For everyday deployments, prefer `cluster_init`.
     cluster_init_repo_access: customer   # cluster_init default
     cluster_init_ssl: false              # cluster_init default
     cluster_init_ssl_mtls: false         # cluster_init default
+    cluster_init_token_auth: true              # cluster_init default
   tasks:
     - name: Configure LINBIT public repo
       tags:
@@ -245,6 +248,20 @@ For everyday deployments, prefer `cluster_init`.
           tags:
             - linstor
             - linstor_cluster_membership
+
+    - name: Initialize LINSTOR token authentication
+      tags:
+        - linstor
+        - linstor_auth
+      ansible.builtin.include_role:
+        name: linbit.linstor.auth_init
+        apply:
+          tags:
+            - linstor
+            - linstor_auth
+      vars:
+        auth_init_no_https: "{{ cluster_init_ssl | bool }}"
+      when: cluster_init_token_auth | bool
 
     - name: Install LINSTOR Gateway
       tags:

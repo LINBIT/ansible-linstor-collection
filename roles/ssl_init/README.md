@@ -5,6 +5,9 @@ Configure SSL/TLS for LINSTOR REST API and satellite connections.
 This role automates the full certificate lifecycle and LINSTOR configuration for two independently toggleable features:
 REST API HTTPS (controller serves HTTPS on port 3371) and satellite SSL (controller-to-satellite mutual TLS on port 3367).
 An optional third feature, REST API mTLS, adds client certificate authentication on top of HTTPS.
+REST API mTLS is off by default (`ssl_init_https_mtls: false`).
+
+On clusters running LINSTOR 1.34.0 or later, token authentication supersedes mTLS for controlling REST API access: mTLS is no longer needed to authenticate clients (see the `auth_init` role).
 
 The role generates a private CA, signs per-node certificates with Subject Alternative Names (SANs), converts them to Java keystores for LINSTOR's Java components, and installs the CA certificate into the operating system trust store.
 This CA-based approach ensures that all clients (Java, Python, Go, Perl) trust the LINSTOR certificates without manual trust store configuration.

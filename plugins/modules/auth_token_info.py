@@ -6,19 +6,16 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: schedule_info
-short_description: Query LINSTOR backup schedules
+module: auth_token_info
+short_description: Query LINSTOR auth tokens
 version_added: "1.0.0"
 description:
-  - Returns LINSTOR backup schedules (cron expressions and retention settings).
+  - Returns the list of active LINSTOR REST API auth tokens.
   - Read-only; C(changed) is always C(false).
-  - Omit O(name) to return all schedules, or set it to query a single one.
+  - Returns both user tokens and satellite tokens; filter on the
+    C(is_user_token) field to separate them.
+  - Revoked tokens are not returned.
 options:
-  name:
-    description:
-      - Schedule name to query.
-      - If omitted, all schedules are returned.
-    type: str
   controllers:
     description:
       - Comma-separated list of LINSTOR controller URIs.
@@ -45,60 +42,57 @@ notes:
     the delegated call."
   - This module issues API calls via C(python-linstor) to the LINSTOR controller.
   - "For cluster-wide tasks use C(run_once=true) or a single-host play such as C(hosts: linstor_controllers[0])."
+  - Raw token values are never returned; LINSTOR stores only token hashes.
+  - Requires LINSTOR 1.34.0 or later on the controller and a python-linstor
+    release with token authentication support on the play host.
 seealso:
-  - module: linbit.linstor.schedule
+  - module: linbit.linstor.auth_init
+  - module: linbit.linstor.auth_token
 author:
   - Ryan Ronnander (@rronnander)
 '''
 
 EXAMPLES = r'''
-- name: Query all schedules
-  linbit.linstor.schedule_info:
-  register: all_schedules
+- name: Query all auth tokens
+  linbit.linstor.auth_token_info:
+  register: all_tokens
   delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
-- name: Query a single schedule
-  linbit.linstor.schedule_info:
-    name: daily-backup
-  register: schedule_state
-  delegate_to: localhost
-  run_once: true  # noqa: run-once[task]
-
-- name: Show the schedule's full-backup cron
+- name: Show user tokens only
   ansible.builtin.debug:
-    msg: "daily-backup full cron: {{ schedule_state.schedules[0].full_cron }}"
+    msg: "{{ all_tokens.tokens | selectattr('is_user_token') | list }}"
   run_once: true  # noqa: run-once[task]
 '''
 
 RETURN = r'''
-schedules:
-  description: List of LINSTOR backup schedules, filtered by O(name) when supplied.
+tokens:
+  description: List of active auth tokens.
   type: list
   elements: dict
   returned: always
   contains:
-    name:
-      description: Schedule name.
-      type: str
-    full_cron:
-      description: Cron expression for full backups.
-      type: str
-    incremental_cron:
-      description: Cron expression for incremental backups.
-      type: str
-    keep_local:
-      description: Number of local snapshots to keep.
+    id:
+      description: Numeric token ID.
       type: int
-    keep_remote:
-      description: Number of remote backups to keep.
-      type: int
-    on_failure:
-      description: Failure handling policy.
+    description:
+      description: Description label.
       type: str
-    max_retries:
-      description: Maximum retry count on failure.
-      type: int
+    created_at:
+      description: Creation timestamp as reported by the controller.
+      type: str
+    is_active:
+      description: Whether the token is currently accepted.
+      type: bool
+    is_user_token:
+      description: C(true) for user tokens, C(false) for satellite tokens.
+      type: bool
+    ip_filter:
+      description: IP address restriction, if set.
+      type: str
+    expires_at:
+      description: Expiry timestamp, if set.
+      type: str
 '''
 
 import traceback
@@ -110,44 +104,27 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
 )
 
 
-def sched_to_dict(sched):
-    """Flatten a schedule object into a JSON-serializable dict."""
-    return dict(
-        name=getattr(sched, 'schedule_name', ''),
-        full_cron=getattr(sched, 'full_cron', None),
-        incremental_cron=getattr(sched, 'inc_cron', None),
-        keep_local=getattr(sched, 'keep_local', None),
-        keep_remote=getattr(sched, 'keep_remote', None),
-        on_failure=getattr(sched, 'on_failure', None),
-        max_retries=getattr(sched, 'max_retries', None),
-    )
-
-
 def main():
     argument_spec = linstor_argument_spec()
-    argument_spec.update(dict(
-        name=dict(type='str'),
-    ))
 
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
     )
 
-    name = module.params['name']
-
     lin = get_linstor_connection(module)
 
     try:
-        sched_list = lin.schedule_list()
-        schedules = [sched_to_dict(s)
-                     for s in (getattr(sched_list, 'schedules', None) or [])]
-        if name:
-            schedules = [s for s in schedules if s['name'] == name]
-        module.exit_json(changed=False, schedules=schedules)
+        result = lin.controller_list_auth_tokens()
+        tokens = []
+        if isinstance(result, list) and result:
+            data = result[0].data_v1
+            if isinstance(data, dict):
+                tokens = data.get('list', [])
+        module.exit_json(changed=False, tokens=tokens)
     except Exception as e:
         module.fail_json(
-            msg="Unexpected error querying schedules: %s" % str(e),
+            msg="Unexpected error querying auth tokens: %s" % str(e),
             exception=traceback.format_exc())
     finally:
         lin.disconnect()

@@ -9,11 +9,25 @@
   become: false
   run_once: true  # noqa: run-once[task]
 
+# Preserve an existing auth-token so unrelated re-renders do not strip it
+- name: Resolve auth token to preserve in control-node config
+  ansible.builtin.set_fact:
+    _client_install_local_auth_token: >-
+      {{ linstor_client_auth_token | default('')
+         or lookup('ansible.builtin.ini', 'auth-token',
+                   section='global',
+                   file=lookup('env', 'HOME') + '/.config/linstor/linstor-client.conf',
+                   default='', errors='ignore')
+         or '' }}
+  no_log: true
+
 - name: Render control-node linstor-client.conf
   ansible.builtin.template:
     src: linstor-client.j2
     dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
     mode: '0600'
+  vars:
+    linstor_client_auth_token: "{{ _client_install_local_auth_token }}"
   delegate_to: localhost
   become: false
   run_once: true  # noqa: run-once[task]

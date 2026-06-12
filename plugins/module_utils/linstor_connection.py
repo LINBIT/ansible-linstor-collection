@@ -20,6 +20,11 @@ LINSTOR_COMMON_ARGS = dict(
         type='str',
         default=None,
     ),
+    auth_token=dict(
+        type='str',
+        default=None,
+        no_log=True,
+    ),
 )
 
 
@@ -28,8 +33,13 @@ def linstor_argument_spec():
     return dict(LINSTOR_COMMON_ARGS)
 
 
-def get_linstor_connection(module):
+def get_linstor_connection(module, unauthorized_ok=False):
     """Create and return a connected MultiLinstor instance.
+
+    With unauthorized_ok=True an unauthorized connect (token
+    authentication enabled but no usable token available) returns None
+    instead of failing the module. Used by auth_init to detect an
+    already initialized cluster without credentials.
 
     Controller URI resolution order (mirrors the linstor CLI):
     1. Module 'controllers' parameter (if provided)
@@ -41,6 +51,13 @@ def get_linstor_connection(module):
     Steps 2-5 are handled by linstor.Config.get_controllers().
     SSL cert paths (certfile/keyfile/cafile) are read from the same
     config files in the same order, with user-level overriding system.
+
+    Auth token resolution order (mirrors the linstor CLI):
+    1. Module 'auth_token' parameter (if provided)
+    2. linstor-client.conf [global] auth-token= key (user config
+       overriding system config)
+    3. /var/lib/linstor.d/auth.json fallback (handled inside
+       python-linstor when no token is passed; satellite nodes only)
     """
     if not HAS_LINSTOR:
         module.fail_json(
@@ -58,8 +75,18 @@ def get_linstor_connection(module):
     if not uri_list:
         uri_list = ['linstor://localhost']
 
+    auth_token = module.params.get('auth_token')
+    if not auth_token:
+        auth_token = linstor.Config.get_section('global').get('auth-token')
+
     try:
-        lin = linstor.MultiLinstor(uri_list)
+        if auth_token:
+            # The auth_token keyword requires a python-linstor release with
+            # token authentication support; only pass it when a token is set
+            # so older python-linstor keeps working without one.
+            lin = linstor.MultiLinstor(uri_list, auth_token=auth_token)
+        else:
+            lin = linstor.MultiLinstor(uri_list)
 
         # Read SSL cert paths from linstor-client.conf for HTTPS/mTLS
         # System config first, then XDG user config; user-level wins.
@@ -83,6 +110,16 @@ def get_linstor_connection(module):
 
         lin.connect()
     except linstor.LinstorError as e:
+        if 'unauthorized' in str(e).lower():
+            if unauthorized_ok:
+                return None
+            if not auth_token:
+                module.fail_json(
+                    msg="LINSTOR controller at %s requires token "
+                        "authentication, but no token was found. Set the "
+                        "auth_token parameter, add auth-token to "
+                        "linstor-client.conf, or run the linbit.linstor.auth_init "
+                        "role to initialize and save a token." % ', '.join(uri_list))
         module.fail_json(
             msg="Failed to connect to LINSTOR controller at %s: %s" % (
                 ', '.join(uri_list), str(e)))

@@ -1,3 +1,6 @@
+plugins/modules/auth_init.py validate-modules:missing-gplv3-license
+plugins/modules/auth_token.py validate-modules:missing-gplv3-license
+plugins/modules/auth_token_info.py validate-modules:missing-gplv3-license
 plugins/modules/backup.py validate-modules:missing-gplv3-license
 plugins/modules/backup_abort.py validate-modules:missing-gplv3-license
 plugins/modules/backup_info.py validate-modules:missing-gplv3-license

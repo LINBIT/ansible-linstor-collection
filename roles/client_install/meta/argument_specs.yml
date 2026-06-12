@@ -36,6 +36,16 @@ argument_specs:
         description:
           - Path to the client private key for mutual TLS authentication.
           - Emitted as C(keyfile=) in C(linstor-client.conf) when set.
+      linstor_client_auth_token:
+        type: str
+        default: ""
+        description:
+          - LINSTOR auth token for clusters with token authentication enabled.
+          - Emitted as C(auth-token =) in the rendered C(linstor-client.conf) when set.
+          - Used by the C(configure-control-node) and C(configure-controller-node) task
+            files, which write their token-bearing config C(0600). The system-wide
+            C(configure-client) task does not set this and leaves C(/etc/linstor/linstor-client.conf)
+            a stock C(0644) file without a token.
       client_install_force_reconfigure:
         type: bool
         default: false

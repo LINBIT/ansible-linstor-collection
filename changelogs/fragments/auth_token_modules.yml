@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+minor_changes:
+  - all LINSTOR API modules - support clusters with token authentication enabled
+    (LINSTOR 1.34.0) by reading ``auth-token`` from ``linstor-client.conf`` or the
+    new ``auth_token`` module parameter and authenticating REST API requests
+    with it.
+  - auth_init - new module to initialize LINSTOR token authentication, create
+    the first user token, and distribute satellite tokens.
+  - auth_token - new module to create, modify, and revoke LINSTOR auth tokens.
+  - auth_token_info - new module to query LINSTOR auth tokens.

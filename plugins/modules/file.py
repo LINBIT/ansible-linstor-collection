@@ -58,6 +58,13 @@ options:
         C(/etc/linstor/linstor-client.conf), then falls back to
         C(linstor://localhost).
     type: str
+  auth_token:
+    description:
+      - LINSTOR auth token for clusters with token authentication enabled.
+      - If omitted, reads C(auth-token) from C(linstor-client.conf) (user
+        configuration overriding system configuration), then falls back to
+        C(/var/lib/linstor.d/auth.json) on satellite nodes.
+    type: str
 notes:
   - "Recommended play structure: dedicate a play with a single host such
     as C(hosts: linstor_controllers[0]) and C(connection: local) for

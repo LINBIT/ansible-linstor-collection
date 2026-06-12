@@ -48,3 +48,11 @@ argument_specs:
         description:
           - Restrict REST API to clients with a valid certificate.
           - Requires C(cluster_init_ssl) to be true.
+      cluster_init_token_auth:
+        type: bool
+        default: true
+        description:
+          - Require token authentication for the REST API through the C(auth_init) role.
+          - The C(auth_init) role version-gates itself and skips cleanly when any
+            controller runs C(linstor-controller) older than 1.34.0.
+          - Set to false to disable.

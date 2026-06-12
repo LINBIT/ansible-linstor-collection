@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Initialize LINSTOR token authentication
+    description:
+      - Initialize bearer token authentication for the LINSTOR REST API (LINSTOR 1.34.0 or later).
+      - >-
+        Enables token authentication on the controller, enables HTTPS on the REST API with an
+        auto-generated self-signed certificate (unless C(auth_init_no_https) is set), creates the
+        first user token, and distributes individual satellite tokens to every connected satellite
+        node.
+      - >-
+        Saves the user token into the control-node C(~/.config/linstor/linstor-client.conf) and
+        into the root user's C(/root/.config/linstor/linstor-client.conf) on controller nodes, so
+        the LINSTOR modules and the C(linstor) CLI keep working against the secured API.
+      - Idempotent. A cluster with token authentication already enabled is left unchanged.
+    options:
+      auth_init_description:
+        type: str
+        default: ansible-managed
+        description:
+          - Description label for the initial user token.
+      auth_init_no_https:
+        type: bool
+        default: false
+        description:
+          - Skip the automatic HTTPS setup during initialization.
+          - Use when HTTPS is already configured, for example through the C(ssl_init) role.
+      auth_init_version_check:
+        type: bool
+        default: true
+        description:
+          - Skip initialization when any controller node runs a C(linstor-controller)
+            package older than 1.34.0 (checked from package facts, covering rpm and dpkg).
+          - Makes the role safe to enable unconditionally against clusters that do not
+            support token authentication yet.
+          - The numeric major.minor version prefix is compared, so pre-release packages
+            such as C(1.34.0~rc.1) satisfy the gate.
+          - Set to false to force initialization, for example on source-built controllers
+            without a package.
+      auth_init_no_log:
+        type: bool
+        default: true
+        description:
+          - Hide the raw token in task output.
+          - Disable only for debugging.
+      auth_init_save_control_node:
+        type: bool
+        default: true
+        description:
+          - Write the user token into the control-node C(~/.config/linstor/linstor-client.conf).
+      auth_init_save_controllers:
+        type: bool
+        default: true
+        description:
+          - >-
+            Write the user token into the root user's
+            C(/root/.config/linstor/linstor-client.conf) on controller nodes, matching the native
+            auth init save location.
+          - >-
+            Satellite nodes are not touched; the C(linstor) CLI on a satellite falls back to the
+            satellite token in C(/var/lib/linstor.d/auth.json) automatically.
+      auth_init_client_https:
+        type: bool
+        default: false
+        description:
+          - Render client configs with the C(linstor+ssl://) scheme.
+          - Defaults to the C(linstor_ssl) inventory variable.
+          - >-
+            Only needed on clusters that ran the C(ssl_init) role; the automatic HTTPS that token
+            initialization enables is reached through a redirect from the plain URI and needs no
+            client configuration changes.
+      auth_init_local_cafile:
+        type: str
+        default: ""
+        description:
+          - CA certificate path for the control-node client config.
+          - Defaults to the C(ssl_init) control-node CA path when C(auth_init_client_https) is true.
+      auth_init_cluster_cafile:
+        type: str
+        default: ""
+        description:
+          - CA certificate path for the controller-node client config.
+          - Defaults to the C(ssl_init) cluster CA path when C(auth_init_client_https) is true.

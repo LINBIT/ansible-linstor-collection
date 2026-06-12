@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+---
+# defaults file for auth_init
+auth_init_description: ansible-managed
+auth_init_no_https: false
+
+# Skip initialization when any controller runs linstor-controller older
+# than 1.34.0 (checked from package facts: rpm and dpkg). Set to false to
+# force initialization, for example on source-built controllers without
+# a package
+auth_init_version_check: true
+
+# Hide the raw token in task output. Disable only for debugging.
+auth_init_no_log: true
+
+# Write the user token into the control-node ~/.config/linstor/linstor-client.conf
+auth_init_save_control_node: true
+
+# Write the user token into the root user's
+# /root/.config/linstor/linstor-client.conf on controller nodes, matching the
+# native auth init save location. Satellite nodes are not touched; their CLI
+# falls back to the satellite token in /var/lib/linstor.d/auth.json automatically.
+auth_init_save_controllers: true
+
+# SSL passthrough for re-rendering client configs on a cluster that ran
+# ssl_init. Matches the paths ssl_init renders into linstor-client.conf so
+# the auth token render does not drop the SSL settings.
+auth_init_client_https: "{{ linstor_ssl | default(false) | bool }}"
+auth_init_local_cafile: "{{ (lookup('env', 'HOME') + '/.config/linstor/ssl/ca.crt') if auth_init_client_https | bool else '' }}"
+auth_init_cluster_cafile: "{{ '/etc/linstor/ssl/ca.crt' if auth_init_client_https | bool else '' }}"
