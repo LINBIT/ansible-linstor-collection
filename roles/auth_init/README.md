@@ -70,8 +70,7 @@ To rotate satellite tokens or manage user tokens after initialization, use the `
 
 ## How it works
 
-On connect, the module reads the controller's running version from the REST API (`/v1/controller/version`) and compares the major.minor prefix against 1.34, so a prerelease such as `1.34.0-rc.1` passes.
-This reflects the running controller rather than the installed package, so source-built and upgraded-but-not-restarted controllers gate correctly without any flag.
+On connect, the module reads the controller's running version from the REST API (`/v1/controller/version`) and compares the major.minor prefix against 1.34.
 A controller older than 1.34.0 is skipped with a warning and no change.
 
 Initialization itself is a single controller API call (`controller auth init`) that enables token authentication, enables HTTPS, mints the first user token, and distributes a satellite token to every connected satellite.
