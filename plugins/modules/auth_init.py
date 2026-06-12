@@ -119,6 +119,10 @@ initialized:
   description: Whether token authentication is enabled after the operation.
   type: bool
   returned: always
+controller_version:
+  description: The running controller version reported by the REST API.
+  type: str
+  returned: when connected to the controller
 token:
   description:
     - The raw user token created by the initializing run.
@@ -129,6 +133,7 @@ token:
   returned: when a user token was created
 '''
 
+import re
 import traceback
 
 from ansible.module_utils.basic import AnsibleModule
@@ -137,6 +142,29 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     get_linstor_connection,
     check_api_response,
 )
+
+
+def controller_supports_token_auth(version_str):
+    """True when the controller version is 1.34 or newer (major.minor compare).
+
+    Matches the documented gate and lets prereleases such as 1.34.0-rc.1 pass.
+    """
+    m = re.match(r'(\d+)\.(\d+)', version_str or '')
+    if not m:
+        return False
+    return (int(m.group(1)), int(m.group(2))) >= (1, 34)
+
+
+def get_controller_version(lin):
+    """Return the running controller version string from the REST API.
+
+    python-linstor fetches and caches the version during connect(); fall
+    back to an explicit query if the cached value is not present.
+    """
+    ver = getattr(lin, '_ctrl_version', None)
+    if ver is None:
+        ver = lin.controller_version()
+    return ver.version
 
 
 def get_auth_enabled(lin):
@@ -188,6 +216,20 @@ def main():
         module.exit_json(changed=False, initialized=True)
 
     try:
+        controller_version = get_controller_version(lin)
+
+        if not controller_supports_token_auth(controller_version):
+            if only_satellites:
+                module.fail_json(
+                    msg="LINSTOR controller %s does not support token "
+                        "authentication (requires 1.34.0)." % controller_version)
+            module.warn(
+                "LINSTOR controller %s does not support token authentication "
+                "(requires 1.34.0); skipping." % controller_version)
+            module.exit_json(
+                changed=False, initialized=False,
+                controller_version=controller_version)
+
         enabled = get_auth_enabled(lin)
 
         if only_satellites:
@@ -196,17 +238,21 @@ def main():
                     msg="Token authentication is not enabled; "
                         "only_satellites requires an initialized cluster.")
             if module.check_mode:
-                module.exit_json(changed=True, initialized=True)
+                module.exit_json(changed=True, initialized=True,
+                                 controller_version=controller_version)
             replies = lin.controller_init_auth_token(
                 description, only_satellites=True, no_https=no_https)
             check_api_response(module, replies, 'rotate satellite tokens')
-            module.exit_json(changed=True, initialized=True)
+            module.exit_json(changed=True, initialized=True,
+                             controller_version=controller_version)
 
         if enabled:
-            module.exit_json(changed=False, initialized=True)
+            module.exit_json(changed=False, initialized=True,
+                             controller_version=controller_version)
 
         if module.check_mode:
-            module.exit_json(changed=True, initialized=True)
+            module.exit_json(changed=True, initialized=True,
+                             controller_version=controller_version)
 
         replies = lin.controller_init_auth_token(
             description, only_satellites=False, no_https=no_https)
@@ -219,7 +265,8 @@ def main():
                 token = refs['token']
                 break
 
-        module.exit_json(changed=True, initialized=True, token=token)
+        module.exit_json(changed=True, initialized=True,
+                         controller_version=controller_version, token=token)
 
     except Exception as e:
         module.fail_json(

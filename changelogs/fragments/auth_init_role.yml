@@ -12,6 +12,6 @@ minor_changes:
     ``/root/.config/linstor/linstor-client.conf`` at mode ``0600``.
   - cluster_init - new ``cluster_init_token_auth`` flag (default ``true``) includes
     the ``auth_init`` role after cluster membership registration. The role
-    version-gates itself on the installed ``linstor-controller`` package, so
-    clusters older than 1.34.0 skip token authentication cleanly. Set the flag
-    to ``false`` to disable.
+    version-gates itself on the controller's running version reported by the REST
+    API, so clusters older than 1.34.0 skip token authentication cleanly. Set the
+    flag to ``false`` to disable.

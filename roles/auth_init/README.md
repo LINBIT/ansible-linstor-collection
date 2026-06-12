@@ -2,19 +2,15 @@
 
 Initialize bearer token authentication for the LINSTOR&reg; REST API.
 
-LINSTOR 1.34.0 introduces token authentication: every REST API request must carry a valid bearer token, and enabling the feature also enables HTTPS on the API with an auto-generated self-signed certificate.
-This role initializes the feature on a deployed cluster.
-Initialization enables token authentication on the controller, creates the first user token, and distributes individual satellite tokens to every connected satellite node (saved to `/var/lib/linstor.d/auth.json` on each).
+LINSTOR 1.34.0 adds bearer-token authentication for the REST API, which also enables HTTPS with a self-signed certificate.
+This role initializes it on a deployed cluster.
+It enables token authentication, creates the first user token, and distributes a per-satellite token to `/var/lib/linstor.d/auth.json`.
 
-The role then saves the user token where the rest of the collection needs it: the control-node `~/.config/linstor/linstor-client.conf` (so all `linbit.linstor` modules keep working against the secured API) and the root user's `/root/.config/linstor/linstor-client.conf` on controller nodes, the same location native `linstor controller auth init` uses (so the `linstor` CLI there keeps working).
-Satellite nodes are not touched; the CLI on a satellite falls back to the satellite token automatically.
+The user token is saved where the collection needs it: the control-node `~/.config/linstor/linstor-client.conf` for the `linbit.linstor` modules, and the controller's `/root/.config/linstor/linstor-client.conf` for the `linstor` CLI.
+Satellite nodes are left untouched; their CLI uses the satellite token automatically.
 
-The role version-gates itself: when any controller node runs a `linstor-controller` package older than 1.34.0, initialization is skipped cleanly.
-This makes the role safe to enable unconditionally; clusters gain token authentication as soon as they run a supporting LINSTOR release.
-Set `auth_init_version_check: false` to force initialization on source-built controllers without a package.
-
-Re-running against an initialized cluster is a no-op.
-The raw user token is shown once by LINSTOR and cannot be recovered later; the saved client configs are the durable copies.
+It gates on the controller's running version reported by the REST API, so it skips cleanly on controllers older than 1.34.0 and is safe to run by default.
+Re-running is a no-op, and because LINSTOR reveals the user token only once, the saved configs are its only durable copy.
 
 ## Relationship to ssl_init
 
@@ -44,7 +40,6 @@ Satellites that join later receive their token automatically on connect.
 |---|---|---|
 | `auth_init_description` | `ansible-managed` | Description label for the initial user token |
 | `auth_init_no_https` | `false` | Skip the automatic HTTPS setup (use with `ssl_init`-managed HTTPS) |
-| `auth_init_version_check` | `true` | Skip initialization when any controller package is older than 1.34.0 |
 | `auth_init_no_log` | `true` | Hide the raw token in task output |
 | `auth_init_save_control_node` | `true` | Save the token to the control-node client config |
 | `auth_init_save_controllers` | `true` | Save the token to the root user's `/root/.config/linstor/linstor-client.conf` on controllers |
@@ -75,7 +70,11 @@ To rotate satellite tokens or manage user tokens after initialization, use the `
 
 ## How it works
 
-Initialization is a single controller API call (`controller auth init`) that enables token authentication, enables HTTPS, mints the first user token, and distributes a satellite token to every connected satellite.
+On connect, the module reads the controller's running version from the REST API (`/v1/controller/version`) and compares the major.minor prefix against 1.34, so a prerelease such as `1.34.0-rc.1` passes.
+This reflects the running controller rather than the installed package, so source-built and upgraded-but-not-restarted controllers gate correctly without any flag.
+A controller older than 1.34.0 is skipped with a warning and no change.
+
+Initialization itself is a single controller API call (`controller auth init`) that enables token authentication, enables HTTPS, mints the first user token, and distributes a satellite token to every connected satellite.
 The raw user token is returned exactly once by that call and is never retrievable again; LINSTOR stores only its hash.
 
 The role captures that one-time token and writes it into the client configuration files so the rest of the collection keeps working:
@@ -87,7 +86,7 @@ The role captures that one-time token and writes it into the client configuratio
 Token reading is handled once at the collection's base level (`module_utils`), mirroring the `linstor` CLI resolution order: the `auth_token` parameter, then `auth-token` in `linstor-client.conf`, then the satellite `auth.json` fallback.
 Every module inherits this, so no module or role needs token-specific code.
 
-On re-runs the API call reports authentication is already enabled and returns no token, so the role reuses the token already saved in the control-node config.
+On re-runs the module detects authentication is already enabled, skips the init call, and returns no token, so the role reuses the token already saved in the control-node config.
 This keeps re-runs idempotent and the saved configs stable.
 
 ## Recovering from a lockout
