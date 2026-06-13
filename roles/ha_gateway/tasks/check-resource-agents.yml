@@ -45,26 +45,71 @@
   loop_control:
     label: "{{ item.item }}"
 
-- name: "Check NFS resource agents exist - {{ _protocol }}"
+- name: "Determine NFS implementations present - {{ _protocol }}"
+  ansible.builtin.set_fact:
+    _ha_gw_nfs_kernel_names: >-
+      {%- set ns = [] -%}
+      {%- for t in _gw_present -%}
+        {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel' -%}
+          {%- set _ = ns.append(t._rd_name) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns }}
+    _ha_gw_nfs_ganesha_names: >-
+      {%- set ns = [] -%}
+      {%- for t in _gw_present -%}
+        {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'ganesha' -%}
+          {%- set _ = ns.append(t._rd_name) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns }}
+  when: _toml_prefix == 'nfs'
+
+- name: "Check kernel NFS resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:
     path: "{{ _ra_base_dir }}/{{ item }}"
-  when: _toml_prefix == 'nfs'
+  when:
+    - _toml_prefix == 'nfs'
+    - _ha_gw_nfs_kernel_names | length > 0
   loop:
     - nfsserver
     - exportfs
-  register: _ra_nfs
+  register: _ra_nfs_kernel
 
-- name: "Assert NFS resource agents exist - {{ _protocol }}"
+- name: "Assert kernel NFS resource agents exist - {{ _protocol }}"
   ansible.builtin.assert:
     that: item.stat.exists
     fail_msg: >-
       Resource agent {{ item.item }} not found at {{ _ra_base_dir }}/{{ item.item }}
       on {{ inventory_hostname }}. Install NFS resource agents.
     quiet: true
-  when: _toml_prefix == 'nfs'
-  loop: "{{ _ra_nfs.results | default([]) }}"
+  when:
+    - _toml_prefix == 'nfs'
+    - _ha_gw_nfs_kernel_names | length > 0
+  loop: "{{ _ra_nfs_kernel.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
+
+- name: "Check ganesha NFS resource agent exists - {{ _protocol }}"
+  ansible.builtin.stat:
+    path: "{{ _ra_base_dir }}/ganesha-nfs"
+  when:
+    - _toml_prefix == 'nfs'
+    - _ha_gw_nfs_ganesha_names | length > 0
+  register: _ra_nfs_ganesha
+
+- name: "Assert ganesha NFS resource agent exists - {{ _protocol }}"
+  ansible.builtin.assert:
+    that: _ra_nfs_ganesha.stat.exists
+    fail_msg: >-
+      Resource agent ganesha-nfs not found at {{ _ra_base_dir }}/ganesha-nfs
+      on {{ inventory_hostname }}. Install the agent with resource_agents_upstream
+      (resource_agents_upstream_version: main) and the NFS-Ganesha daemon with
+      gateway_satellite_ganesha.
+    quiet: true
+  when:
+    - _toml_prefix == 'nfs'
+    - _ha_gw_nfs_ganesha_names | length > 0
 
 - name: "Check NVMe-oF resource agents exist - {{ _protocol }}"
   ansible.builtin.stat:

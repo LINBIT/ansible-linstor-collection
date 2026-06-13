@@ -172,6 +172,7 @@
 
 # --- Autoplace targets without resource group ---
 
+# Anti-affinity applies to kernel NFS exports only - ganesha exports may colocate
 - name: "Autoplace LINSTOR resources - {{ _protocol }}"
   linbit.linstor.resource:
     name: "{{ _target._rd_name }}"
@@ -182,7 +183,21 @@
     place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
     storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
     layer_list: "{{ _target.layer_list | default(omit, true) }}"
-    do_not_place_with_regex: "{{ _gw_present | map(attribute='_rd_name') | join('|') if _sizes_key == 'exports' and _gw_present | length > 1 else omit }}"
+    do_not_place_with_regex: >-
+      {{ _ha_gw_kernel_nfs_names | join('|')
+         if _sizes_key == 'exports'
+            and (_target.implementation | default(ha_gateway_nfs_implementation)) == 'kernel'
+            and _ha_gw_kernel_nfs_names | length > 1
+         else omit }}
+  vars:
+    _ha_gw_kernel_nfs_names: >-
+      {%- set ns = [] -%}
+      {%- for t in _gw_present -%}
+        {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel' -%}
+          {%- set _ = ns.append(t._rd_name) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns }}
   loop: "{{ _gw_autoplace | rejectattr('resource_group', 'defined') | list }}"
   loop_control:
     loop_var: _target
@@ -223,18 +238,26 @@
   when: _gw_present | length > 0
   run_once: true  # noqa: run-once[task]
 
-- name: Validate resolved NFS exports have non-overlapping nodes
+# Only the kernel NFS server is a per-host singleton - ganesha resources may colocate
+- name: Validate resolved kernel NFS exports have non-overlapping nodes
   ansible.builtin.assert:
     that: >-
       _all_nfs_nodes | length == _all_nfs_nodes | unique | length
     fail_msg: >-
-      NFS export node lists overlap after placement. The kernel NFS server
+      Kernel NFS export node lists overlap after placement. The kernel NFS server
       cannot have more than one instance per node. Use explicit nodes to
-      control placement or reduce the number of NFS exports.
+      control placement, reduce the number of NFS exports, or set
+      implementation=ganesha.
     quiet: true
   vars:
     _all_nfs_nodes: >-
-      {{ _gw_resolved | map(attribute='nodes') | flatten }}
+      {%- set ns = [] -%}
+      {%- for t in _gw_resolved -%}
+        {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel' -%}
+          {%- set _ = ns.extend(t.nodes) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns }}
   when:
     - _sizes_key == 'exports'
     - _gw_resolved | default([]) | length > 1
@@ -308,9 +331,15 @@
 - name: "Push promoter config as LINSTOR external file - {{ _protocol }}"
   linbit.linstor.file:
     path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
-    content: "{{ lookup('ansible.builtin.template', _toml_template) }}"
+    content: "{{ lookup('ansible.builtin.template', _tmpl) }}"
     deploy_to:
       - "{{ _target._rd_name }}"
+  vars:
+    _tmpl: >-
+      {{ 'promoter-nfs-ganesha.toml.j2'
+         if _toml_prefix == 'nfs'
+            and _target.implementation | default(ha_gateway_nfs_implementation) == 'ganesha'
+         else _toml_template }}
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target

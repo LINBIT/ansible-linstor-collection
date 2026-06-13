@@ -61,6 +61,7 @@ See `defaults/main.yml`.
 | `ha_gateway_iscsi_port` | `3260` | Default iSCSI target port |
 | `ha_gateway_iscsi_iqn_base` | `iqn.2026-06.com.linbit` | Default IQN base when `iqn` is not set on target |
 | `ha_gateway_nfs_port` | `2049` | NFS service port |
+| `ha_gateway_nfs_implementation` | `kernel` | Default NFS server for exports that do not set `implementation`: `kernel` (in-kernel nfsd) or `ganesha` (NFS-Ganesha userspace server) |
 | `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0.0.0.0"]` | Default client CIDRs for NFS exports; use the dotted-mask form (`rpc.mountd` rejects `0.0.0.0/0`, and a literal `0.0.0.0/0` is auto-corrected at template time) |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
@@ -123,6 +124,7 @@ Each entry in `linstor_nfs_exports`:
 | `layer_list` | no | (LINSTOR default) | DRBD layer stack, e.g. `[DRBD, LUKS, STORAGE]`; applies to manual or autoplace, ignored when `resource_group` is set (the group defines layers) |
 | `fstype` | no | `ext4` | Default filesystem for all volumes |
 | `port` | no | `2049` | NFS service port |
+| `implementation` | no | `ha_gateway_nfs_implementation` | `kernel` (in-kernel nfsd) or `ganesha` (NFS-Ganesha userspace server) |
 | `state` | no | `present` | `present` or `absent` |
 
 Each entry in `exports`:
@@ -136,9 +138,18 @@ Each entry in `exports`:
 | `fstype` | no | service-level `fstype` | Filesystem for this volume |
 
 Multiple exports within a single NFS service are supported and fail over together as a unit.
-The kernel NFS server cannot have more than one instance per node, so multiple NFS service definitions must use non-overlapping nodes.
-When multiple NFS exports use autoplace, `do_not_place_with_regex` prevents LINSTOR from placing two NFS resources on the same node.
-A post-placement validation confirms non-overlapping nodes across all NFS exports.
+
+### Kernel and Ganesha implementations
+
+Set `implementation: ganesha` on an export to serve it with the NFS-Ganesha userspace server instead of the in-kernel nfsd.
+This mirrors `linstor-gateway nfs create --implementation=ganesha`, and the resulting promoter config is interoperable with the `linstor-gateway` CLI.
+
+The kernel NFS server is a per-host singleton: multiple kernel NFS service definitions must use non-overlapping nodes, so the role applies `do_not_place_with_regex` on autoplace and validates non-overlapping placement.
+Ganesha exports have no such restriction and may colocate, so these checks apply only to kernel exports.
+Ganesha applies one client allowlist per server, so the per-export `allowed_ips` are combined into a single `clients` list for the export (a catch-all entry becomes `*`).
+
+Ganesha exports require the `ganesha-nfs` OCF resource agent and the NFS-Ganesha daemon on the satellites.
+Run `gateway_satellite` with `gateway_satellite_ganesha: true`, and `resource_agents_upstream` with `resource_agents_upstream_version: main`, since the agent is not part of a `resource-agents` release yet.
 
 ## NVMe-oF targets
 
@@ -328,6 +339,38 @@ linstor_nfs_exports:
     nodes:
       - node-4
       - node-5
+```
+
+Ganesha (userspace NFS) exports, including two services colocated on the same nodes (which the kernel server cannot do):
+
+```yaml
+# group_vars/all/ha-ganesha-nfs.yaml
+# Requires gateway_satellite_ganesha: true and resource_agents_upstream_version: main
+linstor_nfs_exports:
+  - name: research
+    service_ips:
+      - 192.168.222.245/24
+    implementation: ganesha
+    exports:
+      - path: /datasets
+        size: 500G
+        allowed_ips:
+          - 10.0.0.0/8
+    nodes:
+      - node-1
+      - node-2
+  - name: scratch
+    service_ips:
+      - 192.168.222.246/24
+    implementation: ganesha
+    exports:
+      - path: /tmp1
+        size: 100G
+      - path: /tmp2
+        size: 100G
+    nodes:
+      - node-1
+      - node-2
 ```
 
 Targets with a pre-existing resource group (storage pool, replica count, and constraints managed externally).

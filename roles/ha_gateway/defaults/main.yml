@@ -21,6 +21,8 @@ ha_gateway_iscsi_iqn_base: iqn.2026-06.com.linbit
 
 # NFS-specific defaults
 ha_gateway_nfs_port: 2049
+# kernel (in-kernel nfsd) or ganesha (NFS-Ganesha userspace server) - per-export implementation overrides this
+ha_gateway_nfs_implementation: kernel
 ha_gateway_nfsv4_only: false # currently broken due to upstream nfsserver RA
 ha_gateway_nfs_allowed_ips:
   - "0.0.0.0/0.0.0.0"

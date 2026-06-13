@@ -21,18 +21,31 @@
 # 3-node cluster). iSCSI and NVMe-oF, which have no such limit, carry the
 # two-target LUKS/non-LUKS and teardown-method coverage.
 #
+# Optional Ganesha (userspace NFS) coverage runs with -e test_ganesha=true. It
+# fetches the ganesha-nfs OCF agent from the resource-agents main branch and
+# installs the NFS-Ganesha daemon, then deploys two ganesha exports onto the
+# same nodes to prove that ganesha lifts the kernel per-node singleton (a case
+# the kernel path rejects). It is off by default because the ganesha-nfs agent
+# is not in a resource-agents release yet. The Ganesha assertions check config
+# deployment and placement only (no mount), so the stock main agent is enough.
+#
 # Override the storage pool with -e test_storage_pool=<name> (default sp0).
 #
 #   ansible-playbook -i <inventory> ./test_ha_gateway.yaml
+#   ansible-playbook -i <inventory> ./test_ha_gateway.yaml -e test_ganesha=true
 
 - name: Fetch OCF resource agents on satellites
   hosts: linstor_satellites
   any_errors_fatal: true
   become: true
   tasks:
+    # test_ganesha pins the main branch so the ganesha-nfs agent is fetched;
+    # otherwise the default latest release skips it (not released yet)
     - name: Install all supported OCF resource agents from upstream
       ansible.builtin.import_role:
         name: linbit.drbd_reactor.resource_agents_upstream
+      vars:
+        resource_agents_upstream_version: "{{ 'main' if (test_ganesha | default(false) | bool) else '' }}"
 
 - name: Install LINSTOR Gateway on the cluster
   hosts: linstor_cluster
@@ -42,6 +55,8 @@
     - name: Install LINSTOR Gateway
       ansible.builtin.import_role:
         name: linbit.linstor.gateway_install
+      vars:
+        gateway_satellite_ganesha: "{{ test_ganesha | default(false) | bool }}"
 
 - name: Pre-cleanup leftover test targets from prior runs
   hosts: linstor_cluster
@@ -54,6 +69,8 @@
       - {name: gw-clicreate, state: absent}
     linstor_nfs_exports:
       - {name: gw-nfs, state: absent}
+      - {name: gw-nfs-ganesha-a, state: absent}
+      - {name: gw-nfs-ganesha-b, state: absent}
     linstor_nvmeof_targets:
       - {name: gw-nvme-plain, state: absent}
       - {name: gw-nvme-luks, state: absent}
@@ -289,6 +306,104 @@
           controller. Promoter external files were verified through the API.
       when: _gw_lists.results | selectattr('rc', 'eq', 0) | list | length != 3
 
+- name: Ganesha - two userspace NFS exports on the same nodes
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  vars:
+    # Both pinned to the same two nodes - kernel NFS would reject this overlap,
+    # ganesha must accept it (the per-node singleton applies to kernel only)
+    linstor_nfs_exports:
+      - name: gw-nfs-ganesha-a
+        service_ips:
+          - 192.168.222.248/24
+        implementation: ganesha
+        exports:
+          - {path: /data, size: 100M}
+        nodes:
+          - linstor-1
+          - linstor-2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      - name: gw-nfs-ganesha-b
+        service_ips:
+          - 192.168.222.250/24
+        implementation: ganesha
+        exports:
+          - {path: /one, size: 100M}
+          - {path: /two, size: 100M}
+        nodes:
+          - linstor-1
+          - linstor-2
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+  tasks:
+    - name: Create two colocated ganesha exports
+      ansible.builtin.import_role:
+        name: linbit.linstor.ha_gateway
+      when: test_ganesha | default(false) | bool
+
+- name: Ganesha - verify colocated deployment
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  tasks:
+    - name: Verify the ganesha exports
+      when: test_ganesha | default(false) | bool
+      block:
+        - name: Query the two ganesha promoter external files
+          linbit.linstor.file_info:
+            path: "/etc/drbd-reactor.d/linstor-gateway-nfs-{{ item }}.toml"
+          loop:
+            - gw-nfs-ganesha-a
+            - gw-nfs-ganesha-b
+          delegate_to: localhost
+          run_once: true  # noqa: run-once[task]
+          register: _gansh_files
+
+        - name: Assert both ganesha promoter external files exist
+          ansible.builtin.assert:
+            that: _gansh_files.results | selectattr('exists') | list | length == 2
+            fail_msg: >-
+              Missing ganesha promoter external files:
+              {{ _gansh_files.results | rejectattr('exists') | map(attribute='item') | list }}
+            success_msg: "Both ganesha promoter external files exist in LINSTOR"
+            quiet: true
+          run_once: true  # noqa: run-once[task]
+
+        - name: Read back the multi-volume ganesha promoter config
+          linbit.linstor.file_info:
+            path: "/etc/drbd-reactor.d/linstor-gateway-nfs-gw-nfs-ganesha-b.toml"
+          delegate_to: localhost
+          run_once: true  # noqa: run-once[task]
+          register: _gansh_b
+
+        - name: Assert the multi-volume export renders one ganesha-nfs agent with joined paths
+          ansible.builtin.assert:
+            that:
+              - _gansh_b.content | regex_findall('ocf:heartbeat:ganesha-nfs') | length == 1
+              - "'export_id=1;2' in _gansh_b.content"
+              - "'export_path=/srv/gateway-exports/gw-nfs-ganesha-b/one;/srv/gateway-exports/gw-nfs-ganesha-b/two' in _gansh_b.content"
+            fail_msg: "Multi-volume ganesha config did not render joined export_path/export_id:\n{{ _gansh_b.content }}"
+            success_msg: "Multi-volume ganesha export renders one ganesha-nfs agent with semicolon-joined paths"
+            quiet: true
+          run_once: true  # noqa: run-once[task]
+
+        - name: List resources after the ganesha deployment
+          ansible.builtin.command: linstor resource list
+          register: _rl_gansh
+          changed_when: false
+
+        - name: Assert both ganesha resources deployed (colocation allowed)
+          ansible.builtin.assert:
+            that:
+              - _rl_gansh.stdout is search('gw-nfs-ganesha-a')
+              - _rl_gansh.stdout is search('gw-nfs-ganesha-b')
+            fail_msg: "A ganesha resource is missing:\n{{ _rl_gansh.stdout }}"
+            success_msg: "Two ganesha NFS instances deployed on the same nodes (kernel singleton lifted)"
+            quiet: true
+
 - name: Interop - remove targets via the linstor-gateway CLI
   hosts: linstor_controllers[0]
   any_errors_fatal: true
@@ -457,6 +572,8 @@
       - {name: gw-clicreate, state: absent}
     linstor_nfs_exports:
       - {name: gw-nfs, state: absent}
+      - {name: gw-nfs-ganesha-a, state: absent}
+      - {name: gw-nfs-ganesha-b, state: absent}
     linstor_nvmeof_targets:
       - {name: gw-nvme-plain, state: absent}
       - {name: gw-nvme-luks, state: absent}

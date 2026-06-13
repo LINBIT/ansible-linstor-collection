@@ -19,21 +19,26 @@
     label: "{{ _target.name }}"
   run_once: true  # noqa: run-once[task]
 
-- name: Validate NFS exports with explicit nodes have non-overlapping nodes
+# Only the kernel NFS server is a per-host singleton - ganesha exports may colocate
+- name: Validate kernel NFS exports with explicit nodes have non-overlapping nodes
   ansible.builtin.assert:
     that: >-
       _explicit_nodes | length == _explicit_nodes | unique | length
     fail_msg: >-
-      NFS export node lists must not overlap (the kernel NFS server is a
-      per-host singleton). A node cannot host more than one NFS service.
+      Kernel NFS export node lists must not overlap (the kernel NFS server is a
+      per-host singleton). A node cannot host more than one kernel NFS service.
+      Set implementation=ganesha to colocate exports.
     quiet: true
   vars:
     _explicit_nodes: >-
-      {{ _gw_present
-         | selectattr('nodes', 'defined')
-         | map(attribute='nodes')
-         | reject('equalto', [])
-         | flatten }}
+      {%- set ns = [] -%}
+      {%- for t in _gw_present -%}
+        {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel'
+               and t.nodes | default([]) | length > 0 -%}
+          {%- set _ = ns.extend(t.nodes) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns }}
   when:
     - _sizes_key == 'exports'
     - _gw_present | length > 1

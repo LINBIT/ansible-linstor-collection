@@ -55,6 +55,16 @@ argument_specs:
         default: 2049
         description:
           - NFS service port.
+      ha_gateway_nfs_implementation:
+        type: str
+        default: kernel
+        choices:
+          - kernel
+          - ganesha
+        description:
+          - Default NFS server implementation for exports that do not set C(implementation).
+          - C(kernel) uses the in-kernel nfsd through the C(nfsserver) and C(exportfs) OCF agents.
+          - C(ganesha) uses the NFS-Ganesha userspace server through the C(ganesha-nfs) OCF agent.
       ha_gateway_nfsv4_only:
         type: bool
         default: false
@@ -110,6 +120,7 @@ argument_specs:
         description:
           - List of NFS export definitions.
           - Each entry requires C(name), C(service_ips), and C(exports).
+          - Optional C(implementation) per entry (C(kernel) or C(ganesha)) overrides C(ha_gateway_nfs_implementation).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
       linstor_nvmeof_targets:

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    ha_gateway - NFS exports accept an ``implementation`` key
+    (``kernel`` or ``ganesha``, default from ``ha_gateway_nfs_implementation``).
+    ``ganesha`` serves the export with the NFS-Ganesha userspace server through
+    the ``ganesha-nfs`` OCF agent instead of the in-kernel nfsd, mirroring
+    ``linstor-gateway nfs create --implementation=ganesha`` and staying
+    interoperable with the ``linstor-gateway`` CLI. The per-host singleton
+    placement checks apply only to kernel exports, so ganesha exports may colocate.
