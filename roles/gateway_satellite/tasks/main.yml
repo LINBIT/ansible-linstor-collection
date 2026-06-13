@@ -53,6 +53,11 @@
         name: linbit.drbd_reactor.scst_install
       when: gateway_satellite_scst | bool
 
+    - name: Install NFS-Ganesha
+      ansible.builtin.include_role:
+        name: linbit.drbd_reactor.ganesha_install
+      when: gateway_satellite_ganesha | bool
+
     - name: Open firewall ports for LINSTOR Gateway satellite services
       ansible.builtin.include_tasks: open-firewall.yml
       when: gateway_satellite_firewall_rules | bool

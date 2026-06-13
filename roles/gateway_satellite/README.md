@@ -24,11 +24,15 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048); matches the `ha_gateway_nfsv4_only` default |
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
+| `gateway_satellite_ganesha` | `false` | Kernel NFS alternative; install the [NFS-Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) userspace NFS server |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
 SCST installation is delegated to the `linbit.drbd_reactor.scst_install` role.
 Set `scst_install_version` to pin a tag, branch, or commit SHA.
 See [that role's README](https://github.com/LINBIT/ansible-drbd_reactor-collection/blob/main/roles/scst_install/README.md) for build details and version guidance.
+
+NFS-Ganesha installation is delegated to the [`linbit.drbd_reactor.ganesha_install`](https://github.com/LINBIT/ansible-drbd_reactor-collection/blob/main/roles/ganesha_install/README.md) role.
+The `ganesha-nfs` OCF resource agent that drives the daemon is not part of any `resource-agents` release yet, so set `resource_agents_upstream_version` to `main` when enabling `gateway_satellite_ganesha`.
 
 ## Dependencies
 

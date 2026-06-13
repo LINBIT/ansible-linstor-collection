@@ -60,6 +60,13 @@ argument_specs:
           - Compile and install SCST iSCSI target from source as a LIO alternative.
           - Delegates to C(linbit.drbd_reactor.scst_install).
           - Pin the SCST git reference with C(scst_install_version) when needed.
+      gateway_satellite_ganesha:
+        type: bool
+        default: false
+        description:
+          - Install the NFS-Ganesha userspace NFS server as a kernel NFS alternative.
+          - Delegates to C(linbit.drbd_reactor.ganesha_install).
+          - Pin the CentOS Storage SIG repository version on Enterprise Linux with C(ganesha_install_sig_version) when needed.
       linstor_api_delegate:
         type: str
         required: false

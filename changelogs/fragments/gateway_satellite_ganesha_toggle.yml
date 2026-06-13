@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    gateway_satellite - new ``gateway_satellite_ganesha`` toggle (default
+    ``false``) that delegates to ``linbit.drbd_reactor.ganesha_install`` to
+    install the NFS-Ganesha userspace NFS server as a kernel NFS
+    alternative.

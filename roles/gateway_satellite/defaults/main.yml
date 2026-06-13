@@ -22,6 +22,10 @@ gateway_satellite_firewall_ports: >-
 # Pin the build reference with scst_install_version when needed
 gateway_satellite_scst: false
 
+# NFS-Ganesha userspace NFS server - delegated to linbit.drbd_reactor.ganesha_install
+# Pin the EL repository version with ganesha_install_sig_version when needed
+gateway_satellite_ganesha: false
+
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint
 linstor_api_delegate: localhost
