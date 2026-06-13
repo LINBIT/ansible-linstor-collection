@@ -114,7 +114,8 @@
         - linstor_storage_pool
   when: cluster_init_deploy_storage | bool
 
-# Requires a configured storage pool
+# Requires storage pools to already exist in the cluster
+# The role self-detects diskful nodes from a live query and skips when they are absent
 - name: Convert LINSTOR database to HA
   tags:
     - linstor
@@ -125,6 +126,4 @@
       tags:
         - linstor
         - linstor_ha_database
-  when:
-    - cluster_init_deploy_storage | bool
-    - cluster_init_ha_database | bool
+  when: cluster_init_ha_database | bool

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    cluster_init - ``cluster_init_deploy_storage`` now defaults to ``true``. The
+    ``storage_pool`` role auto-skips when no pool targets a host, so the default is a
+    no-op on clusters that define no ``linstor_storage_pools``.
+  - >
+    cluster_init - HA database conversion is no longer gated on
+    ``cluster_init_deploy_storage``. The conversion runs on ``cluster_init_ha_database``
+    alone (default ``true``) plus the ``ha_database`` role's own auto-detection, so it
+    works against an existing cluster whose pools were created in a prior run.

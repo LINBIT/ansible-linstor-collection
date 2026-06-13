@@ -32,8 +32,8 @@ The following inventory groups are used:
 |---|---|---|
 | `cluster_init_repo_access` | `customer` | Repo access type: `customer` (LINBIT portal), `public` (Proxmox and open-source), or `none` (self-managed repos) |
 | `cluster_init_linstor_gateway` | `false` | Also install LINSTOR Gateway on the cluster |
-| `cluster_init_deploy_storage` | `false` | Create storage pools from `linstor_storage_pools` inventory variable |
-| `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA (requires `cluster_init_deploy_storage`, at least 2 combined controller+satellite nodes, and at least 3 total satellites) |
+| `cluster_init_deploy_storage` | `true` | Create storage pools from `linstor_storage_pools` inventory variable. Auto-skips when no pool targets a host |
+| `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA. Auto-skips unless at least 2 combined controller+satellite nodes and at least 3 total satellites exist |
 | `cluster_init_ssl` | `false` | Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL) |
 | `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl`) |
 | `cluster_init_token_auth` | `true` | Require token authentication for the REST API; the `auth_init` role is skipped on controllers older than version 1.34.0. Set to `false` to disable |
@@ -168,13 +168,13 @@ For everyday deployments, prefer `cluster_init`.
   any_errors_fatal: true
   become: true
   vars:
-    cluster_init_deploy_storage: false   # cluster_init default
+    cluster_init_deploy_storage: true    # cluster_init default
     cluster_init_ha_database: true       # cluster_init default
     cluster_init_linstor_gateway: false  # cluster_init default
     cluster_init_repo_access: customer   # cluster_init default
     cluster_init_ssl: false              # cluster_init default
     cluster_init_ssl_mtls: false         # cluster_init default
-    cluster_init_token_auth: true              # cluster_init default
+    cluster_init_token_auth: true        # cluster_init default
   tasks:
     - name: Configure LINBIT public repo
       tags:
@@ -289,7 +289,8 @@ For everyday deployments, prefer `cluster_init`.
             - linstor_storage_pool
       when: cluster_init_deploy_storage | bool
 
-    # Requires a configured storage pool
+    # Requires storage pools to already exist in the cluster
+    # The role self-detects diskful nodes from a live query and skips when they are absent
     - name: Convert LINSTOR database to HA
       tags:
         - linstor
@@ -300,9 +301,7 @@ For everyday deployments, prefer `cluster_init`.
           tags:
             - linstor
             - linstor_ha_database
-      when:
-        - cluster_init_deploy_storage | bool
-        - cluster_init_ha_database | bool
+      when: cluster_init_ha_database | bool
 ```
 
 ## License

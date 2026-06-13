@@ -27,15 +27,16 @@ argument_specs:
           - Also install LINSTOR Gateway on the cluster.
       cluster_init_deploy_storage:
         type: bool
-        default: false
+        default: true
         description:
           - Create storage pools from C(linstor_storage_pools) inventory variable.
+          - Auto-skips when no pool targets a host, so it is safe to leave enabled.
       cluster_init_ha_database:
         type: bool
         default: true
         description:
           - Convert LINSTOR database to HA.
-          - Requires C(cluster_init_deploy_storage) and 2+ combined nodes.
+          - Auto-skips unless 2+ combined nodes and 3+ satellites exist.
       cluster_init_ssl:
         type: bool
         default: false

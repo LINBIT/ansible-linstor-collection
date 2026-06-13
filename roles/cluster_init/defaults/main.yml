@@ -2,17 +2,17 @@
 ---
 # defaults file for cluster_init
 
-# Create storage pools from linstor_storage_pools inventory variable (optional)
-cluster_init_deploy_storage: false
+# Create storage pools from linstor_storage_pools inventory variable
+# Auto-skips when no pool targets a host, so it is safe to leave enabled
+cluster_init_deploy_storage: true
 
-# Convert LINSTOR database to HA (requires deploy_storage and 2+ combined nodes)
+# Convert LINSTOR database to HA (auto-skips unless 2+ combined nodes and 3+ satellites)
 cluster_init_ha_database: true
 
 # Install LINSTOR Gateway (optional)
 cluster_init_linstor_gateway: false
 
-# Repo access type: 'customer' (LINBIT portal), 'public' (Proxmox/open-source),
-# or 'none' (self-managed repos)
+# Repo access type: customer|public|none, see linbit.common collection
 cluster_init_repo_access: customer
 
 # SSL/TLS: encrypt all LINSTOR communication (HTTPS REST API + satellite SSL)
