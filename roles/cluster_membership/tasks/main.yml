@@ -79,6 +79,15 @@
       in inventory to a routable IP, or fix ansible_host.
     quiet: true
 
+- name: Assert the linstor_controllers group has at least one host
+  ansible.builtin.assert:
+    that: groups.get('linstor_controllers', []) | length > 0
+    fail_msg: >-
+      The linstor_controllers inventory group is empty. Define at least one
+      controller host before running cluster_membership.
+    quiet: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Verify delegated-node access to the LINSTOR controller
   linbit.linstor.controller:
   delegate_to: "{{ linstor_api_delegate }}"

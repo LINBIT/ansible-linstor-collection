@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    cluster_membership - assert that the ``linstor_controllers`` inventory group has at least
+    one host before the controller reachability check, replacing a misleading "cannot reach
+    the controller" failure with a clear message when the group is empty.
