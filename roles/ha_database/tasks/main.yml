@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Assert the linstor_controllers group has at least one host
+  ansible.builtin.assert:
+    that: groups.get('linstor_controllers', []) | length > 0
+    fail_msg: >-
+      The linstor_controllers inventory group is empty. Define at least one
+      controller host before running ha_database.
+    quiet: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Gather OS facts for OS-specific vars
   ansible.builtin.setup:
     gather_subset:

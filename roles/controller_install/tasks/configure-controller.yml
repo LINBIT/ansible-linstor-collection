@@ -33,7 +33,7 @@
     enabled: false
   when:
     - _active_count | int > 1
-    - inventory_hostname not in groups['linstor_controllers'][0]
+    - inventory_hostname != groups['linstor_controllers'][0]
 
 # Start LINSTOR controller (non-HA operation)
 # Also starts LINSTOR controller for initial HA installations (RHEL)
@@ -45,7 +45,7 @@
   when:
     - ((groups['linstor_controllers'] | length == 1) or
       (_active_count | int == 0))
-    - inventory_hostname in groups['linstor_controllers'][0]
+    - inventory_hostname == groups['linstor_controllers'][0]
 
 - name: Reload service facts
   ansible.builtin.service_facts:

@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    Multiple roles - remove a Jinja expression from the ``linstor_api_delegate``
+    description in role argument specs. ansible-core 2.19+ templates argument-spec
+    descriptions during validation, so the embedded ``groups['linstor_controllers'][0]``
+    crashed role validation when the ``linstor_controllers`` group was empty.
+  - >
+    controller_install - compare ``inventory_hostname`` to the first controller with
+    equality instead of a substring ``in`` test, so controller start and stop selection
+    is correct for hostnames that are substrings of one another.
+minor_changes:
+  - >
+    controller_install, ssl_init, and ha_database - assert that the ``linstor_controllers``
+    inventory group has at least one host before tasks that index the first controller,
+    replacing an opaque templating error with a clear message when the group is empty.

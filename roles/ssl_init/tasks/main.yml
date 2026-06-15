@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Assert the linstor_controllers group has at least one host
+  ansible.builtin.assert:
+    that: groups.get('linstor_controllers', []) | length > 0
+    fail_msg: >-
+      The linstor_controllers inventory group is empty. Define at least one
+      controller host before running ssl_init.
+    quiet: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Gather controller service facts
   ansible.builtin.service_facts:
   when: inventory_hostname in groups['linstor_controllers']

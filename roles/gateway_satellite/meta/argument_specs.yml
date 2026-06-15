@@ -77,6 +77,6 @@ argument_specs:
           - Override to a cluster node when the control node cannot reach the
             controller API endpoint directly (SSH jump host, segmented
             management network).
-          - "Common override: C({{ groups['linstor_controllers'][0] }})."
+          - "Common override: the first host in the C(linstor_controllers) inventory group."
           - The delegated node must have C(python-linstor) installed.
             Cluster nodes have it via LINSTOR package dependencies.
