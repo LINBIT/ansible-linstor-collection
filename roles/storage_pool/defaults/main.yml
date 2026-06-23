@@ -10,6 +10,7 @@ storage_pool_defaults:
   zfs_create_options: ""
   zpool_vdev_type: stripe
   zpool_properties: {}
+  vdevs: []
   wipefs_force: false
 
 # Delegation target for LINSTOR API tasks

@@ -21,31 +21,40 @@
       {% endfor -%}
       {{ ns.result }}
 
+- name: Build ZFS device wipe list
+  ansible.builtin.set_fact:
+    _zfs_wipe_targets: >-
+      {% set ns = namespace(items=[]) -%}
+      {% for p in _pools_to_create | selectattr('_type', 'in', ['zfs', 'zfsthin']) -%}
+      {%   set extra = p.vdevs | default([]) | map(attribute='disks') | flatten | list -%}
+      {%   for d in p.physical_devices + extra -%}
+      {%     set ns.items = ns.items + [{'zpool': p.zpool, 'disk': d}] -%}
+      {%   endfor -%}
+      {% endfor -%}
+      {{ ns.items }}
+
 - name: Run wipefs on ZFS pool backing disks
-  ansible.builtin.command: wipefs -afq {{ item.1 }}
+  ansible.builtin.command: wipefs -afq {{ item.disk }}
+  when: not (_zpool_exists[item.zpool] | default(false))
   changed_when: true
-  loop: >-
-    {{ _pools_to_create
-       | selectattr('_type', 'in', ['zfs', 'zfsthin'])
-       | list
-       | subelements('physical_devices') }}
+  loop: "{{ _zfs_wipe_targets }}"
   loop_control:
-    label: "{{ item.0.name }} - {{ item.1 }}"
-  when: not (_zpool_exists[item.0.zpool] | default(false))
+    label: "{{ item.zpool }} - {{ item.disk }}"
 
 - name: Create ZFS zpool for LINSTOR
   community.general.zpool:
     name: "{{ item.zpool }}"
-    vdevs:
-      - disks: "{{ item.physical_devices }}"
-        type: "{{ item.zpool_vdev_type | default(storage_pool_defaults.zpool_vdev_type) }}"
+    vdevs: >-
+      {{ [{'disks': item.physical_devices,
+           'type': item.zpool_vdev_type | default(storage_pool_defaults.zpool_vdev_type)}]
+         + (item.vdevs | default(storage_pool_defaults.vdevs)) }}
     pool_properties: "{{ item.zpool_properties | default(storage_pool_defaults.zpool_properties) }}"
     state: present
     force: true
+  when: not (_zpool_exists[item.zpool] | default(false))
   loop: >-
     {{ _pools_to_create
        | selectattr('_type', 'in', ['zfs', 'zfsthin'])
        | list }}
   loop_control:
     label: "{{ item.name }}"
-  when: not (_zpool_exists[item.zpool] | default(false))

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    storage_pool - add an optional ``vdevs`` key to ``linstor_storage_pools`` entries so ZFS
+    pools can declare SLOG (``log``), ``special``, ``cache``, and additional data vdevs alongside
+    the ``physical_devices`` data vdev. The list is passed through to ``community.general.zpool``,
+    making SSD helper vdevs part of the inventory rather than a manual ``zpool add`` step.

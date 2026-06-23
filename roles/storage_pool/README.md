@@ -41,6 +41,7 @@ Each item supports the following keys:
 | `zfs_create_options` | no | `""` | zfs, zfsthin |
 | `zpool_vdev_type` | no | `stripe` | zfs, zfsthin |
 | `zpool_properties` | no | `{}` | zfs, zfsthin |
+| `vdevs` | no | `[]` | zfs, zfsthin |
 | `wipefs_force` | no | `false` | lvm, lvmthin, zfs, zfsthin |
 | `nodes` | no |  | all (targeting) |
 | `groups` | no |  | all (targeting) |
@@ -66,6 +67,12 @@ When empty and multiple physical devices exist, the role auto-generates striping
 `zpool_vdev_type` sets the vdev topology: `stripe`, `mirror`, `raidz`, `raidz1`, `raidz2`, or `raidz3`.
 
 `zpool_properties` is passed to `community.general.zpool` at zpool creation time for pool-level settings (for example `ashift`, `autoexpand`).
+
+`vdevs` is an optional list of additional vdevs appended to the pool at creation time, passed through to `community.general.zpool`.
+Each entry takes `disks` (a required list of device paths), an optional `type` (the same topologies as `zpool_vdev_type`: `stripe`, `mirror`, `raidz`, `raidz1`, `raidz2`, `raidz3`), and an optional `role`.
+The `role` is one of `log`, `cache`, `spare`, `dedup`, or `special`: use `role: log` for a separate intent log (SLOG), `role: special` for a special allocation class vdev, and `role: cache` for an L2ARC read cache.
+Omit `role` to add another data vdev, for example a second `raidz2` group.
+The `physical_devices` and `zpool_vdev_type` keys remain the pool's data vdev and are still required; the `vdevs` entries are appended after it, not a replacement for it.
 
 By default, `wipefs` only runs on backing disks when the volume group or zpool does not yet exist.
 Set `wipefs_force: true` to always wipe disk signatures, even on subsequent runs.
@@ -139,9 +146,9 @@ linstor_satellites:
   hosts:
     linstor-3:
       linstor_storage_pools:
-        - name: mypool1
+        - name: sp-nvme
           type: zfs
-          zpool: myzpool
+          zpool: nvme
           zpool_vdev_type: mirror
           zpool_properties:
             ashift: "12"
@@ -150,6 +157,36 @@ linstor_satellites:
             - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W123456
             - /dev/disk/by-id/nvme-SAMSUNG_MZQL21T9HCJR_S64GNX0W789012
 ```
+
+A bulk HDD pool with SSD helper vdevs uses `vdevs` to add a mirrored `log` vdev (SLOG, for synchronous iSCSI or NFS writes) and a single `cache` (L2ARC read cache) device alongside the `raidz2` data vdev:
+
+```yaml
+linstor_satellites:
+  hosts:
+    linstor-4:
+      linstor_storage_pools:
+        - name: sp-tank
+          type: zfs
+          zpool: tank
+          zpool_vdev_type: raidz2
+          physical_devices:
+            - /dev/disk/by-id/wwn-0x5000c500a0000001
+            - /dev/disk/by-id/wwn-0x5000c500a0000002
+            - /dev/disk/by-id/wwn-0x5000c500a0000003
+            - /dev/disk/by-id/wwn-0x5000c500a0000004
+          vdevs:
+            - role: log
+              type: mirror
+              disks:
+                - /dev/disk/by-id/nvme-slog-ssd-a
+                - /dev/disk/by-id/nvme-slog-ssd-b
+            - role: cache
+              disks:
+                - /dev/disk/by-id/nvme-l2arc-ssd
+```
+
+The role creates this pool in a single `zpool create` call: the `raidz2` data vdev first, then the `log` and `cache` vdevs.
+The SLOG is mirrored for redundancy; the L2ARC `cache` device is not, since losing a read cache is harmless.
 
 ### Pattern 2: cluster-wide uniform pool
 
@@ -199,14 +236,14 @@ Define pool topology centrally, referencing a descriptively named per-host varia
 ```yaml
 # group_vars/all/storage.yaml
 linstor_storage_pools:
-  - name: sp0
+  - name: sp-lvm
     type: lvmthin
     vg: drbdpool
     physical_devices: "{{ physical_devices_lvm_striped | default([]) }}"
     groups:
       - linstor_lvm_satellites
 
-  - name: sp0
+  - name: sp-zfs
     type: zfsthin
     zpool: drbdpool
     zpool_vdev_type: raidz1
