@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Restart the LINSTOR HAProxy instance
+  listen: restart_ha_controller_proxy
+  ansible.builtin.systemd:
+    name: "{{ _ha_controller_proxy_service }}"
+    state: restarted
+    daemon_reload: true

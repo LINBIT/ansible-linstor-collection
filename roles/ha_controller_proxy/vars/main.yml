@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+_ha_controller_proxy_service: linstor-haproxy
+_ha_controller_proxy_config: /etc/linstor/linstor-haproxy.cfg
+_ha_controller_proxy_pidfile: /run/linstor-haproxy.pid
+
+_ha_controller_proxy_maxconn: 256
+_ha_controller_proxy_check_interval: 2s
+_ha_controller_proxy_check_rise: 1
+_ha_controller_proxy_check_fall: 2
+_ha_controller_proxy_client_timeout: 1h
+_ha_controller_proxy_server_timeout: 1h

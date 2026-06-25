@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Gather OS facts for OS-specific behavior
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when: ansible_facts['os_family'] is not defined
+
+- name: Resolve the HA controllers
+  ansible.builtin.set_fact:
+    _ha_controllers: >-
+      {{ query('linbit.linstor.group_addresses', 'linstor_controllers')
+         if ('linstor_controllers' in groups and (groups['linstor_controllers'] | length > 1))
+         else (ansible_play_hosts_all | map('extract', hostvars) | map('linbit.linstor.linstor_addr') | list) }}
+
+- name: Skip the proxy on a single-controller cluster
+  ansible.builtin.debug:
+    msg: >-
+      Resolved {{ _ha_controllers | length }} controller(s);
+      a single controller needs no proxy, so this role does nothing.
+  when: _ha_controllers | length <= 1
+
+- name: Deploy the LINSTOR controller proxy
+  when: _ha_controllers | length > 1
+  block:
+    - name: Install HAProxy
+      ansible.builtin.package:
+        name: haproxy
+        state: present
+      register: _ha_controller_proxy_pkg
+      until: _ha_controller_proxy_pkg is succeeded
+      retries: 3
+      delay: 10
+
+    - name: Allow HAProxy to make outbound connections under SELinux
+      ansible.posix.seboolean:
+        name: haproxy_connect_any
+        state: true
+        persistent: true
+      when: ansible_facts['os_family'] | lower == 'redhat'
+
+    - name: Render the LINSTOR controller proxy config
+      ansible.builtin.template:
+        src: linstor-haproxy.cfg.j2
+        dest: "{{ _ha_controller_proxy_config }}"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart_ha_controller_proxy
+
+    - name: Install the LINSTOR HAProxy systemd unit
+      ansible.builtin.template:
+        src: linstor-haproxy.service.j2
+        dest: "/etc/systemd/system/{{ _ha_controller_proxy_service }}.service"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart_ha_controller_proxy
+
+    - name: Enable and start the LINSTOR HAProxy instance
+      ansible.builtin.systemd:
+        name: "{{ _ha_controller_proxy_service }}"
+        state: started
+        enabled: true
+        daemon_reload: true

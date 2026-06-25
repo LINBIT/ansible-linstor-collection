@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+---
+ha_controller_proxy_plain_port: 4370
+ha_controller_proxy_ssl_port: 4371

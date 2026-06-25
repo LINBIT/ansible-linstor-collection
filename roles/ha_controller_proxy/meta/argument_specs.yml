@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Deploy an HAProxy instance routing to the active HA LINSTOR controller
+    description:
+      - >-
+        Runs a dedicated HAProxy instance on each controller node that forwards LINSTOR API
+        and GUI traffic to whichever node currently runs the active controller.
+      - >-
+        Operates in TCP passthrough mode, so the same configuration serves both plain and SSL
+        clusters and a TLS handshake completes end to end with the active controller.
+      - A plain TCP connect health check marks only the active controller as available, because the controller port is open only on that node.
+      - Runs as its own systemd service and does not modify the distribution C(haproxy.service), so it coexists with an existing HAProxy.
+      - >-
+        Forwards to the C(linstor_controllers) group, falling back to the play hosts when that
+        group is undefined or has a single member, and does nothing for a single controller.
+    options:
+      ha_controller_proxy_plain_port:
+        type: int
+        default: 4370
+        description:
+          - Front-door port for plain HTTP traffic.
+      ha_controller_proxy_ssl_port:
+        type: int
+        default: 4371
+        description:
+          - Front-door port for SSL HTTPS traffic.

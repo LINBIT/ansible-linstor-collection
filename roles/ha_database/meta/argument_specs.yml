@@ -53,6 +53,12 @@ argument_specs:
           - DRBD Reactor floats an IPaddr2 resource with the active controller.
           - The IP is stored as C(Aux/ha_database_vip) so C(client_install) discovers it on subsequent runs.
           - Defaults to C(/24) if no CIDR is given.
+      ha_database_haproxy:
+        type: bool
+        default: false
+        description:
+          - Deploy the C(ha_controller_proxy) role on the controller nodes after conversion.
+          - Runs a TCP-passthrough HAProxy instance so clients reach the active controller from any controller node, as an alternative to C(ha_database_vip).
       ha_database_drbd_options:
         type: dict
         description:

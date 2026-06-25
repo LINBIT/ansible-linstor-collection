@@ -34,6 +34,7 @@ See `defaults/main.yml`.
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_allow_2_replica` | `false` | Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist; the role otherwise fails and asks for a third combined node (ignored with only 2 diskful satellites) |
 | `ha_database_vip` | `""` | Virtual IP for the HA controller, for example `10.0.0.100/24` (see [HA controller VIP](#ha-controller-vip)) |
+| `ha_database_haproxy` | `false` | Deploy the `ha_controller_proxy` role on the controllers after conversion, an HAProxy alternative to `ha_database_vip` (see [HA controller proxy](#ha-controller-proxy)) |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
 
@@ -42,6 +43,12 @@ See `defaults/main.yml`.
 `ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100/24` (defaults to `/24` if no CIDR is given).
 The IP is stored as the `Aux/ha_database_vip` controller property so `client_install` discovers it on subsequent runs.
 When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present.
+
+## HA controller proxy
+
+`ha_database_haproxy` deploys the [`ha_controller_proxy`](../ha_controller_proxy/README.md) role on the controller nodes after the conversion.
+It runs a TCP-passthrough HAProxy instance that forwards client traffic to the active controller, so clients reach the controller from any controller node.
+This is an alternative to `ha_database_vip`: the VIP floats a single address with the active node, while the proxy needs no floating address and works across routed and cloud networks.
 
 ## Dependencies
 

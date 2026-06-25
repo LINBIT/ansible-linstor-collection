@@ -1,0 +1,28 @@
+{# SPDX-License-Identifier: MIT #}
+global
+    log /dev/log local0
+    maxconn {{ _ha_controller_proxy_maxconn }}
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    option redispatch
+    retries 3
+    timeout connect 5s
+    timeout client {{ _ha_controller_proxy_client_timeout }}
+    timeout server {{ _ha_controller_proxy_server_timeout }}
+
+listen linstor-controller-plain
+    bind :{{ ha_controller_proxy_plain_port }}
+    balance first
+{% for addr in _ha_controllers %}
+    server ctrl{{ loop.index }} {{ addr }}:3370 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
+{% endfor %}
+
+listen linstor-controller-ssl
+    bind :{{ ha_controller_proxy_ssl_port }}
+    balance first
+{% for addr in _ha_controllers %}
+    server ctrl{{ loop.index }} {{ addr }}:3371 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
+{% endfor %}

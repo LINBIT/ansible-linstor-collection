@@ -37,3 +37,10 @@
 - name: Convert LINSTOR database to HA
   ansible.builtin.include_tasks: ha-conversion.yml
   when: _ha_db_conversion_needed | bool
+
+- name: Deploy the HA controller proxy
+  ansible.builtin.include_role:
+    name: linbit.linstor.ha_controller_proxy
+  when:
+    - ha_database_haproxy | bool
+    - inventory_hostname in groups['linstor_controllers']

@@ -1,0 +1,18 @@
+{# SPDX-License-Identifier: MIT #}
+[Unit]
+Description=HAProxy proxy for the LINSTOR controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStartPre=/usr/sbin/haproxy -f {{ _ha_controller_proxy_config }} -c -q
+ExecStart=/usr/sbin/haproxy -Ws -f {{ _ha_controller_proxy_config }} -p {{ _ha_controller_proxy_pidfile }}
+ExecReload=/usr/sbin/haproxy -f {{ _ha_controller_proxy_config }} -c -q
+ExecReload=/bin/kill -USR2 $MAINPID
+KillMode=mixed
+Restart=always
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

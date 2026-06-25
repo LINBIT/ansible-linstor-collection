@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    ha_controller_proxy - new role that deploys a dedicated TCP-passthrough HAProxy instance
+    (``linstor-haproxy.service``) on the controller nodes, forwarding LINSTOR API and GUI traffic
+    to whichever node runs the active controller. An alternative to a floating virtual IP that
+    also works on routed and cloud networks. One config serves plain and SSL clusters, and it
+    leaves the distribution ``haproxy.service`` untouched.
+  - >
+    ha_database - new ``ha_database_haproxy`` toggle (default ``false``) that deploys the
+    ``ha_controller_proxy`` role on the controllers after the HA database conversion.
