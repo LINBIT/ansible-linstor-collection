@@ -4,6 +4,10 @@ _ha_controller_proxy_service: linstor-haproxy
 _ha_controller_proxy_config: /etc/linstor/linstor-haproxy.cfg
 _ha_controller_proxy_pidfile: /run/linstor-haproxy.pid
 
+_ha_controller_proxy_firewall_ports:
+  - "{{ ha_controller_proxy_plain_port }}"
+  - "{{ ha_controller_proxy_ssl_port }}"
+
 _ha_controller_proxy_maxconn: 256
 _ha_controller_proxy_check_interval: 2s
 _ha_controller_proxy_check_rise: 1

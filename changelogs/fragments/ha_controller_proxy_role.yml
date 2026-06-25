@@ -6,7 +6,8 @@ minor_changes:
     (``linstor-haproxy.service``) on the controller nodes, forwarding LINSTOR API and GUI traffic
     to whichever node runs the active controller. An alternative to a floating virtual IP that
     also works on routed and cloud networks. One config serves plain and SSL clusters, and it
-    leaves the distribution ``haproxy.service`` untouched.
+    leaves the distribution ``haproxy.service`` untouched. Opens the plain and SSL front-door
+    ports in firewalld or UFW when either is running (toggle with ``ha_controller_proxy_firewall_rules``).
   - >
     ha_database - new ``ha_database_haproxy`` toggle (default ``false``) that deploys the
     ``ha_controller_proxy`` role on the controllers after the HA database conversion.

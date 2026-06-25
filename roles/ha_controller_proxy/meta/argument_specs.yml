@@ -26,3 +26,8 @@ argument_specs:
         default: 4371
         description:
           - Front-door port for SSL HTTPS traffic.
+      ha_controller_proxy_firewall_rules:
+        type: bool
+        default: true
+        description:
+          - Whether to open the plain and SSL front-door ports in firewalld or UFW when either is running.
