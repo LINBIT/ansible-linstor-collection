@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+bugfixes:
+  - >
+    ha_controller_proxy - manage the ``haproxy_connect_any`` SELinux boolean
+    with ``getsebool``/``setsebool`` instead of ``ansible.posix.seboolean``.
+    The module imports the ``semanage`` Python binding (``python3-libsemanage``),
+    which RHEL-family cloud and minimal images do not install, so the role
+    failed with ``ModuleNotFoundError: No module named 'semanage'``. The
+    replacement calls binaries from the base ``libselinux-utils`` and
+    ``policycoreutils`` packages and stays idempotent.

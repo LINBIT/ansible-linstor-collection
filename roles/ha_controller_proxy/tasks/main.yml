@@ -34,11 +34,20 @@
       delay: 10
 
     - name: Allow HAProxy to make outbound connections under SELinux
-      ansible.posix.seboolean:
-        name: haproxy_connect_any
-        state: true
-        persistent: true
       when: ansible_facts['os_family'] | lower == 'redhat'
+      block:
+        - name: Read the HAProxy outbound-connection SELinux boolean
+          ansible.builtin.command:
+            cmd: getsebool haproxy_connect_any
+          register: _ha_controller_proxy_sebool
+          changed_when: false
+          failed_when: false
+
+        - name: Enable the HAProxy outbound-connection SELinux boolean
+          ansible.builtin.command:
+            cmd: setsebool -P haproxy_connect_any on
+          when: "'haproxy_connect_any --> off' in _ha_controller_proxy_sebool.stdout"
+          changed_when: true
 
     - name: Render the LINSTOR controller proxy config
       ansible.builtin.template:
