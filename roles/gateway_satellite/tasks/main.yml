@@ -88,5 +88,8 @@
       environment:
         LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
+    - name: Configure gateway daemon token authentication
+      ansible.builtin.include_tasks: token-auth.yml
+
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers

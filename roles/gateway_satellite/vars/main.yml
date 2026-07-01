@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+
+# linstor-gateway package config location - holds the daemon credential files
+gateway_satellite_config_dir: /etc/linstor-gateway
+
+# linbit.linstor.ssl_init CA the daemon trusts for the controller REST endpoint
+gateway_satellite_ca_cert_file: /etc/linstor/ssl/ca.crt

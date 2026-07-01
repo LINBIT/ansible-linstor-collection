@@ -80,3 +80,33 @@ argument_specs:
           - "Common override: the first host in the C(linstor_controllers) inventory group."
           - The delegated node must have C(python-linstor) installed.
             Cluster nodes have it via LINSTOR package dependencies.
+      gateway_satellite_token_auth:
+        type: str
+        default: ""
+        description:
+          - Whether the LINSTOR Gateway daemon authenticates to the controller
+            with a bearer token.
+          - LINSTOR 1.34 and later enable token authentication and REST HTTPS
+            during auth init, at which point the daemon needs its own token and
+            the controller CA.
+          - Leave empty to auto-detect from the controller
+            C(Auth/TokenAuthenticationEnabled) property.
+          - Set C(true) or C(false) to force the behavior.
+      gateway_satellite_token_force:
+        type: bool
+        default: false
+        description:
+          - Create the daemon token only when it is missing.
+          - Set C(true) to force a fresh token on every run, replacing the
+            existing one, for rotation or to recover from a revoked token.
+      gateway_satellite_ca_cert:
+        type: str
+        default: ""
+        description:
+          - CA certificate PEM content to trust for the controller REST
+            endpoint.
+          - When set, it is written into C(gateway_satellite_config_dir) and
+            used instead of the C(ssl_init) CA file at
+            C(gateway_satellite_ca_cert_file).
+          - Use it when the cluster does not run C(linbit.linstor.ssl_init) but
+            token authentication requires the daemon to trust the controller CA.

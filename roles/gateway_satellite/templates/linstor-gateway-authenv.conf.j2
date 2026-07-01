@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: MIT #}
+[Service]
+ExecStart=
+ExecStart=/usr/local/sbin/linstor-gateway-server-wrapper
+Environment=LS_BEARER_TOKEN_FILE={{ gateway_satellite_config_dir }}/auth-token
+Environment=LS_ROOT_CA_FILE={{ _gw_ca_path }}

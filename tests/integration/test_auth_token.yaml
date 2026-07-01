@@ -14,9 +14,12 @@
 #   4. LINSTOR controller module reaches the API with the saved token
 #   5. Token authentication is enabled in the controller properties
 #   6. A user token exists in the token list
+#   7. LINSTOR Gateway daemon, where deployed, authenticates under token auth
 #
 # The satellite token file mode is a controller-side concern, verified
 # separately, not asserted here.
+# Test 7 is conditional: it skips satellites that do not run the
+# linstor-gateway daemon, so it is a no-op on clusters without LINSTOR Gateway.
 
 - name: Verify satellite token file permissions
   hosts: linstor_satellites
@@ -127,3 +130,47 @@
           No user token found in the token list. auth_init should have created
           the initial user token.
         quiet: true
+
+- name: Verify LINSTOR Gateway authenticates under token authentication
+  hosts: linstor_satellites
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    # =================================================================
+    # LINSTOR Gateway daemon reaches the controller under token auth.
+    # Conditional: skips satellites that do not run the daemon, so this
+    # play is a no-op on clusters without LINSTOR Gateway.
+    # =================================================================
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Verify the gateway daemon authenticates to the controller
+      when:
+        - "'linstor-gateway.service' in ansible_facts.services"
+        - ansible_facts.services['linstor-gateway.service'].state == 'running'
+      block:
+        - name: Stat the gateway auth-token file
+          ansible.builtin.stat:
+            path: /etc/linstor-gateway/auth-token
+          register: _gw_token_stat
+
+        - name: Assert the gateway auth-token file exists
+          ansible.builtin.assert:
+            that:
+              - _gw_token_stat.stat.exists
+            fail_msg: >-
+              /etc/linstor-gateway/auth-token is missing on {{ inventory_hostname }}.
+              gateway_satellite should have created a daemon token on a
+              token-authenticated cluster.
+            quiet: true
+
+        # A zero exit proves the daemon authenticated to the controller: the CLI
+        # proxies to the local daemon, which makes the token-authenticated REST
+        # call. linstor-gateway exits 1 when that call fails.
+        - name: List iSCSI targets through the gateway daemon
+          ansible.builtin.command: linstor-gateway iscsi list
+          register: _gw_list
+          changed_when: false
+          failed_when: _gw_list.rc != 0

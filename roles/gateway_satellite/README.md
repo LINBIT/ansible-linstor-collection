@@ -26,6 +26,14 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
 | `gateway_satellite_ganesha` | `false` | Kernel NFS alternative; install the [NFS-Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) userspace NFS server |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+| `gateway_satellite_token_auth` | auto-detect | Whether the daemon authenticates with a bearer token; empty auto-detects from the controller, or force with `true` or `false` |
+| `gateway_satellite_token_force` | `false` | Create the token only when missing; set `true` to force a fresh token every run (rotation, or recovery from a revoked token) |
+| `gateway_satellite_ca_cert` | `""` | CA PEM content to install when the `ssl_init` CA is not present |
+
+When the controller has token authentication enabled (LINSTOR 1.34 and later, through the `auth_init` role), the `linstor-gateway` daemon becomes a token-authenticated REST client over HTTPS.
+The role then creates a dedicated per-node token with `linbit.linstor.auth_token`, writes it and the controller CA into `gateway_satellite_config_dir`, and points the daemon at both through a systemd drop-in that sets `LS_BEARER_TOKEN_FILE` and `LS_ROOT_CA_FILE`.
+The daemon reads `LS_ROOT_CA_FILE` natively on golinstor 0.63.0 and later; a small wrapper bridges it to `LS_ROOT_CA` on earlier golinstor.
+This runs only when `linstor_controllers` is present in the inventory, since creating the token needs controller API access.
 
 SCST installation is delegated to the `linbit.drbd_reactor.scst_install` role.
 Set `scst_install_version` to pin a tag, branch, or commit SHA.
