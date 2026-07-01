@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+bugfixes:
+  - controller_env lookup - normalize ``linstor_ssl`` with ``boolean()`` so a
+    string value (for example from ``-e linstor_ssl=false``) is read as false
+    instead of a truthy non-empty string. The truthy string selected the
+    ``linstor+ssl://`` scheme and broke controller connections on non-SSL
+    clusters.

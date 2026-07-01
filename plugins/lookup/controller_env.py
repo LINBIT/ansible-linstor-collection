@@ -53,6 +53,7 @@ RETURN = '''
     type: str
 '''
 
+from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.plugins.lookup import LookupBase
 from ansible_collections.linbit.linstor.plugins.filter.linstor_addr import linstor_addr
 
@@ -75,7 +76,9 @@ class LookupModule(LookupBase):
         if override:
             return [override]
 
-        ssl = self._tmpl(variables.get('linstor_ssl', False), variables)
+        # boolean() so a string like "false" from -e linstor_ssl=false is read
+        # as False, not as a truthy non-empty string
+        ssl = boolean(self._tmpl(variables.get('linstor_ssl', False), variables), strict=False)
         scheme = 'linstor+ssl' if ssl else 'linstor'
 
         groups = variables.get('groups', {})
