@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - storage_pool - support Windows Storage Spaces pools on LINBIT SDS For
+    Windows satellites with the new ``storagespaces`` and ``storagespaces_thin``
+    types and the ``wss`` pool key. The role creates the Storage Spaces pool
+    from the ``physical_devices`` entries (matching the unique disk identifiers
+    DeviceId, SerialNumber, or UniqueId), clearing listed disks that carry old
+    partitions and refusing boot and system disks, and registers the LINSTOR
+    pool with the matching driver.

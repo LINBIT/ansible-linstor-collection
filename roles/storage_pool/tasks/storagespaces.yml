@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Check for Windows Storage Spaces pool
+  ansible.windows.win_shell: |
+    (Get-StoragePool -FriendlyName '{{ _pool.wss }}' -ErrorAction SilentlyContinue) -eq $null
+  changed_when: false
+  register: _storage_pool_wss_checks
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['storagespaces', 'storagespaces_thin'])
+       | list }}
+  loop_control:
+    loop_var: _pool
+    label: "{{ _pool.name }}"
+
+# Multiple LINSTOR pools may share one Storage Spaces pool
+# physical_devices entries match unique disk identifiers only: DeviceId (disk number),
+# SerialNumber, or UniqueId - never FriendlyName, identical disk models share it
+# Matched disks carrying old partitions are cleared before pooling (the wipefs analogue),
+# with boot and system disks refused - DeviceId 0 is typically the C: OS disk
+# List candidate disks: Get-PhysicalDisk | Format-Table DeviceId, SerialNumber, UniqueId
+- name: Create Windows Storage Spaces pool
+  ansible.windows.win_shell: |
+    $ProgressPreference = "SilentlyContinue"
+    $Want = @({{ _check._pool.physical_devices | map('string') | map('to_json') | join(', ') }})
+    $PhysicalDisks = @(Get-PhysicalDisk | Where-Object {
+        $_.DeviceId -in $Want -or $_.SerialNumber -in $Want -or $_.UniqueId -in $Want })
+    if ($PhysicalDisks.Count -ne $Want.Count) {
+        throw "physical_devices matched $($PhysicalDisks.Count) of $($Want.Count) requested disks"
+    }
+    foreach ($pd in $PhysicalDisks) {
+        if ($pd.CanPool) { continue }
+        $disk = Get-Disk -Number $pd.DeviceId
+        if ($disk.IsBoot -or $disk.IsSystem) {
+            throw "disk $($pd.DeviceId) is the boot or system disk - refusing to clear it"
+        }
+        if ($disk.IsOffline) { Set-Disk -Number $disk.Number -IsOffline $false }
+        Clear-Disk -Number $disk.Number -RemoveData -RemoveOEM -Confirm:$false
+    }
+    Update-StorageProviderCache -DiscoveryLevel Full
+    $PhysicalDisks = @(Get-PhysicalDisk -CanPool $true | Where-Object {
+        $_.DeviceId -in $Want -or $_.SerialNumber -in $Want -or $_.UniqueId -in $Want })
+    if ($PhysicalDisks.Count -ne $Want.Count) {
+        throw "only $($PhysicalDisks.Count) of $($Want.Count) requested disks are poolable after clearing"
+    }
+    New-StoragePool -FriendlyName '{{ _check._pool.wss }}' -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $PhysicalDisks
+  when: _check.stdout | trim == 'True'
+  changed_when: true
+  loop: "{{ _storage_pool_wss_checks.results | unique(attribute='_pool.wss') }}"
+  loop_control:
+    loop_var: _check
+    label: "{{ _check._pool.name }}"

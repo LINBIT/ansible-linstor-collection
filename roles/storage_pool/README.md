@@ -2,8 +2,8 @@
 
 Create LINSTOR storage pools on diskful satellite nodes.
 
-The role supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`.
-It loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, or directories) before registering each pool with LINSTOR.
+The role supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`, `storagespaces`, `storagespaces_thin`.
+It loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, directories, or Windows Storage Spaces pools) before registering each pool with LINSTOR.
 
 Each satellite creates the pools from `linstor_storage_pools` that target it; a satellite no pool targets is left diskless.
 It can be called from any play targeting `linstor_cluster` or broader.
@@ -18,6 +18,8 @@ When `nodes` or `groups` is set, the pool is created only on hosts in the union 
 The LINSTOR satellite must be installed and running on target nodes (handled by `cluster_init` or `satellite_install`).
 
 The `community.general` collection is required for LVM and ZFS pool creation (`community.general.lvg`, `community.general.lvol`, `community.general.zpool`).
+The `ansible.windows` collection is required for Windows Storage Spaces pool creation (`ansible.windows.win_shell`).
+Windows satellites run LINBIT SDS For Windows; the `storagespaces` and `storagespaces_thin` types target them.
 
 ## Role variables
 
@@ -33,7 +35,8 @@ Each item supports the following keys:
 | `vg` | yes |  | lvm, lvmthin |
 | `vg_thinpool` | no | `thinpool` | lvmthin |
 | `zpool` | yes |  | zfs, zfsthin |
-| `physical_devices` | yes (non-file) |  | lvm, lvmthin, zfs, zfsthin |
+| `wss` | yes |  | storagespaces, storagespaces_thin |
+| `physical_devices` | yes (non-file) |  | lvm, lvmthin, zfs, zfsthin, storagespaces, storagespaces_thin |
 | `file_path` | no | `/var/lib/linstor-filethin/` | file, filethin |
 | `thinpool_size` | no | `95%VG` | lvmthin |
 | `pv_create_options` | no | `""` | lvm, lvmthin |
@@ -76,6 +79,12 @@ The `physical_devices` and `zpool_vdev_type` keys remain the pool's data vdev an
 
 By default, `wipefs` only runs on backing disks when the volume group or zpool does not yet exist.
 Set `wipefs_force: true` to always wipe disk signatures, even on subsequent runs.
+
+`wss` is the Windows Storage Spaces pool friendly name, the volume group analogue on Windows satellites.
+The role creates the Storage Spaces pool from the `physical_devices` entries, which match a disk's `DeviceId` (the disk number), `SerialNumber`, or `UniqueId`.
+Disks carrying old partitions are cleared before pooling (`Clear-Disk`, the `wipefs` analogue); boot and system disks are refused, and the task fails when any requested disk cannot be matched or made poolable.
+An existing Storage Spaces pool with the `wss` friendly name is adopted as-is, so pre-built pools work without the role touching any disks.
+The thick (`storagespaces`) and thin (`storagespaces_thin`) distinction lives in the LINSTOR driver: both types share the same Storage Spaces pool, and multiple LINSTOR pools can reference one `wss` name.
 
 ### `storage_pool_defaults` (role default)
 
@@ -286,6 +295,33 @@ linstor_storage_pools:
 ```
 
 When both `nodes` and `groups` are set on the same pool entry, the union is used.
+
+### Windows Storage Spaces pools
+
+Windows satellites running LINBIT SDS For Windows use the `storagespaces` or `storagespaces_thin` types with a `wss` pool friendly name.
+In a mixed cluster, target the Windows pool at the Windows hosts and the Linux pool at the Linux hosts from one centralized definition:
+
+```yaml
+# group_vars/all/storage.yaml
+linstor_storage_pools:
+  - name: sp-linux
+    type: lvmthin
+    vg: drbdpool
+    physical_devices: "{{ physical_devices_lvm | default([]) }}"
+    groups:
+      - linux_satellites
+
+  - name: sp-windows
+    type: storagespaces_thin
+    wss: wss0
+    physical_devices:
+      - "1"
+      - "2"
+    groups:
+      - windows_satellites
+```
+
+Entries match a disk's `DeviceId` (as shown by `Get-PhysicalDisk`), `SerialNumber`, or `UniqueId`.
 
 ## Variable precedence
 
