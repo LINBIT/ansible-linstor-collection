@@ -183,22 +183,3 @@
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-
-# Restart controller when its net interface was changed (for example Plain → SSL).
-- name: Restart controller after net interface change
-  ansible.builtin.systemd_service:
-    name: linstor-controller.service
-    state: restarted
-  when:
-    - inventory_hostname in groups['linstor_controllers']
-    - _cluster_membership_ctrl_register is changed
-
-- name: Wait for controller after restart
-  ansible.builtin.wait_for:
-    host: localhost
-    port: "{{ 3371 if (_cluster_membership_ctrl_toml.content | default('') | b64decode | regex_search('(?m)^\\s*keystore\\s*=')) is not none else 3370 }}"
-    delay: 5
-    timeout: 30
-  when:
-    - inventory_hostname in groups['linstor_controllers']
-    - _cluster_membership_ctrl_register is changed

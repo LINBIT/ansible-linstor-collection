@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify cluster registration state after cluster_membership has run.
+# Expects standard LINSTOR inventory groups (linstor_cluster,
+# linstor_controllers, linstor_satellites).
+# Run after deploying; pass the same linstor_ssl the deploy used:
+#   ansible-playbook ./test_cluster_membership.yaml
+#   ansible-playbook ./test_cluster_membership.yaml -e linstor_ssl=true
+#
+# Tests:
+#   1. Every node is registered with the expected node_type
+#   2. Registration IP matches the inventory resolution (linstor_addr filter)
+#   3. Netif com_type and satellite port match the deployed SSL state
+#   4. Satellite-bearing nodes report ONLINE
+#   5. Two-network hosts have the replication netif and PrefNic set
+#   6. Exactly one linstor-controller service is running across the
+#      linstor_controllers group (single-active invariant)
+
+- name: Verify LINSTOR node registration state
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  gather_facts: false
+
+  vars:
+    _cm_test_ssl: "{{ linstor_ssl | default(false) | bool }}"
+    _cm_test_registration_ip: "{{ hostvars[inventory_hostname] | linbit.linstor.linstor_addr }}"
+    _cm_test_is_controller: "{{ inventory_hostname in groups['linstor_controllers'] }}"
+    _cm_test_is_satellite: "{{ inventory_hostname in groups['linstor_satellites'] }}"
+    _cm_test_expected_type: >-
+      {{ 'Combined' if (_cm_test_is_controller and _cm_test_is_satellite)
+         else ('Controller' if _cm_test_is_controller else 'Satellite') }}
+    _cm_test_expected_port: >-
+      {{ (3371 if _cm_test_ssl else 3370) if (_cm_test_is_controller and not _cm_test_is_satellite)
+         else (3367 if _cm_test_ssl else 3366) }}
+
+  tasks:
+    - name: Query this node in LINSTOR
+      linbit.linstor.node_info:
+        name: "{{ inventory_hostname }}"
+      delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _cm_test_node
+
+    - name: Assert node is registered with the expected type
+      ansible.builtin.assert:
+        that:
+          - _cm_test_node.nodes | length == 1
+          - (_cm_test_node.nodes[0].node_type | lower) == (_cm_test_expected_type | lower)
+        fail_msg: >-
+          {{ inventory_hostname }} expected node_type {{ _cm_test_expected_type }},
+          got {{ _cm_test_node.nodes | map(attribute='node_type') | list }}.
+        quiet: true
+
+    - name: Assert registration IP matches inventory resolution
+      ansible.builtin.assert:
+        that: _cm_test_node.nodes[0].ip == _cm_test_registration_ip
+        fail_msg: >-
+          {{ inventory_hostname }} registered with {{ _cm_test_node.nodes[0].ip }},
+          inventory resolves to {{ _cm_test_registration_ip }}.
+        quiet: true
+
+    - name: Assert netif com_type matches deployed SSL state
+      ansible.builtin.assert:
+        that: >-
+          (_cm_test_node.nodes[0].com_type | default('plain') | lower == 'ssl')
+          if _cm_test_ssl else
+          (_cm_test_node.nodes[0].com_type | default('plain') | lower != 'ssl')
+        fail_msg: >-
+          {{ inventory_hostname }} netif com_type is
+          '{{ _cm_test_node.nodes[0].com_type | default('') }}' with
+          linstor_ssl={{ _cm_test_ssl }}.
+        quiet: true
+
+    - name: Assert netif satellite port matches node type and SSL state
+      ansible.builtin.assert:
+        that: _cm_test_node.nodes[0].satellite_port | int == _cm_test_expected_port | int
+        fail_msg: >-
+          {{ inventory_hostname }} netif port is
+          {{ _cm_test_node.nodes[0].satellite_port }}, expected
+          {{ _cm_test_expected_port }}.
+        quiet: true
+
+    - name: Wait for satellite-bearing nodes to report ONLINE
+      linbit.linstor.node_info:
+        name: "{{ inventory_hostname }}"
+      delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _cm_test_node_online
+      until: (_cm_test_node_online.nodes[0].connection_status | default('') | upper) == 'ONLINE'
+      retries: 10
+      delay: 3
+      when: _cm_test_is_satellite
+
+    - name: Query network interfaces for two-network hosts
+      linbit.linstor.node_interface_info:
+        node: "{{ inventory_hostname }}"
+      delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _cm_test_netifs
+      when:
+        - replication_ip is defined
+        - replication_ip != _cm_test_registration_ip
+
+    - name: Assert replication netif and PrefNic on two-network hosts
+      ansible.builtin.assert:
+        that:
+          - _cm_test_replication_netif | length == 1
+          - _cm_test_replication_netif[0].ip == replication_ip
+          - _cm_test_node.nodes[0].properties['PrefNic'] | default('') == 'replication'
+        fail_msg: >-
+          {{ inventory_hostname }} replication netif or PrefNic mismatch.
+          Interfaces: {{ _cm_test_netifs.net_interfaces | default([]) }}.
+          PrefNic: '{{ _cm_test_node.nodes[0].properties['PrefNic'] | default('') }}'.
+        quiet: true
+      vars:
+        _cm_test_replication_netif: >-
+          {{ _cm_test_netifs.net_interfaces | default([])
+             | selectattr('name', 'equalto', 'replication') | list }}
+      when:
+        - replication_ip is defined
+        - replication_ip != _cm_test_registration_ip
+
+- name: Verify the single-active controller invariant
+  hosts: linstor_controllers
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Record whether this host runs linstor-controller
+      ansible.builtin.set_fact:
+        _cm_test_ctrl_running: >-
+          {{ ansible_facts.services['linstor-controller.service'].state
+             | default('') == 'running' }}
+
+    - name: Assert exactly one controller service is running
+      ansible.builtin.assert:
+        that: _cm_test_running_controllers | length == 1
+        fail_msg: >-
+          Expected exactly one running linstor-controller across
+          {{ groups['linstor_controllers'] | join(', ') }}.
+          Running on: {{ _cm_test_running_controllers | join(', ') | default('none', true) }}.
+        quiet: true
+      vars:
+        _cm_test_running_controllers: >-
+          {{ groups['linstor_controllers']
+             | select('in', ansible_play_hosts_all)
+             | map('extract', hostvars)
+             | selectattr('_cm_test_ctrl_running', 'defined')
+             | selectattr('_cm_test_ctrl_running')
+             | map(attribute='inventory_hostname') | list }}
+      run_once: true  # noqa: run-once[task]
