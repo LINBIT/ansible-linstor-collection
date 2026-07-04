@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >
+    satellite_install - ZFS installation now delegates to the new
+    ``linbit.common.zfs_install`` role instead of maintaining its own
+    install-zfs task files. Behavior is unchanged and the
+    ``satellite_install_zfs`` variable still gates the install.

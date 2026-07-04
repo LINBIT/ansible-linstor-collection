@@ -36,21 +36,12 @@ Ubuntu and Proxmox VE always have ZFS available with no flag required:
 | Ubuntu | `zfsutils-linux` installed unconditionally as a prerequisite (userspace only, no DKMS) |
 | Proxmox VE | Ships with ZFS in the distribution; no additional packages |
 
-For all other distributions, set `satellite_install_zfs: true` to enable:
-
-| OS Family | Method | Notes |
-|---|---|---|
-| Debian (non-Ubuntu, non-Proxmox) | Enables `contrib` repository, installs `zfsutils-linux` via DKMS | |
-| Red Hat (standard kernel) | Installs EPEL and ZFS kmod repository, uses prebuilt kernel modules | Disables DKMS repo, enables kmod repo |
-| Red Hat (UEK kernel) | Installs EPEL and ZFS DKMS repository, builds module from source | Matches the UEK kernel's build compiler with `gcc-toolset-N` (11 on EL8, 14 on EL9); skipped when the system GCC already matches (EL10) |
-| SUSE | Adds openSUSE filesystems repository, installs prebuilt `zfs` package | Configures `allow_unsupported_modules` for kernel module loading; installs `zfs-ueficert` and reboots on UEFI systems for Secure Boot MOK enrollment |
-
-On Red Hat and SUSE, the role also creates `/etc/modules-load.d/zfs.conf` so the ZFS kernel module loads automatically at boot.
-Debian family distributions handle module auto-loading through their own package hooks.
+For all other distributions, set `satellite_install_zfs: true` to include the [`linbit.common.zfs_install`](https://gitlab.at.linbit.com/ansible-collections/linbit.common/-/tree/main/roles/zfs_install) role.
+See that role's documentation for the per-distribution installation methods (Debian DKMS, Red Hat kmod and UEK DKMS, SUSE filesystems repository).
 
 ## Dependencies
 
-`linbit.drbd.drbd_install`, `linbit.linstor.client_install`
+`linbit.drbd.drbd_install`, `linbit.linstor.client_install`; includes `linbit.common.zfs_install` when `satellite_install_zfs: true`
 
 ## Example playbook
 

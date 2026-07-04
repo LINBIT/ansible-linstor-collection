@@ -26,7 +26,9 @@ argument_specs:
         type: bool
         default: false
         description:
-          - Install ZFS on Debian (non-Ubuntu, non-Proxmox), Red Hat, and SUSE family nodes.
+          - >-
+            Install ZFS on Debian (non-Ubuntu, non-Proxmox), Red Hat, and SUSE family nodes by including
+            the C(linbit.common.zfs_install) role.
           - >-
             Ubuntu always installs C(zfsutils-linux) as a prerequisite, regardless of this setting (userspace
             only, no DKMS).

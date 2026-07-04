@@ -19,7 +19,8 @@
       or satellite_install_package_state != 'present'"
   block:
     - name: Install ZFS utilities
-      ansible.builtin.include_tasks: install-zfs.yml
+      ansible.builtin.include_role:
+        name: linbit.common.zfs_install
       when: satellite_install_zfs | bool
 
     - name: Install satellite prerequisites
