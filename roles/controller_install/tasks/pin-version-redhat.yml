@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+# DNF accepts a name-version glob, for example linstor-controller-1.33.3*
+- name: Pin LINSTOR controller and common to a version (DNF)
+  ansible.builtin.set_fact:
+    _controller_install_packages_list: >-
+      {{ _controller_install_packages_list
+         | reject('equalto', 'linstor-controller')
+         | list
+         + ['linstor-controller-' ~ linstor_install_version ~ '*',
+            'linstor-common-' ~ linstor_install_version ~ '*'] }}

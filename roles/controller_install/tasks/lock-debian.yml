@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Lock LINSTOR controller package versions (APT)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - linstor-controller
+    - linstor-common

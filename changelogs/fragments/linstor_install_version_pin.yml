@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+minor_changes:
+  - controller_install - new ``linstor_install_version`` variable pins
+    ``linstor-controller`` and ``linstor-common`` to a specific version, for
+    example ``1.33.3``, and locks them in the OS package manager (``dnf
+    versionlock`` / ``apt-mark hold`` / ``zypper addlock``) against upgrades.
+    Empty (the default) installs the newest available. Mirrors
+    ``drbd_install``'s ``drbd_install_module_version``.
+  - satellite_install - honors the same shared ``linstor_install_version``
+    variable, pinning ``linstor-satellite`` and ``linstor-common`` in lockstep
+    with the controller. Both roles pin ``linstor-common`` because
+    ``linstor-controller`` and ``linstor-satellite`` each depend on an exact
+    ``linstor-common`` version.
+  - controller_install - corrected the documented default of
+    ``controller_install_package_state`` to ``present`` to match
+    ``defaults/main.yml``.

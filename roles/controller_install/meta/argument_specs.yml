@@ -14,13 +14,25 @@ argument_specs:
           - LINSTOR controller API port.
       controller_install_package_state:
         type: str
-        default: latest
+        default: present
         choices:
           - latest
           - present
         description:
           - Package state for LINSTOR controller packages.
-          - Set C(present) to skip upgrades.
+          - C(latest) installs or upgrades, C(present) installs only.
+      linstor_install_version:
+        type: str
+        default: ""
+        description:
+          - >-
+            Pin the LINSTOR server packages (C(linstor-controller) and
+            C(linstor-common)) to a version, for example C(1.33.3), and lock
+            them in the OS package manager against upgrades.
+          - >-
+            Shared with C(satellite_install): set it once to keep controller,
+            satellite, and common in lockstep. Empty installs the newest
+            available.
       controller_install_gui:
         type: bool
         default: true

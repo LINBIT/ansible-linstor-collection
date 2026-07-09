@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Remove version locks for LINSTOR satellite packages (DNF)
+  community.general.dnf_versionlock:
+    name:
+      - linstor-satellite
+      - linstor-common
+    state: absent
+  changed_when: false
+  failed_when: false

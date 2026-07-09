@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Remove version holds for LINSTOR satellite packages (APT)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: install
+  loop:
+    - linstor-satellite
+    - linstor-common
+  changed_when: false
+  failed_when: false

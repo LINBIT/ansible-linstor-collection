@@ -17,12 +17,36 @@ The following inventory group must be defined:
 | Variable | Default | Description |
 |---|---|---|
 | `satellite_install_package_state` | `present` | Package state for LINSTOR satellite packages; set `latest` to check for upgrades |
+| `linstor_install_version` | `""` | Pin `linstor-satellite` and `linstor-common` to a version, for example `1.33.3`, and lock them against upgrades; shared with `controller_install` for lockstep, empty installs newest |
 | `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), Red Hat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
 | `satellite_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall ports and the LVM `global_filter` for DRBD devices (drift correction) |
 
 See `defaults/main.yml` and `vars/` for additional variables.
+
+## Removing a version lock
+
+Setting `linstor_install_version` locks `linstor-satellite` and `linstor-common` against upgrades.
+Clearing the variable alone does not release the lock on a node where the packages are already installed, because the role only touches the lock when it installs.
+Release the lock in one of these ways:
+
+- Move the pin: set `linstor_install_version` to the new version and re-run the role, which unlocks, installs that version, and re-locks at it.
+- Unpin and upgrade to newest: clear `linstor_install_version`, set `satellite_install_package_state: latest`, and re-run the role, which unlocks and does not re-lock.
+
+To release the lock manually, run the command for the node's package manager.
+Release all LINSTOR server packages together, because they must stay in lockstep even though this role manages only its own:
+
+```bash
+# Red Hat (DNF)
+dnf versionlock delete linstor-controller linstor-satellite linstor-common
+
+# Debian and Ubuntu (APT)
+apt-mark unhold linstor-controller linstor-satellite linstor-common
+
+# SUSE (Zypper)
+zypper removelock linstor-controller linstor-satellite linstor-common
+```
 
 ## ZFS support
 

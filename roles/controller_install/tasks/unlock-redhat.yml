@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Remove version locks for LINSTOR controller packages (DNF)
+  community.general.dnf_versionlock:
+    name:
+      - linstor-controller
+      - linstor-common
+    state: absent
+  changed_when: false
+  failed_when: false

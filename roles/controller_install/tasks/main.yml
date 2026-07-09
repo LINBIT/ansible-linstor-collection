@@ -22,24 +22,40 @@
     path: /usr/lib/systemd/system/linstor-controller.service
   register: _controller_install_check
 
-- name: Install LINSTOR controller packages
-  ansible.builtin.package:
-    name: "{{ _controller_install_packages_list }}"
-    state: "{{ controller_install_package_state }}"
-  vars:
+- name: Build LINSTOR controller package list
+  ansible.builtin.set_fact:
     _controller_install_packages_list: >-
       {{ ['linstor-controller']
          + (['linstor-gui'] if controller_install_gui | bool else []) }}
+
+- name: Install LINSTOR controller
   when:
     - not _controller_install_check.stat.exists
       or controller_install_package_state != 'present'
-  register: _controller_install_packages
-  until: _controller_install_packages is succeeded
-  retries: 3
-  delay: 10
+      or linstor_install_version | default('') | length > 0
+  block:
+    - name: Unlock LINSTOR controller package versions
+      ansible.builtin.include_tasks: "unlock-{{ ansible_facts['os_family'] | lower }}.yml"
+
+    - name: Pin LINSTOR controller package versions
+      ansible.builtin.include_tasks: "pin-version-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: linstor_install_version | default('') | length > 0
+
+    - name: Install LINSTOR controller packages
+      ansible.builtin.package:
+        name: "{{ _controller_install_packages_list }}"
+        state: "{{ controller_install_package_state }}"
+      register: _controller_install_packages
+      until: _controller_install_packages is succeeded
+      retries: 3
+      delay: 10
+
+    - name: Lock LINSTOR controller package versions
+      ansible.builtin.include_tasks: "lock-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: linstor_install_version | default('') | length > 0
 
 - name: Configure LINSTOR controller # noqa: no-handler
   ansible.builtin.include_tasks: configure-controller.yml
   when:
-    (_controller_install_packages is changed) or
+    (_controller_install_packages | default({}) is changed) or
     (controller_install_force_reconfigure | bool)

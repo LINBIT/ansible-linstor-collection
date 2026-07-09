@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install DNF versionlock plugin
+  ansible.builtin.dnf:
+    name: python3-dnf-plugin-versionlock
+    state: present
+  register: _satellite_install_versionlock_plugin
+  until: _satellite_install_versionlock_plugin is succeeded
+  retries: 3
+  delay: 10
+
+- name: Lock LINSTOR satellite package versions (DNF)
+  community.general.dnf_versionlock:
+    name:
+      - linstor-satellite
+      - linstor-common
+    state: present

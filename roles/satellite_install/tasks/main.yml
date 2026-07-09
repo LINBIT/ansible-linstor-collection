@@ -13,10 +13,16 @@
     path: /usr/lib/systemd/system/linstor-satellite.service
   register: _satellite_install_check
 
+- name: Build LINSTOR satellite package list
+  ansible.builtin.set_fact:
+    _satellite_install_packages_list:
+      - linstor-satellite
+
 - name: Install LINSTOR satellite
   when:
     - "not _satellite_install_check.stat.exists
-      or satellite_install_package_state != 'present'"
+      or satellite_install_package_state != 'present'
+      or linstor_install_version | default('') | length > 0"
   block:
     - name: Install ZFS utilities
       ansible.builtin.include_role:
@@ -32,15 +38,26 @@
       retries: 3
       delay: 10
 
+    - name: Unlock LINSTOR satellite package versions
+      ansible.builtin.include_tasks: "unlock-{{ ansible_facts['os_family'] | lower }}.yml"
+
+    - name: Pin LINSTOR satellite package versions
+      ansible.builtin.include_tasks: "pin-version-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: linstor_install_version | default('') | length > 0
+
     - name: Install LINSTOR satellite
       ansible.builtin.package:
-        name: linstor-satellite
+        name: "{{ _satellite_install_packages_list }}"
         state: "{{ satellite_install_package_state }}"
       register: _satellite_install_packages
       until: _satellite_install_packages is succeeded
       retries: 3
       delay: 10
       notify: sat_package_update
+
+    - name: Lock LINSTOR satellite package versions
+      ansible.builtin.include_tasks: "lock-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: linstor_install_version | default('') | length > 0
 
 - name: Configure LINSTOR satellite # noqa: no-handler
   ansible.builtin.include_tasks: configure-satellite.yml

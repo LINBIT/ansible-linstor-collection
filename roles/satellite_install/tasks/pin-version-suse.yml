@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: MIT
+---
+# Zypper does not support version globbing, so resolve the exact version.
+# linstor-satellite and linstor-common share an exact dependency, so one
+# lookup gives the version for both.
+- name: Resolve pinned LINSTOR version (Zypper)
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      zypper --non-interactive se -s --match-exact linstor-satellite
+      | awk -F'|' '$4 ~ /^ *{{ linstor_install_version }}/ {
+      gsub(/^ +| +$/, "", $4); print $4; exit }'
+  register: _satellite_install_suse_version
+  changed_when: false
+
+- name: Pin LINSTOR satellite and common to a version (Zypper)
+  ansible.builtin.set_fact:
+    _satellite_install_packages_list: >-
+      {{ _satellite_install_packages_list
+         | reject('equalto', 'linstor-satellite')
+         | list
+         + ['linstor-satellite=' ~ _satellite_install_suse_version.stdout,
+            'linstor-common=' ~ _satellite_install_suse_version.stdout] }}
+  when: _satellite_install_suse_version.stdout | length > 0

@@ -16,6 +16,18 @@ argument_specs:
         description:
           - Package state for LINSTOR satellite packages.
           - Set C(latest) to check for upgrades.
+      linstor_install_version:
+        type: str
+        default: ""
+        description:
+          - >-
+            Pin the LINSTOR server packages (C(linstor-satellite) and
+            C(linstor-common)) to a version, for example C(1.33.3), and lock
+            them in the OS package manager against upgrades.
+          - >-
+            Shared with C(controller_install): set it once to keep controller,
+            satellite, and common in lockstep. Empty installs the newest
+            available.
       satellite_install_firewall_rules:
         type: bool
         default: true

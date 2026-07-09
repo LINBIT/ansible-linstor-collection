@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Check existing zypper locks
+  ansible.builtin.command:
+    cmd: zypper locks
+  register: _satellite_install_zypper_locks
+  changed_when: false
+
+- name: Lock LINSTOR satellite package versions (Zypper)
+  ansible.builtin.command:
+    cmd: "zypper addlock {{ item }}"
+  loop:
+    - linstor-satellite
+    - linstor-common
+  changed_when: true
+  when: item not in _satellite_install_zypper_locks.stdout
