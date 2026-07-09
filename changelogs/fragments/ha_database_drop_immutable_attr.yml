@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - ha_database - stop setting the ``+i`` immutable attribute on
+    ``/var/lib/linstor`` during HA conversion. The attribute blocked routine
+    teardown and re-initialization of the HA database and is no longer part
+    of the recommended manual procedure in the user guide.

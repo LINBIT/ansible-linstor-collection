@@ -141,7 +141,6 @@
     owner: root
     group: root
     mode: '0750'
-    attributes: '+i'
   when: inventory_hostname in _ha_db_combined_nodes
 
 - name: Promote HA database resource
