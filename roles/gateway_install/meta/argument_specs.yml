@@ -18,6 +18,13 @@ argument_specs:
         description:
           - Package state for the C(linstor-gateway) package.
           - Set C(latest) to upgrade, C(present) to skip upgrades.
+      gateway_install_from_github:
+        type: bool
+        default: false
+        description:
+          - Skip the package manager and install the latest C(linstor-gateway)
+            release binary from GitHub.
+          - Useful when the package repositories lag behind an upstream release.
       gateway_install_firewall_rules:
         type: bool
         default: true

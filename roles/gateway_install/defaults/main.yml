@@ -4,6 +4,8 @@
 
 gateway_install_package_state: present
 
+gateway_install_from_github: false
+
 gateway_install_firewall_rules: true
 
 gateway_install_firewall_ports:
