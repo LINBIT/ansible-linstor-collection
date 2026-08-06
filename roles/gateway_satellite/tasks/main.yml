@@ -90,6 +90,9 @@
 
     - name: Configure gateway daemon token authentication
       ansible.builtin.include_tasks: token-auth.yml
+      when:
+        - ansible_facts.services['linstor-gateway.service'] is defined
+        - ansible_facts.services['linstor-gateway.service'].status != 'not-found'
 
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers

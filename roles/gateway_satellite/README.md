@@ -35,6 +35,8 @@ The role then creates a dedicated per-node token with `linbit.linstor.auth_token
 The daemon reads `LS_ROOT_CA_FILE` natively on golinstor 0.63.0 and later; a small wrapper bridges it to `LS_ROOT_CA` on earlier golinstor.
 The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, the `ssl_init` CA file when present, otherwise the controller's auto-generated HTTPS certificate, which the role fetches and installs into `gateway_satellite_config_dir`.
 This runs only when `linstor_controllers` is present in the inventory, since creating the token needs controller API access.
+Daemon configuration applies only on nodes where the `linstor-gateway.service` unit file exists.
+Satellites without the daemon skip it, so both [server placements](https://linbit.com/drbd-user-guide/linstorgateway-guide-1_0-en/#_general_guidelines_for_deploying_a_linstor_gateway_server) work: alongside potential controller nodes, or on every cluster node as `cluster_init` deploys through `gateway_install`.
 
 SCST installation is delegated to the `linbit.drbd_reactor.scst_install` role.
 Set `scst_install_version` to pin a tag, branch, or commit SHA.
