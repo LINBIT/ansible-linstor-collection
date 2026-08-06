@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - gateway_satellite - on token-authenticated clusters deployed without
+    ``ssl_init``, the daemon could not verify the controller's auto-generated
+    HTTPS certificate and every ``linstor-gateway`` command failed with a
+    certificate error; the role now fetches the controller certificate and
+    trusts it when no other CA is configured.

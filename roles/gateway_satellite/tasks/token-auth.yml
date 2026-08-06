@@ -22,6 +22,7 @@
          else (_gw_ctrl_info.properties['Auth/TokenAuthenticationEnabled']
                | default('false') | bool) }}
     _gw_token_desc: "linstor-gateway-{{ inventory_hostname }}"
+    _gw_controller_addr: "{{ query('linbit.linstor.group_addresses', 'linstor_controllers') | first }}"
 
 - name: Configure daemon credentials when token authentication is enabled
   when: _gw_token_auth | bool
@@ -86,11 +87,40 @@
       when: gateway_satellite_ca_cert != ""
       notify: restart_linstor_gateway
 
+    - name: Check for the ssl_init CA certificate
+      ansible.builtin.stat:
+        path: "{{ gateway_satellite_ca_cert_file }}"
+      register: _gw_ssl_ca
+      when: gateway_satellite_ca_cert == ""
+
+    # Without ssl_init, token auth still enables REST HTTPS with a self-signed certificate
+    - name: Fetch the controller auto-HTTPS certificate
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - import ssl; print(ssl.get_server_certificate(("{{ _gw_controller_addr }}", 3371)))
+      when:
+        - gateway_satellite_ca_cert == ""
+        - not _gw_ssl_ca.stat.exists
+      register: _gw_served_cert
+      changed_when: false
+
+    - name: Install the controller auto-HTTPS certificate as the trusted CA
+      ansible.builtin.copy:
+        content: "{{ _gw_served_cert.stdout ~ '\n' }}"
+        dest: "{{ gateway_satellite_config_dir }}/ca.crt"
+        mode: '0644'
+      when:
+        - gateway_satellite_ca_cert == ""
+        - not _gw_ssl_ca.stat.exists
+      notify: restart_linstor_gateway
+
     - name: Resolve the CA path the daemon trusts
       ansible.builtin.set_fact:
-        _gw_ca_path: "{{ (gateway_satellite_config_dir ~ '/ca.crt')
-                         if gateway_satellite_ca_cert != ''
-                         else gateway_satellite_ca_cert_file }}"
+        _gw_ca_path: "{{ gateway_satellite_ca_cert_file
+                         if (gateway_satellite_ca_cert == '' and _gw_ssl_ca.stat.exists)
+                         else gateway_satellite_config_dir ~ '/ca.crt' }}"
 
     - name: Ensure gateway systemd drop-in directory exists
       ansible.builtin.file:

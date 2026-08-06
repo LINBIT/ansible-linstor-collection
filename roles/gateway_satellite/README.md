@@ -33,6 +33,7 @@ No group definition is needed for smaller clusters.
 When the controller has token authentication enabled (LINSTOR 1.34 and later, through the `auth_init` role), the `linstor-gateway` daemon becomes a token-authenticated REST client over HTTPS.
 The role then creates a dedicated per-node token with `linbit.linstor.auth_token`, writes it and the controller CA into `gateway_satellite_config_dir`, and points the daemon at both through a systemd drop-in that sets `LS_BEARER_TOKEN_FILE` and `LS_ROOT_CA_FILE`.
 The daemon reads `LS_ROOT_CA_FILE` natively on golinstor 0.63.0 and later; a small wrapper bridges it to `LS_ROOT_CA` on earlier golinstor.
+The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, the `ssl_init` CA file when present, otherwise the controller's auto-generated HTTPS certificate, which the role fetches and installs into `gateway_satellite_config_dir`.
 This runs only when `linstor_controllers` is present in the inventory, since creating the token needs controller API access.
 
 SCST installation is delegated to the `linbit.drbd_reactor.scst_install` role.
