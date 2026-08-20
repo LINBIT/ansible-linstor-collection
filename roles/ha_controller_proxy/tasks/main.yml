@@ -31,7 +31,6 @@
       register: _ha_controller_proxy_pkg
       until: _ha_controller_proxy_pkg is succeeded
       retries: 3
-      delay: 10
 
     - name: Allow HAProxy to make outbound connections under SELinux
       when: ansible_facts['os_family'] | lower == 'redhat'

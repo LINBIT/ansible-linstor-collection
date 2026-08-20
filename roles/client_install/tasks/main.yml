@@ -22,7 +22,6 @@
   register: _client_install_package
   until: _client_install_package is succeeded
   retries: 3
-  delay: 10
 
 - name: Configure linstor-client # noqa: no-handler
   ansible.builtin.include_tasks: configure-client.yml

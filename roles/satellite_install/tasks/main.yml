@@ -36,7 +36,6 @@
       register: _satellite_install_prereqs_result
       until: _satellite_install_prereqs_result is succeeded
       retries: 3
-      delay: 10
 
     - name: Unlock LINSTOR satellite package versions
       ansible.builtin.include_tasks: "unlock-{{ ansible_facts['os_family'] | lower }}.yml"
@@ -52,7 +51,6 @@
       register: _satellite_install_packages
       until: _satellite_install_packages is succeeded
       retries: 3
-      delay: 10
       notify: sat_package_update
 
     - name: Lock LINSTOR satellite package versions

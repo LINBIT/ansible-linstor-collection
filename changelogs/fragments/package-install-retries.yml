@@ -1,0 +1,8 @@
+---
+minor_changes:
+  - gateway_install - retry the package manager install up to three times so
+    a transient package repository failure does not silently fall back to the
+    GitHub binary.
+  - client_install, controller_install, satellite_install, gateway_satellite,
+    ha_controller_proxy, ssl_init - use the default retry delay on package
+    installation tasks for consistency across collections.

@@ -31,7 +31,6 @@
       register: _gateway_satellite_packages
       until: _gateway_satellite_packages is succeeded
       retries: 3
-      delay: 10
       notify: disable_and_stop_nfs
 
     # nvmet-tcp moved into the base kernel in Ubuntu 26.04; earlier releases need linux-modules-extra
@@ -46,7 +45,6 @@
       register: _gateway_satellite_modules_extra
       until: _gateway_satellite_modules_extra is succeeded
       retries: 3
-      delay: 10
 
     - name: Install SCST
       ansible.builtin.include_role:

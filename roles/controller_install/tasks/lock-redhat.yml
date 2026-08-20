@@ -7,7 +7,6 @@
   register: _controller_install_versionlock_plugin
   until: _controller_install_versionlock_plugin is succeeded
   retries: 3
-  delay: 10
 
 - name: Lock LINSTOR controller package versions (DNF)
   community.general.dnf_versionlock:

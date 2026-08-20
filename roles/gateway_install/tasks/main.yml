@@ -6,6 +6,8 @@
     state: "{{ gateway_install_package_state }}"
   when: not gateway_install_from_github | bool
   register: _gateway_install_package
+  until: _gateway_install_package is succeeded
+  retries: 3
   ignore_errors: true
   notify: restart_linstor_gateway
 

@@ -48,7 +48,6 @@
       register: _controller_install_packages
       until: _controller_install_packages is succeeded
       retries: 3
-      delay: 10
 
     - name: Lock LINSTOR controller package versions
       ansible.builtin.include_tasks: "lock-{{ ansible_facts['os_family'] | lower }}.yml"
