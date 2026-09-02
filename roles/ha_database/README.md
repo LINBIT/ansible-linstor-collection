@@ -7,6 +7,7 @@ It migrates the LINSTOR database onto a DRBD resource replicated across 2-3 comb
 DRBD Reactor manages automatic failover of the controller service.
 
 The role is idempotent: it checks the `Aux/ClusterIsHA` controller property and skips if the conversion has already been completed.
+It also skips when the `linstor_db` resource definition already exists, so a cluster converted outside this role — for example with the `linstor-controller-ha-setup` script that ships with `linstor-controller` 1.35.0 and later — is detected and left untouched.
 It also skips when the inventory contains fewer than 2 combined nodes or fewer than 3 total satellites.
 This makes it safe to include in deployment playbooks that run repeatedly, even for standalone controller clusters.
 
@@ -29,7 +30,6 @@ See `defaults/main.yml`.
 |---|---|---|
 | `ha_database_pool` | `""` | Storage pool for the HA database resource; empty auto-selects the first diskful pool name alphabetically on the combined nodes; an explicitly set pool must exist as a diskful pool on every combined node |
 | `ha_database_rg` | `linstor-db-grp` | LINSTOR resource group name |
-| `ha_database_res` | `linstor_db` | LINSTOR resource name |
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_allow_2_replica` | `false` | Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist; the role otherwise fails and asks for a third combined node (ignored with only 2 diskful satellites) |

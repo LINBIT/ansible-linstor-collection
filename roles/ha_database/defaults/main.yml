@@ -2,7 +2,6 @@
 ---
 ha_database_pool: ""
 ha_database_rg: linstor-db-grp
-ha_database_res: linstor_db
 ha_database_res_size: 200M
 
 ha_database_filesystem: ext4

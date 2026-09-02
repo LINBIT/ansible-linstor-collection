@@ -80,7 +80,7 @@
 # 2 combined nodes - auto-quorum adds a diskless TieBreaker automatically
 - name: Place HA database resource on combined nodes
   linbit.linstor.resource:
-    name: "{{ ha_database_res }}"
+    name: "{{ _ha_db_res }}"
     mode: manual
     resource_group: "{{ ha_database_rg }}"
     sizes:
@@ -94,7 +94,7 @@
 
 - name: Wait for HA database resource to be Connected with all peers
   ansible.builtin.command:
-    cmd: drbdadm cstate {{ ha_database_res }}
+    cmd: drbdadm cstate {{ _ha_db_res }}
   when: inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_drbd_cstate
   until:
@@ -106,7 +106,7 @@
 
 - name: Wait for HA database resource to be UpToDate on all diskful nodes
   ansible.builtin.command:
-    cmd: drbdadm dstate {{ ha_database_res }}
+    cmd: drbdadm dstate {{ _ha_db_res }}
   when: inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_drbd_dstate
   until: _ha_db_drbd_dstate.stdout.count('UpToDate') == _ha_db_combined_nodes | length
@@ -145,7 +145,7 @@
 
 - name: Promote HA database resource
   ansible.builtin.command:
-    cmd: drbdadm primary {{ ha_database_res }}
+    cmd: drbdadm primary {{ _ha_db_res }}
   when: inventory_hostname == _ha_db_primary_node
   register: _ha_db_conversion_promote_result
   changed_when: _ha_db_conversion_promote_result.rc == 0
@@ -153,7 +153,7 @@
 - name: Create new filesystem for HA database
   community.general.filesystem:
     fstype: "{{ ha_database_filesystem }}"
-    dev: "/dev/drbd/by-res/{{ ha_database_res }}/0"
+    dev: "/dev/drbd/by-res/{{ _ha_db_res }}/0"
     opts: "{{ _ha_db_mkfs_opts | default('') }}"
   when: inventory_hostname == _ha_db_primary_node
 
@@ -200,7 +200,7 @@
 
 - name: Verify linstor_db resource has promoted successfully
   ansible.builtin.command:
-    cmd: drbd-reactorctl status {{ ha_database_res }}
+    cmd: drbd-reactorctl status {{ _ha_db_res }}
   when: inventory_hostname == _ha_db_primary_node
   register: _ha_db_reactor_status
   until: "'currently active on this node' in _ha_db_reactor_status.stdout"
@@ -226,7 +226,7 @@
 
 - name: Verify all DRBD peer connections are still Established after HA pivot
   ansible.builtin.command:
-    cmd: drbdadm cstate {{ ha_database_res }}
+    cmd: drbdadm cstate {{ _ha_db_res }}
   when: inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_drbd_cstate_post
   until:
@@ -238,7 +238,7 @@
 
 - name: Verify HA database resource is still UpToDate everywhere after HA pivot
   ansible.builtin.command:
-    cmd: drbdadm dstate {{ ha_database_res }}
+    cmd: drbdadm dstate {{ _ha_db_res }}
   when: inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_drbd_dstate_post
   until: _ha_db_drbd_dstate_post.stdout.count('UpToDate') == _ha_db_combined_nodes | length

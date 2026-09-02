@@ -23,11 +23,6 @@ argument_specs:
         default: linstor-db-grp
         description:
           - LINSTOR resource group name for the HA database.
-      ha_database_res:
-        type: str
-        default: linstor_db
-        description:
-          - LINSTOR resource name for the HA database.
       ha_database_res_size:
         type: str
         default: 200M

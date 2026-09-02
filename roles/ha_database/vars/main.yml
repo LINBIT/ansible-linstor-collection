@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
+# HA DB resource name shared with the LINSTOR UG and the linstor-controller-ha-setup script
+_ha_db_res: linstor_db
+
 # Parsed from the public ha_database_vip ("a.b.c.d/24" form).
 _ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
 _ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else '24' }}"
@@ -44,7 +47,8 @@ _ha_db_combined_nodes: "{{ groups['linstor_controllers'] | intersect(_ha_db_disk
 _ha_db_conversion_needed: >-
   {{ (_ha_db_combined_nodes | length >= 2) and
      (groups['linstor_satellites'] | length >= 3) and
-     ((_ha_db_conversion_check.properties['Aux/ClusterIsHA'] | default('')) != 'True') }}
+     ((_ha_db_conversion_check.properties['Aux/ClusterIsHA'] | default('')) != 'True') and
+     (_ha_db_res_check.resource_definitions | default([]) | length == 0) }}
 
 # Diskful pool names on the combined nodes, sorted for deterministic selection
 _ha_db_pool_names: >-

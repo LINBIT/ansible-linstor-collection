@@ -34,6 +34,16 @@
   register: _ha_db_conversion_check
   run_once: true  # noqa: run-once[task]
 
+- name: Check for an existing HA database resource definition
+  linbit.linstor.resource_definition_info:
+    name: "{{ _ha_db_res }}"
+  when: _ha_db_combined_nodes | length >= 2
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _ha_db_res_check
+  run_once: true  # noqa: run-once[task]
+
 - name: Convert LINSTOR database to HA
   ansible.builtin.include_tasks: ha-conversion.yml
   when: _ha_db_conversion_needed | bool
