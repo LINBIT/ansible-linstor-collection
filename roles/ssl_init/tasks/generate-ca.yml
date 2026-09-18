@@ -12,12 +12,14 @@
   delegate_to: localhost
   become: false
 
+# ec_param_enc must follow the curve option - LibreSSL (macOS) defaults to explicit params, which Java rejects
 - name: Generate CA private key
   ansible.builtin.command:
     cmd: >-
       openssl genpkey
       -algorithm {{ ssl_init_key_algorithm }}
       -pkeyopt {{ 'ec_paramgen_curve:' + ssl_init_ca_curve if ssl_init_key_algorithm == 'EC' else 'rsa_keygen_bits:' + ssl_init_rsa_key_size | string }}
+      {{ '-pkeyopt ec_param_enc:named_curve' if ssl_init_key_algorithm == 'EC' else '' }}
       -out {{ ssl_init_local_dir }}/ca.key
     creates: "{{ ssl_init_local_dir }}/ca.key"
   run_once: true

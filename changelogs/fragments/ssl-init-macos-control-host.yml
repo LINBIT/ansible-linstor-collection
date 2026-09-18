@@ -1,0 +1,8 @@
+bugfixes:
+  - ssl_init - restore macOS control hosts, broken since 0.9.8 when key
+    generation moved onto the control host. macOS ships LibreSSL as
+    openssl, which writes EC keys with explicit curve parameters that
+    Java rejects during the keystore import. The role now requests
+    named-curve encoding on every key it generates. No change for Linux
+    control hosts or for any deployed target. A ca.key already generated
+    from a Mac under ssl_init_local_dir must be deleted before re-running.
