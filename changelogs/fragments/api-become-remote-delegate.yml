@@ -1,0 +1,7 @@
+bugfixes:
+  - linstor API action plugins - keep privilege escalation for remote
+    delegates. Become was disabled for every module, which is only needed for
+    delegate_to localhost. With linstor_api_delegate pointed at a cluster node
+    the modules ran as the unprivileged login user, could not read the auth
+    token from root's linstor-client.conf, and failed every API task with
+    "requires token authentication, but no token was found".
