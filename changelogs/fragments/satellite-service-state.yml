@@ -1,0 +1,6 @@
+bugfixes:
+  - satellite_install - enable and start linstor-satellite on every run.
+    The service was only started by a handler notified from the package
+    install task, which is skipped once the package is present, so a node
+    whose package was installed outside the role, or whose service was
+    stopped, could never converge.

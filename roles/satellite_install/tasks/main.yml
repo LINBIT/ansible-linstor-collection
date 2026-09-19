@@ -62,3 +62,11 @@
   when:
     (_satellite_install_packages | default({}) is changed) or
     (satellite_install_force_reconfigure | bool)
+
+# The handler only fires on a package change, so a node that already has the
+# package but not the service would never converge
+- name: Enable and start LINSTOR satellite service
+  ansible.builtin.systemd:
+    name: linstor-satellite.service
+    state: started
+    enabled: true
