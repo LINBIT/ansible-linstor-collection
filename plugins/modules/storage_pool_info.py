@@ -95,7 +95,7 @@ storage_pools:
       description: LINSTOR provider kind string (for example LVM_THIN or ZFS).
       type: str
     driver_pool:
-      description: Backend storage identifier (volume group, thin pool, or zpool).
+      description: Backend storage identifier (volume group, thin pool, or zpool). Empty for diskless pools.
       type: str
     free_capacity:
       description: Free capacity in KiB, or null if not reported.
@@ -133,7 +133,7 @@ def pool_to_dict(pool):
         name=getattr(pool, 'name', ''),
         node=getattr(pool, 'node_name', ''),
         provider_kind=str(getattr(pool, 'provider_kind', '')),
-        driver_pool=getattr(pool, 'backing_pool', ''),
+        driver_pool=get_sp_props(pool).get('StorDriver/StorPoolName', ''),
         free_capacity=free_cap,
         total_capacity=total_cap,
         properties=get_sp_props(pool),
