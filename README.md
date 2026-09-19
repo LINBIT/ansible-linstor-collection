@@ -71,6 +71,8 @@ Custom Ansible modules for managing LINSTOR objects declaratively. Install [`pyt
 | `node_info` | Read-only query for nodes (filter by `name`, or omit for all) |
 | `node_interface` | Manage node net interfaces (create, modify, delete) |
 | `node_interface_info` | Read-only query for a node's network interfaces (requires `node`, optional `name`) |
+| `physical_storage` | Create LVM, LVM thin, ZFS, or SPDK device pools on a satellite from unused block devices, optionally under VDO or on self-encrypting drives, and register a storage pool in the same call (`state: present` only, LINSTOR has no device pool delete) |
+| `physical_storage_info` | Read-only query for unused block devices that satellites report as eligible for `physical_storage` (filter by `node`, or omit for all) |
 | `storage_pool` | Manage storage pools on nodes (LVM, LVM thin, ZFS, file, etc.) |
 | `storage_pool_info` | Read-only query for storage pools (filter by `name` and/or `node`, or omit for all) |
 | `resource_group` | Manage resource groups with placement rules, DRBD options, properties |

@@ -1,0 +1,269 @@
+# SPDX-License-Identifier: MIT
+---
+# Test the physical_storage and physical_storage_info modules against a
+# deployed cluster that has one unused block device on a satellite.
+# LINSTOR cannot delete device pools, so cleanup between scenarios removes
+# the volume groups on the node by hand (delegated command tasks).
+# Required extra vars:
+#   test_node    LINSTOR node name of the satellite, also its inventory hostname
+#   test_device  unused block device on that node, as the satellite names it
+# Optional:
+#   test_vdo=false   skip the VDO scenario (needs the vdo userspace tools on the satellite)
+#
+#   ansible-playbook ./test_physical_storage.yaml -e test_node=sat-1 -e test_device=/dev/sdc
+#
+# Module tasks run on the control node and reach the controller through
+# linstor-client.conf or LS_CONTROLLERS.
+#
+# Scenarios:
+#   1. lvm pool without a storage pool: idempotency through the unused device list
+#   2. lvmthin pool with a storage pool: check mode, create, capacity, idempotency
+#   3. lvmthin pool on VDO with a storage pool
+
+- name: Test LINSTOR physical storage modules
+  hosts: localhost
+  any_errors_fatal: true
+  gather_facts: false
+  vars:
+    _node: "{{ test_node }}"
+    _device: "{{ test_device }}"
+    _lvm_pool: test-ps-lvm
+    _thin_pool: test-ps-thin
+    _thin_sp: test-ps-thin-sp
+    _vdo_pool: test-ps-vdo
+    _vdo_sp: test-ps-vdo-sp
+    _run_vdo: "{{ test_vdo | default(true) | bool }}"
+  tasks:
+    - name: Assert test_node and test_device are set
+      ansible.builtin.assert:
+        that:
+          - test_node is defined
+          - test_device is defined
+        fail_msg: "Pass -e test_node=<satellite> -e test_device=/dev/<disk>"
+        quiet: true
+
+    # =================================================================
+    # Pre-cleanup: ensure no leftover test pools from prior runs
+    # =================================================================
+    - name: "Pre-cleanup: remove leftover storage pools"
+      linbit.linstor.storage_pool:
+        name: "{{ item }}"
+        node: "{{ _node }}"
+        state: absent
+      loop:
+        - "{{ _thin_sp }}"
+        - "{{ _vdo_sp }}"
+      failed_when: false
+
+    - name: "Pre-cleanup: remove leftover volume groups on the node"
+      ansible.builtin.command: vgremove -f -y {{ item }}
+      loop:
+        - "{{ _lvm_pool }}"
+        - "linstor_{{ _thin_pool }}"
+        - "{{ _vdo_pool }}-vdobase"
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: true
+      failed_when: false
+
+    - name: "Pre-cleanup: wipe the test device"
+      ansible.builtin.command: wipefs -a {{ _device }}
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: true
+      failed_when: false
+
+    # =================================================================
+    # physical_storage_info
+    # =================================================================
+    - name: "Info: list unused devices on the node"
+      linbit.linstor.physical_storage_info:
+        node: "{{ _node }}"
+      register: ps_info
+
+    - name: "Info: test device is listed as unused"
+      ansible.builtin.assert:
+        that:
+          - _device in (ps_info.physical_devices | map(attribute='device') | list)
+          - (ps_info.physical_devices | selectattr('device', 'equalto', _device) | first).size > 0
+        quiet: true
+
+    - name: "Info: node filter excludes other nodes"
+      ansible.builtin.assert:
+        that: ps_info.physical_devices | map(attribute='node') | unique | list == [_node]
+        quiet: true
+
+    # =================================================================
+    # Scenario 1: lvm pool, no storage pool, device-list idempotency
+    # =================================================================
+    - name: "LVM: create volume group without a storage pool"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvm
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _lvm_pool }}"
+      register: lvm_create
+      failed_when: not lvm_create.changed
+
+    - name: "LVM: device is no longer listed as unused"
+      linbit.linstor.physical_storage_info:
+        node: "{{ _node }}"
+      register: lvm_info
+      failed_when: _device in (lvm_info.physical_devices | map(attribute='device') | list)
+
+    - name: "LVM: re-run is idempotent through the unused device list"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvm
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _lvm_pool }}"
+      register: lvm_idem
+      failed_when: lvm_idem.changed or 'assuming the device pool exists' not in lvm_idem.msg
+
+    - name: "LVM: volume group exists on the node"
+      ansible.builtin.command: vgs --noheadings -o vg_name {{ _lvm_pool }}
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: false
+
+    - name: "LVM: cleanup volume group on the node"
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - vgremove -f -y {{ _lvm_pool }}
+        - wipefs -a {{ _device }}
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: true
+
+    # =================================================================
+    # Scenario 2: lvmthin pool with storage pool
+    # =================================================================
+    - name: "Thin: check_mode reports change"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvmthin
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _thin_pool }}"
+        storage_pool: "{{ _thin_sp }}"
+      check_mode: true
+      register: thin_check
+      failed_when: not thin_check.changed
+
+    - name: "Thin: check_mode did not create the storage pool"
+      linbit.linstor.storage_pool_info:
+        name: "{{ _thin_sp }}"
+        node: "{{ _node }}"
+      register: thin_check_sp
+      failed_when: thin_check_sp.storage_pools | length > 0
+
+    - name: "Thin: create thin pool and storage pool"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvmthin
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _thin_pool }}"
+        storage_pool: "{{ _thin_sp }}"
+        storage_pool_props:
+          MaxOversubscriptionRatio: "5"
+      register: thin_create
+      failed_when: >-
+        not thin_create.changed
+        or thin_create.driver_pool != 'linstor_' ~ _thin_pool ~ '/' ~ _thin_pool
+        or (thin_create.total_capacity | default(0) | int) <= 0
+        or thin_create.properties.MaxOversubscriptionRatio != '5'
+
+    - name: "Thin: re-run is idempotent through the storage pool"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvmthin
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _thin_pool }}"
+        storage_pool: "{{ _thin_sp }}"
+      register: thin_idem
+      failed_when: thin_idem.changed or 'already exists' not in thin_idem.msg
+
+    - name: "Thin: storage pool is LVM_THIN"
+      linbit.linstor.storage_pool_info:
+        name: "{{ _thin_sp }}"
+        node: "{{ _node }}"
+      register: thin_sp
+      failed_when: thin_sp.storage_pools[0].provider_kind != 'LVM_THIN'
+
+    - name: "Thin: cleanup storage pool"
+      linbit.linstor.storage_pool:
+        name: "{{ _thin_sp }}"
+        node: "{{ _node }}"
+        state: absent
+
+    - name: "Thin: cleanup volume group on the node"
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - vgremove -f -y linstor_{{ _thin_pool }}
+        - wipefs -a {{ _device }}
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: true
+
+    # =================================================================
+    # Scenario 3: lvmthin pool on VDO with storage pool
+    # =================================================================
+    - name: "VDO: create thin pool on VDO and storage pool"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvmthin
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _vdo_pool }}"
+        vdo: true
+        vdo_logical_size: 20G
+        storage_pool: "{{ _vdo_sp }}"
+      register: vdo_create
+      failed_when: >-
+        not vdo_create.changed
+        or vdo_create.driver_pool != _vdo_pool ~ '-vdobase/' ~ _vdo_pool
+        or (vdo_create.total_capacity | default(0) | int) <= 0
+      when: _run_vdo
+
+    - name: "VDO: re-run is idempotent"
+      linbit.linstor.physical_storage:
+        node: "{{ _node }}"
+        provider_kind: lvmthin
+        device_paths: ["{{ _device }}"]
+        pool_name: "{{ _vdo_pool }}"
+        vdo: true
+        vdo_logical_size: 20G
+        storage_pool: "{{ _vdo_sp }}"
+      register: vdo_idem
+      failed_when: vdo_idem.changed
+      when: _run_vdo
+
+    - name: "VDO: thin pool sits on a vdo segment"
+      ansible.builtin.command: lvs --noheadings -o lv_name,segtype {{ _vdo_pool }}-vdobase
+      delegate_to: "{{ _node }}"
+      become: true
+      register: vdo_lvs
+      changed_when: false
+      failed_when: "'vdo' not in vdo_lvs.stdout or 'thin-pool' not in vdo_lvs.stdout"
+      when: _run_vdo
+
+    - name: "VDO: cleanup storage pool"
+      linbit.linstor.storage_pool:
+        name: "{{ _vdo_sp }}"
+        node: "{{ _node }}"
+        state: absent
+      when: _run_vdo
+
+    - name: "VDO: cleanup volume group on the node"
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - vgremove -f -y {{ _vdo_pool }}-vdobase
+        - wipefs -a {{ _device }}
+      delegate_to: "{{ _node }}"
+      become: true
+      changed_when: true
+      when: _run_vdo
+
+    - name: "Final: device is listed as unused again"
+      linbit.linstor.physical_storage_info:
+        node: "{{ _node }}"
+      register: final_info
+      failed_when: _device not in (final_info.physical_devices | map(attribute='device') | list)

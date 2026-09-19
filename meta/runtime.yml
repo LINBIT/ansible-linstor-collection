@@ -24,6 +24,8 @@ action_groups:
     - node_info
     - node_interface
     - node_interface_info
+    - physical_storage
+    - physical_storage_info
     - remote
     - remote_info
     - resource

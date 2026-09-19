@@ -19,6 +19,8 @@ plugins/modules/node.py validate-modules:missing-gplv3-license
 plugins/modules/node_info.py validate-modules:missing-gplv3-license
 plugins/modules/node_interface.py validate-modules:missing-gplv3-license
 plugins/modules/node_interface_info.py validate-modules:missing-gplv3-license
+plugins/modules/physical_storage.py validate-modules:missing-gplv3-license
+plugins/modules/physical_storage_info.py validate-modules:missing-gplv3-license
 plugins/modules/remote.py validate-modules:missing-gplv3-license
 plugins/modules/remote_info.py validate-modules:missing-gplv3-license
 plugins/modules/resource.py validate-modules:missing-gplv3-license
