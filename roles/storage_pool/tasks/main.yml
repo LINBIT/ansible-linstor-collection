@@ -56,7 +56,7 @@
 
 - name: Assert pool type is valid
   ansible.builtin.assert:
-    that: item._type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk', 'storagespaces', 'storagespaces_thin']
+    that: item._type in ['lvm', 'lvmthin', 'zfs', 'zfsthin', 'file', 'filethin', 'spdk', 'remote_spdk', 'storagespaces', 'storagespaces_thin', 'diskless']
     fail_msg: "storage pool type '{{ item._type }}' is not a valid LINSTOR storage pool driver"
     quiet: true
   when: _storage_pool_has_pools | bool
@@ -71,7 +71,7 @@
     quiet: true
   when:
     - _storage_pool_has_pools | bool
-    - item._type not in ['file', 'filethin']
+    - item._type not in ['file', 'filethin', 'diskless']
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:
     label: "{{ item.name }}"
@@ -180,7 +180,7 @@
     name: "{{ item.name }}"
     node: "{{ inventory_hostname }}"
     driver: "{{ item._type }}"
-    driver_pool: "{{ _sp_driver_pool | trim }}"
+    driver_pool: "{{ (_sp_driver_pool | trim) or omit }}"
     properties: "{{ _sp_properties }}"
   vars:
     _sp_driver_pool: >-
@@ -192,6 +192,8 @@
          if item._type in ['zfs', 'zfsthin']
          else item.wss
          if item._type in ['storagespaces', 'storagespaces_thin']
+         else ''
+         if item._type == 'diskless'
          else item.vg }}
     _sp_custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
     _sp_stripe_opts: >-

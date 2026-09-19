@@ -2,8 +2,9 @@
 
 Create LINSTOR storage pools on diskful satellite nodes.
 
-The role supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`, `storagespaces`, `storagespaces_thin`.
+The role supports all LINSTOR storage pool driver types: `lvm`, `lvmthin`, `zfs`, `zfsthin`, `file`, `filethin`, `spdk`, `remote_spdk`, `storagespaces`, `storagespaces_thin`, `diskless`.
 It loops over the `linstor_storage_pools` inventory variable (a list of pool definitions) and creates the underlying storage (volume groups, thin pools, zpools, directories, or Windows Storage Spaces pools) before registering each pool with LINSTOR.
+The `diskless` type creates no storage on the node and only registers a custom diskless pool, which resources and resource groups select with `--diskless-storage-pool`.
 
 Each satellite creates the pools from `linstor_storage_pools` that target it; a satellite no pool targets is left diskless.
 It can be called from any play targeting `linstor_cluster` or broader.
@@ -36,7 +37,7 @@ Each item supports the following keys:
 | `vg_thinpool` | no | `thinpool` | lvmthin |
 | `zpool` | yes |  | zfs, zfsthin |
 | `wss` | yes |  | storagespaces, storagespaces_thin |
-| `physical_devices` | yes (non-file) |  | lvm, lvmthin, zfs, zfsthin, storagespaces, storagespaces_thin |
+| `physical_devices` | yes (non-file, non-diskless) |  | lvm, lvmthin, zfs, zfsthin, storagespaces, storagespaces_thin |
 | `file_path` | no | `/var/lib/linstor-filethin/` | file, filethin |
 | `thinpool_size` | no | `95%VG` | lvmthin |
 | `pv_create_options` | no | `""` | lvm, lvmthin |
@@ -322,6 +323,26 @@ linstor_storage_pools:
 ```
 
 Entries match a disk's `DeviceId` (as shown by `Get-PhysicalDisk`), `SerialNumber`, or `UniqueId`.
+
+### Custom diskless pools
+
+LINSTOR gives every node a `DfltDisklessStorPool` automatically, so most clusters never define a diskless pool.
+The main reason to define one is a designated quorum node.
+A diskless pool that exists only on that node, set as the resource group's `--diskless-storage-pool`, is the only place the `auto-add-quorum-tiebreaker` automatism can put a tiebreaker, so every two-replica resource in the group gets its third vote there:
+
+```yaml
+# group_vars/all/storage.yaml
+linstor_storage_pools:
+  - name: sp-quorum
+    type: diskless
+    nodes:
+      - node-4
+```
+
+The role creates nothing on the node for this type and only registers the pool with LINSTOR.
+Point the resource group at it with `linstor resource-group modify <rg> --diskless-storage-pool sp-quorum`.
+The pin is strict.
+If the node left over for the tiebreaker has no pool of that name, LINSTOR creates no tiebreaker rather than falling back to `DfltDisklessStorPool`, so keep the pool on a node that never holds replicas.
 
 ## Variable precedence
 

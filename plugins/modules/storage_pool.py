@@ -30,6 +30,8 @@ options:
     description:
       - Storage driver type.
       - Required when C(state=present).
+      - C(diskless) registers a custom diskless pool. It needs no backing
+        storage on the node, and O(driver_pool) must not be set.
       - The target satellite node must have the backing storage subsystem
         installed (for example, LVM tools for C(lvm) or C(lvmthin), ZFS
         utilities for C(zfs) or C(zfsthin)).
@@ -37,7 +39,7 @@ options:
         supports. See L(LINSTOR User's Guide,
         https://linbit.com/drbd-user-guide/linstor-guide-1_0-en/#s-linstor-node-info).
     type: str
-    choices: [lvm, lvmthin, zfs, zfsthin, file, filethin, spdk, remote_spdk, storagespaces, storagespaces_thin]
+    choices: [lvm, lvmthin, zfs, zfsthin, file, filethin, spdk, remote_spdk, storagespaces, storagespaces_thin, diskless]
   driver_pool:
     description:
       - Backend storage identifier.
@@ -45,7 +47,7 @@ options:
       - For LVM thin, the VG/thinpool path (e.g. C(drbdpool/thinpool)).
       - For ZFS, the zpool name (e.g. C(drbdpool)).
       - For file, the directory path.
-      - Required when C(state=present).
+      - Required when C(state=present), and must be omitted for C(driver=diskless).
     type: str
   shared_space:
     description: Shared storage space name for shared storage pools.
@@ -93,6 +95,7 @@ notes:
     such as C(inventory_hostname).
   - The C(node) parameter must refer to a LINSTOR satellite that has local
     storage (a node a pool targets, which is what makes it a diskful satellite).
+    C(diskless) pools are the exception and can target any satellite.
   - "Over-provisioning: C(MaxFreeCapacityOversubscriptionRatio),
     C(MaxTotalCapacityOversubscriptionRatio), and C(MaxOversubscriptionRatio)
     (all default to 20). LINSTOR uses the lower of the free and total ratios.
@@ -164,6 +167,15 @@ EXAMPLES = r'''
       MaxTotalCapacityOversubscriptionRatio: "3"
   run_once: true  # noqa: run-once[task]
 
+# Add a designated quorum node with a custom diskless storage pool
+# Configure a resource group to use it and pin TieBreaker resources to this node
+- name: Create a diskless storage pool on a designated quorum node
+  linbit.linstor.storage_pool:
+    name: sp-quorum
+    node: node-4
+    driver: diskless
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a storage pool
   linbit.linstor.storage_pool:
     name: sp-lvm
@@ -233,6 +245,7 @@ DRIVER_MAP = {
     'remote_spdk': 'REMOTE_SPDK',
     'storagespaces': 'STORAGE_SPACES',
     'storagespaces_thin': 'STORAGE_SPACES_THIN',
+    'diskless': 'Diskless',
 }
 
 
@@ -289,6 +302,9 @@ def main():
     properties = module.params['properties'] or {}
     delete_properties = module.params['delete_properties'] or []
 
+    if driver == 'diskless' and driver_pool:
+        module.fail_json(msg="'driver_pool' does not apply to driver 'diskless'")
+
     lin = get_linstor_connection(module)
     changed = False
 
@@ -312,7 +328,7 @@ def main():
                     driver=driver, driver_pool=driver_pool,
                     properties=properties)
 
-            if not driver or not driver_pool:
+            if not driver or (not driver_pool and driver != 'diskless'):
                 module.fail_json(
                     msg="'driver' and 'driver_pool' are required "
                         "to create storage pool %s on %s" % (name, node))

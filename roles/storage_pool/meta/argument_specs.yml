@@ -36,6 +36,9 @@ argument_specs:
             pooling; boot and system disks are refused. The thick and thin distinction lives in
             the LINSTOR driver, not in the pool.
           - >-
+            C(type: diskless) registers a custom diskless pool. The role creates no storage on the
+            node, so C(physical_devices) is not required.
+          - >-
             Optional targeting keys: C(nodes) (list of inventory hostnames) and C(groups) (list of inventory
             group names). When set, the pool is created only on hosts that match. When both are set, the
             union is used. When neither is set, the pool targets all C(linstor_satellites).

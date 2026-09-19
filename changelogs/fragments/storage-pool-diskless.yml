@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    storage_pool module - accept ``driver: diskless`` to register a custom
+    diskless storage pool. ``driver_pool`` must not be set for it
+    (https://github.com/LINBIT/ansible-linstor-collection/issues/1).
+  - >-
+    storage_pool role - accept ``type: diskless`` pool entries. The role
+    creates no storage on the node and only registers the pool with LINSTOR,
+    so ``physical_devices`` is not required.
