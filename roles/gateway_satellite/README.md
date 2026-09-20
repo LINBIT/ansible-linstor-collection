@@ -25,7 +25,7 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048); matches the `ha_gateway_nfsv4_only` default |
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
 | `gateway_satellite_ganesha` | `false` | Kernel NFS alternative; install the [NFS-Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) userspace NFS server |
-| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 | `gateway_satellite_token_auth` | auto-detect | Whether the daemon authenticates with a bearer token; empty auto-detects from the controller, or force with `true` or `false` |
 | `gateway_satellite_token_force` | `false` | Create the token only when missing; set `true` to force a fresh token every run (rotation, or recovery from a revoked token) |
 | `gateway_satellite_ca_cert` | `""` | CA PEM content to install when the `ssl_init` CA is not present |

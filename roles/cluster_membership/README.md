@@ -22,7 +22,7 @@ The following inventory groups must be defined:
 | `cluster_membership_replication_netif` | `replication` | Name for the optional dedicated DRBD net interface |
 | `cluster_membership_com_type` | unset | Override `Plain` or `SSL` for node registration; auto-detected from satellite/controller TOML when unset |
 | `cluster_membership_port` | unset | Override registration port; defaults to standard LINSTOR ports based on node type and SSL state |
-| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 ## Delegation
 

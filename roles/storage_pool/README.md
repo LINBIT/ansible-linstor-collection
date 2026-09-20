@@ -96,7 +96,7 @@ See `defaults/main.yml`.
 
 Delegation target for LINSTOR API tasks.
 Default `localhost` runs the python-linstor calls on the Ansible control node.
-Override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller API endpoint directly (SSH jump host, segmented management network).
+Override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint (SSH jump host, segmented management network).
 
 ## Behavior
 

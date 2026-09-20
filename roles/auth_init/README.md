@@ -46,7 +46,7 @@ Satellites that join later receive their token automatically on connect.
 | `auth_init_client_https` | `{{ linstor_ssl \| default(false) }}` | Render client configs with the `linstor+ssl://` scheme |
 | `auth_init_local_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the control-node client config |
 | `auth_init_cluster_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the controller-node client config |
-| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the control node cannot reach the controller directly |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 The HTTPS variables only matter on clusters that ran `ssl_init` previously.
 Authentication token initialization does not require `linstor-client.conf` configuration changes: the controller redirects a plain `linstor://` connection to HTTPS, and the client follows the redirect automatically.
