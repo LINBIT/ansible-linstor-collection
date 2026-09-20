@@ -12,6 +12,9 @@ version_added: "0.9.7"
 description:
   - Creates, modifies, or deletes LINSTOR storage pools on cluster nodes.
   - Idempotent. If the pool already exists on the node, only property changes are applied.
+  - If the pool already exists with a different driver or backing pool, the
+    module fails. LINSTOR cannot change either on an existing pool, so delete
+    the pool with C(state=absent) and create it again.
 options:
   name:
     description: Name of the storage pool.
@@ -380,8 +383,28 @@ def main():
                 driver=driver, driver_pool=driver_pool,
                 properties=properties)
 
-        # Pool exists: compare and update properties
+        # Pool exists: LINSTOR cannot change its driver or backing pool
         current_props = get_sp_props(existing_pool)
+        if driver:
+            wanted_kind = get_driver_kind(driver)
+            if wanted_kind is None:
+                module.fail_json(msg="Unknown storage driver: %s" % driver)
+            current_kind = str(getattr(existing_pool, 'provider_kind', ''))
+            if current_kind != wanted_kind:
+                module.fail_json(
+                    msg="Storage pool '%s' on '%s' exists with driver %s, "
+                        "requested %s (%s). LINSTOR cannot change the driver of "
+                        "an existing pool: delete it with state=absent and "
+                        "create it again." % (name, node, current_kind, driver, wanted_kind))
+        current_backend = current_props.get('StorDriver/StorPoolName', '')
+        if driver_pool and current_backend and driver_pool != current_backend:
+            module.fail_json(
+                msg="Storage pool '%s' on '%s' exists with backing pool '%s', "
+                    "requested '%s'. LINSTOR cannot change the backing pool of "
+                    "an existing pool: delete it with state=absent and create "
+                    "it again." % (name, node, current_backend, driver_pool))
+
+        # Compare and update properties
         props_to_set, props_to_delete = compute_property_diff(
             current_props, properties, delete_properties)
 
