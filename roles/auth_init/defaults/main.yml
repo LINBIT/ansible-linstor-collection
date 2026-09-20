@@ -22,3 +22,7 @@ auth_init_save_controllers: true
 auth_init_client_https: "{{ linstor_ssl | default(false) | bool }}"
 auth_init_local_cafile: "{{ (lookup('env', 'HOME') + '/.config/linstor/ssl/ca.crt') if auth_init_client_https | bool else '' }}"
 auth_init_cluster_cafile: "{{ '/etc/linstor/ssl/ca.crt' if auth_init_client_https | bool else '' }}"
+
+# Delegation target for LINSTOR API tasks
+# Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_api_delegate: localhost

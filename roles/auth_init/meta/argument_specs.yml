@@ -75,3 +75,16 @@ argument_specs:
         description:
           - CA certificate path for the controller-node client config.
           - Defaults to the C(ssl_init) cluster CA path when C(auth_init_client_https) is true.
+      linstor_api_delegate:
+        type: str
+        required: false
+        default: localhost
+        description:
+          - Delegation target for LINSTOR API tasks (python-linstor module calls).
+          - Default C(localhost) runs the calls on the Ansible control node.
+          - Override to a cluster node when the control node cannot reach the
+            controller API endpoint directly (SSH jump host, segmented
+            management network).
+          - "Common override: the first host in the C(linstor_controllers) inventory group."
+          - The delegated node must have C(python-linstor) installed.
+            Cluster nodes have it via LINSTOR package dependencies.
