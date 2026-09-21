@@ -20,6 +20,7 @@ The following inventory group must be defined:
 | `linstor_install_version` | `""` | Pin `linstor-satellite` and `linstor-common` to a version, for example `1.33.3`, and lock them against upgrades; shared with `controller_install` for lockstep, empty installs newest |
 | `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), Red Hat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
+| `satellite_install_firewalld_zone` | `""` | firewalld zone to open the LINSTOR satellite ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
 | `satellite_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall ports and the LVM `global_filter` for DRBD devices (drift correction) |
 

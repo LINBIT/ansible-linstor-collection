@@ -18,6 +18,7 @@ The following inventory group must be defined:
 | `linstor_install_version` | `""` | Pin `linstor-controller` and `linstor-common` to a version, for example `1.33.3`, and lock them against upgrades; shared with `satellite_install` for lockstep, empty installs newest |
 | `controller_install_gui` | `true` | Install the `linstor-gui` web UI alongside `linstor-controller`; set `false` to skip |
 | `controller_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR controller ports; set `false` to skip |
+| `controller_install_firewalld_zone` | `""` | firewalld zone to open the LINSTOR controller ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
 | `controller_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall and controller service state; **briefly restarts the active controller on a running cluster** (drift correction) |
 

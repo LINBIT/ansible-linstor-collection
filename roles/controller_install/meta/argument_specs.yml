@@ -45,6 +45,15 @@ argument_specs:
         description:
           - Manage firewall rules for LINSTOR controller ports.
           - Set C(false) to skip firewall configuration.
+      controller_install_firewalld_zone:
+        type: str
+        default: ""
+        description:
+          - firewalld zone to open the LINSTOR controller ports in.
+          - Empty uses the zone firewalld would pick by itself, which is
+            the default zone. Set it when a zone is bound to a source,
+            because firewalld matches a source before an interface.
+          - Ignored by UFW, which has no zones.
       controller_install_firewall_ports:
         type: list
         elements: dict

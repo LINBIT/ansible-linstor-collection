@@ -12,8 +12,11 @@ satellite_install_zfs: false
 
 satellite_install_firewall_rules: true
 
+# firewalld zone for the ports below. Empty uses the default zone
+satellite_install_firewalld_zone: ""
+
 satellite_install_firewall_ports:
-  - { port: '3366-3367', proto: tcp }
-  - { port: '7000-8000', proto: tcp }
+  - { port: '3366-3367', proto: tcp, zone: "{{ satellite_install_firewalld_zone }}" }
+  - { port: '7000-8000', proto: tcp, zone: "{{ satellite_install_firewalld_zone }}" }
 
 satellite_install_force_reconfigure: false

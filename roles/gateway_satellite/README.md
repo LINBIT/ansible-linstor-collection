@@ -21,6 +21,7 @@ No group definition is needed for smaller clusters.
 | Variable | Default | Description |
 |---|---|---|
 | `gateway_satellite_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway satellite ports; set `false` to skip |
+| `gateway_satellite_firewalld_zone` | `""` | firewalld zone to open the LINSTOR Gateway satellite services ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `gateway_satellite_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048); matches the `ha_gateway_nfsv4_only` default |
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |

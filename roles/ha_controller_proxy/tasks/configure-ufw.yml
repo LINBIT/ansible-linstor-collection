@@ -3,6 +3,6 @@
 - name: Open UFW ports for the LINSTOR controller proxy
   community.general.ufw:
     rule: allow
-    port: "{{ item }}"
-    proto: tcp
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
   loop: "{{ _ha_controller_proxy_firewall_ports }}"

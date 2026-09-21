@@ -4,3 +4,6 @@ ha_controller_proxy_plain_port: 4370
 ha_controller_proxy_ssl_port: 4371
 
 ha_controller_proxy_firewall_rules: true
+
+# firewalld zone for the proxy ports. Empty uses the default zone
+ha_controller_proxy_firewalld_zone: ""

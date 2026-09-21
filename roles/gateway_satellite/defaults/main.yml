@@ -5,14 +5,17 @@ gateway_satellite_firewall_rules: true
 
 gateway_satellite_nfsv4_only: false # match ha_gateway default; nfsserver RA serves v3+v4
 
+# firewalld zone for the ports below. Empty uses the default zone
+gateway_satellite_firewalld_zone: ""
+
 gateway_satellite_firewall_ports_base:
-  - { port: '2049', proto: tcp } # nfsd (NFSv3 and NFSv4)
-  - { port: '3260', proto: tcp } # iSCSI
-  - { port: '4420', proto: tcp } # NVMe-oF
+  - { port: '2049', proto: tcp, zone: "{{ gateway_satellite_firewalld_zone }}" }   # nfsd (NFSv3 and NFSv4)
+  - { port: '3260', proto: tcp, zone: "{{ gateway_satellite_firewalld_zone }}" }   # iSCSI
+  - { port: '4420', proto: tcp, zone: "{{ gateway_satellite_firewalld_zone }}" }   # NVMe-oF
 
 gateway_satellite_firewall_ports_nfsv3:
-  - { port: '111', proto: tcp }   # rpcbind
-  - { port: '20048', proto: tcp } # mountd
+  - { port: '111', proto: tcp, zone: "{{ gateway_satellite_firewalld_zone }}" }    # rpcbind
+  - { port: '20048', proto: tcp, zone: "{{ gateway_satellite_firewalld_zone }}" }  # mountd
 
 gateway_satellite_firewall_ports: >-
   {{ gateway_satellite_firewall_ports_base +

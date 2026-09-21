@@ -9,7 +9,10 @@ controller_install_gui: true
 
 controller_install_firewall_rules: true
 
+# firewalld zone for the ports below. Empty uses the default zone
+controller_install_firewalld_zone: ""
+
 controller_install_firewall_ports:
-  - { port: '3370-3371', proto: tcp }
+  - { port: '3370-3371', proto: tcp, zone: "{{ controller_install_firewalld_zone }}" }
 
 controller_install_force_reconfigure: false

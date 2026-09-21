@@ -31,3 +31,13 @@ argument_specs:
         default: true
         description:
           - Whether to open the plain and SSL front-door ports in firewalld or UFW when either is running.
+
+      ha_controller_proxy_firewalld_zone:
+        type: str
+        default: ""
+        description:
+          - firewalld zone to open the LINSTOR controller proxy ports in.
+          - Empty uses the zone firewalld would pick by itself, which is
+            the default zone. Set it when a zone is bound to a source,
+            because firewalld matches a source before an interface.
+          - Ignored by UFW, which has no zones.

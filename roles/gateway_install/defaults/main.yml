@@ -8,8 +8,11 @@ gateway_install_from_github: false
 
 gateway_install_firewall_rules: true
 
+# firewalld zone for the ports below. Empty uses the default zone
+gateway_install_firewalld_zone: ""
+
 gateway_install_firewall_ports:
-  - { port: '8337', proto: tcp }
+  - { port: '8337', proto: tcp, zone: "{{ gateway_install_firewalld_zone }}" }
 
 gateway_install_force_reconfigure: false
 

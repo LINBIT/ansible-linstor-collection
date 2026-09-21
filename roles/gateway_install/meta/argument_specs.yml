@@ -31,6 +31,15 @@ argument_specs:
         description:
           - Manage firewall rules for LINSTOR Gateway ports.
           - Set C(false) to skip firewall configuration.
+      gateway_install_firewalld_zone:
+        type: str
+        default: ""
+        description:
+          - firewalld zone to open the LINSTOR Gateway ports in.
+          - Empty uses the zone firewalld would pick by itself, which is
+            the default zone. Set it when a zone is bound to a source,
+            because firewalld matches a source before an interface.
+          - Ignored by UFW, which has no zones.
       gateway_install_firewall_ports:
         type: list
         elements: dict

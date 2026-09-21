@@ -2,7 +2,8 @@
 ---
 - name: Open firewalld ports for the LINSTOR controller proxy
   ansible.posix.firewalld:
-    port: "{{ item }}/tcp"
+    port: "{{ item.port }}/{{ item.proto }}"
+    zone: "{{ item.zone | default(omit, true) }}"
     permanent: true
     immediate: true
     state: enabled

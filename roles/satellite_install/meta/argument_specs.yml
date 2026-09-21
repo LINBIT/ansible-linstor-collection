@@ -34,6 +34,15 @@ argument_specs:
         description:
           - Manage firewall rules for LINSTOR satellite ports.
           - Set C(false) to skip firewall configuration.
+      satellite_install_firewalld_zone:
+        type: str
+        default: ""
+        description:
+          - firewalld zone to open the LINSTOR satellite ports in.
+          - Empty uses the zone firewalld would pick by itself, which is
+            the default zone. Set it when a zone is bound to a source,
+            because firewalld matches a source before an interface.
+          - Ignored by UFW, which has no zones.
       satellite_install_zfs:
         type: bool
         default: false

@@ -29,6 +29,7 @@ On RHEL-family nodes with SELinux, the role enables the `haproxy_connect_any` bo
 | `ha_controller_proxy_plain_port` | `4370` | Front-door port for plain HTTP traffic |
 | `ha_controller_proxy_ssl_port` | `4371` | Front-door port for SSL HTTPS traffic |
 | `ha_controller_proxy_firewall_rules` | `true` | Open the front-door ports in firewalld or UFW when either is running |
+| `ha_controller_proxy_firewalld_zone` | `""` | firewalld zone to open the LINSTOR controller proxy ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 
 Other settings (health-check timing, timeouts, and the service, config, and PID file paths) are internal constants in `vars/main.yml`. The LINSTOR controller ports it forwards to (`3370`/`3371`) are fixed, matching the rest of the collection.
 
