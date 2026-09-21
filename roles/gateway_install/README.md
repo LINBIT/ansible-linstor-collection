@@ -29,6 +29,30 @@ The following inventory groups must be defined:
 | `gateway_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR Gateway ports; set `false` to skip |
 | `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 | `gateway_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged; also re-runs `gateway_satellite` on satellites (drift correction) |
+| `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
+
+## Controller REST endpoint
+
+The `controllers` list in `linstor-gateway.toml` has to name the scheme and port the controller actually serves.
+The role writes `https://<address>:3371` when the REST API runs over HTTPS and `http://<address>:3370` otherwise.
+
+HTTPS applies when `linstor_ssl` is set for a cluster initialized with [`ssl_init`](../ssl_init/README.md), or when the controller has token authentication enabled, which turns on auto-HTTPS unless `auth_init_no_https` was set during [`auth_init`](../auth_init/README.md).
+Token authentication is auto-detected from the controller, and `gateway_satellite_token_auth` forces it either way.
+
+Plain HTTP against a token-authenticated controller does not work.
+The controller answers port 3370 with a redirect to the HTTPS endpoint, and the daemon's Go client drops the `Authorization` header across the scheme and port change, so every LINSTOR Gateway operation fails with a misleading `404 Not Found`.
+
+## Token authentication
+
+On a token-authenticated cluster the role adds a `token_file` key to the `[linstor]` section, which `linstor-gateway` 2.3.0 and later read natively.
+It points at `/var/lib/linstor.d/auth.json` when the controller has already distributed a satellite token to the node, and otherwise at the dedicated gateway token that [`gateway_satellite`](../gateway_satellite/README.md) creates at `/etc/linstor-gateway/auth-token`.
+Either file works, because `linstor-gateway` accepts a token file containing the bare token or the JSON that `auth.json` stores it in.
+The role never writes the `token` key, so the two can never be set at the same time, which `linstor-gateway` rejects.
+
+The key is left out entirely on a node that gets neither file, which is the standalone controller case, because `linstor-gateway server` exits when `token_file` names a file it cannot read.
+Give such a node a token by adding it to `linstor_gateway_satellites`, or point `token_file` at a token of your own.
+
+Earlier `linstor-gateway` releases ignore `token_file` and fail against a token-authenticated controller.
 
 ## Dependencies
 

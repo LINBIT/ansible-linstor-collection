@@ -14,6 +14,42 @@
     state: directory
     mode: '0755'
 
+- name: Detect controller token-authentication state
+  linbit.linstor.controller_info:
+  when:
+    - gateway_satellite_token_auth | default('') == ''
+    - groups.get('linstor_controllers', []) | length > 0
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  register: _gw_ctrl_info
+
+- name: Check for the satellite token the controller distributes
+  ansible.builtin.stat:
+    path: /var/lib/linstor.d/auth.json
+  register: _gw_auth_json
+
+- name: Resolve effective token-authentication flag
+  ansible.builtin.set_fact:
+    _gw_token_auth: >-
+      {{ (gateway_satellite_token_auth | bool)
+         if gateway_satellite_token_auth | default('') != ''
+         else (_gw_ctrl_info.properties['Auth/TokenAuthenticationEnabled']
+               | default('false') | bool) }}
+
+# Token auth serves the REST API over HTTPS - the plain port only redirects, losing the auth header
+- name: Resolve the controller REST API scheme and the daemon token file
+  ansible.builtin.set_fact:
+    _gateway_install_https: >-
+      {{ (linstor_ssl | default(false) | bool)
+         or (_gw_token_auth | bool and not (auth_init_no_https | default(false) | bool)) }}
+    _gateway_install_token_file: >-
+      {{ '/var/lib/linstor.d/auth.json' if _gw_auth_json.stat.exists
+         else ((gateway_satellite_config_dir | default('/etc/linstor-gateway')) ~ '/auth-token'
+               if inventory_hostname in (groups.get('linstor_gateway_satellites', [])
+                                         or groups.get('linstor_satellites', []))
+               else '') }}
+
 - name: Setup linstor-gateway.toml
   ansible.builtin.template:
     src: linstor-gateway.j2

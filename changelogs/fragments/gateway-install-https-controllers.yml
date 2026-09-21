@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >
+    gateway_install - point ``linstor-gateway.toml`` at the HTTPS controller
+    endpoint on token-authenticated clusters. Token authentication enables the
+    controller's auto-HTTPS REST API, and the plain port answers with a
+    redirect to it. The daemon's Go client drops the ``Authorization`` header
+    across that redirect, so every LINSTOR Gateway operation failed with a
+    misleading ``404 Not Found``. The role now detects token authentication
+    (honoring ``gateway_satellite_token_auth`` and ``auth_init_no_https``) as
+    well as ``linstor_ssl``, and writes ``https`` on ``ssl_init_https_port``
+    instead of ``http`` on 3370.

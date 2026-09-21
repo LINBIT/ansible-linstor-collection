@@ -1,6 +1,9 @@
 {# SPDX-License-Identifier: MIT -#}
 {% set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') -%}
-{% set scheme = 'https' if linstor_ssl | default(false) | bool else 'http' -%}
-{% set port = '3371' if linstor_ssl | default(false) | bool else '3370' -%}
+{% set scheme = 'https' if _gateway_install_https | bool else 'http' -%}
+{% set port = _gateway_install_rest_port_https if _gateway_install_https | bool else _gateway_install_rest_port_plain -%}
 [linstor]
 controllers = [ {% for a in addrs %}"{{ scheme }}://{{ a }}:{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %} ]
+{% if _gw_token_auth | bool and _gateway_install_token_file %}
+token_file = "{{ _gateway_install_token_file }}"
+{% endif %}

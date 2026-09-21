@@ -52,3 +52,16 @@ argument_specs:
             C(linbit.drbd_reactor.reactor_install).
           - Use for drift correction after manual C(systemctl disable) or
             out-of-band config edits.
+      linstor_api_delegate:
+        type: str
+        required: false
+        default: localhost
+        description:
+          - Delegation target for LINSTOR API tasks (python-linstor module calls).
+          - Default C(localhost) runs the calls on the Ansible control node.
+          - Override to a cluster node when the Ansible control node cannot directly reach the
+            LINSTOR controller API endpoint (for example an SSH jump host
+            or a segmented management network).
+          - "Common override: the first host in the C(linstor_controllers) inventory group."
+          - The delegated node must have C(python-linstor) installed.
+            Cluster nodes have it via LINSTOR package dependencies.

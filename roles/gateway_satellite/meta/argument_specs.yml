@@ -99,14 +99,19 @@ argument_specs:
           - Create the daemon token only when it is missing.
           - Set C(true) to force a fresh token on every run, replacing the
             existing one, for rotation or to recover from a revoked token.
+          - Ignored on nodes that already hold the satellite token the
+            controller distributes to C(/var/lib/linstor.d/auth.json), since
+            the daemon uses that token and no dedicated one is created.
       gateway_satellite_ca_cert:
         type: str
         default: ""
         description:
           - CA certificate PEM content to trust for the controller REST
             endpoint.
-          - When set, it is written into C(gateway_satellite_config_dir) and
-            used instead of the C(ssl_init) CA file at
+          - When set, it is used instead of the C(ssl_init) CA file at
             C(gateway_satellite_ca_cert_file).
+          - The resolved certificate is written into
+            C(gateway_satellite_config_dir) and installed into the operating
+            system trust store, which is where the daemon's Go client looks.
           - Use it when the cluster does not run C(linbit.linstor.ssl_init) but
             token authentication requires the daemon to trust the controller CA.
