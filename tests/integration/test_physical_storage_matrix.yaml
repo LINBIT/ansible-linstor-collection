@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: MIT
+---
+# Run every physical_storage scenario on every satellite that has an unused
+# block device, so a mixed-distribution cluster exercises the device pool
+# creation path on each distribution in one run.
+#
+# Each satellite needs one unused device beyond the one its storage pool uses.
+# Scenarios that the node cannot support are skipped: ZFS needs the ZFS
+# utilities, VDO needs the vdo userspace tools, a dm-vdo or kvdo module, and
+# lvm2 2.03.24 or newer, which is what LINSTOR requires to put a thin pool on
+# a VDO volume.
+#
+#   ansible-playbook -i hosts.yaml ./test_physical_storage_matrix.yaml
+#
+# Optional extra vars:
+#   ps_nodes=["sat-1"]   limit the run to these satellites
+#   ps_skip_vdo=true     skip the VDO scenarios everywhere
+#
+# Scenarios per node:
+#   1. lvm, no storage pool
+#   2. lvmthin with a storage pool and pv/vg create arguments
+#   3. zfs with a storage pool
+#   4. zfsthin with a storage pool
+#   5. lvmthin on VDO with a storage pool
+
+- name: Probe satellite capabilities for physical storage scenarios
+  hosts: "{{ ps_hosts | default('linstor_satellites') }}"
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Look for the ZFS and VDO tooling
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -o pipefail
+          command -v zfs >/dev/null 2>&1 && echo zfs
+          command -v vdoformat >/dev/null 2>&1 && echo vdoformat
+          modinfo dm-vdo >/dev/null 2>&1 && echo dmvdo
+          modinfo kvdo >/dev/null 2>&1 && echo kvdo
+          echo "lvm2=$(lvm version 2>/dev/null | awk '/LVM version/{print $3}' | sed 's/(.*//')"
+          exit 0
+      register: _ps_tools
+      changed_when: false
+
+    - name: Record what this node can run
+      ansible.builtin.set_fact:
+        ps_has_zfs: "{{ 'zfs' in _ps_tools.stdout_lines }}"
+        ps_lvm_version: "{{ _ps_tools.stdout_lines | select('match', '^lvm2=') | first | default('lvm2=0') | replace('lvm2=', '') }}"
+
+    - name: Record whether VDO on an LVM thin pool is possible
+      ansible.builtin.set_fact:
+        ps_has_vdo: >-
+          {{
+            'vdoformat' in _ps_tools.stdout_lines
+            and ('dmvdo' in _ps_tools.stdout_lines or 'kvdo' in _ps_tools.stdout_lines)
+            and ps_lvm_version is version('2.03.24', '>=')
+          }}
+
+- name: Test physical_storage scenarios across the cluster
+  hosts: localhost
+  any_errors_fatal: true
+  gather_facts: false
+  vars:
+    _satellites: "{{ ps_nodes | default(groups[ps_hosts | default('linstor_satellites')]) }}"
+    _skip_vdo: "{{ ps_skip_vdo | default(false) | bool }}"
+  tasks:
+    - name: List the unused devices the cluster reports
+      linbit.linstor.physical_storage_info:
+      register: _ps_all
+
+    - name: Map each satellite to its first unused device
+      ansible.builtin.set_fact:
+        _devices: >-
+          {{
+            dict(
+              _ps_all.physical_devices | map(attribute='node') | list
+              | zip(_ps_all.physical_devices | map(attribute='device') | list)
+              | reverse | list
+            )
+          }}
+
+    - name: Keep the satellites that have one
+      ansible.builtin.set_fact:
+        _targets: "{{ _satellites | select('in', _devices) | list }}"
+
+    - name: Assert at least one satellite has an unused device
+      ansible.builtin.assert:
+        that: _devices | length > 0
+        fail_msg: >-
+          No satellite reports an unused device. physical_storage needs a whole,
+          empty disk of at least 1 GiB that carries no file system or partition.
+        quiet: true
+
+    - name: Show the discovered targets
+      ansible.builtin.debug:
+        msg: >-
+          {{ item }}: device {{ _devices[item] }},
+          zfs={{ hostvars[item].ps_has_zfs | default(false) }},
+          vdo={{ hostvars[item].ps_has_vdo | default(false) }}
+      loop: "{{ _targets }}"
+
+    - name: Run the scenarios on each satellite
+      ansible.builtin.include_tasks: physical-storage-node.yml
+      loop: "{{ _targets }}"
+      loop_control:
+        loop_var: _node
+        label: "{{ _node }}"
+      when: _node in _devices
+
+    - name: Pick two VDO capable satellites for the data path test
+      ansible.builtin.set_fact:
+        _vdo_pair: >-
+          {{
+            (
+              _targets | map('extract', hostvars)
+              | selectattr('ps_has_vdo', 'defined') | selectattr('ps_has_vdo')
+              | map(attribute='inventory_hostname') | list
+            )[:2]
+          }}
+
+    - name: Write and read back a file across two VDO backed replicas
+      ansible.builtin.include_tasks: physical-storage-vdo-datapath.yml
+      when:
+        - not _skip_vdo
+        - _vdo_pair | length >= 2

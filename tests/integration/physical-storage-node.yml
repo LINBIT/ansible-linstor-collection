@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Build the scenario list for {{ _node }}"
+  ansible.builtin.set_fact:
+    _cases: >-
+      {{
+        [
+          {
+            'label': _node ~ ' lvm',
+            'node': _node, 'device': _devices[_node], 'kind': 'lvm',
+            'pool': 'ps-lvm',
+            'expect_driver_pool': 'ps-lvm',
+            'verify_cmd': 'vgs --noheadings -o vg_name ps-lvm',
+            'verify_match': 'ps-lvm',
+            'cleanup_cmds': ['vgremove -f -y ps-lvm']
+          },
+          {
+            'label': _node ~ ' lvmthin',
+            'node': _node, 'device': _devices[_node], 'kind': 'lvmthin',
+            'pool': 'ps-thin', 'sp': 'ps-thin-sp',
+            'pv_args': ['--metadatasize', '128k'],
+            'vg_args': ['--physicalextentsize', '8m'],
+            'expect_driver_pool': 'linstor_ps-thin/ps-thin',
+            'expect_kind': 'LVM_THIN',
+            'verify_cmd': 'lvs --noheadings -o lv_name,segtype linstor_ps-thin',
+            'verify_match': 'thin-pool',
+            'cleanup_cmds': ['vgremove -f -y linstor_ps-thin']
+          }
+        ]
+        + (
+          [
+            {
+              'label': _node ~ ' zfs',
+              'node': _node, 'device': _devices[_node], 'kind': 'zfs',
+              'pool': 'ps-zfs', 'sp': 'ps-zfs-sp',
+              'zpool_args': ['-o', 'ashift=12'],
+              'expect_driver_pool': 'ps-zfs',
+              'expect_kind': 'ZFS',
+              'verify_cmd': 'zpool list -H -o name ps-zfs',
+              'verify_match': 'ps-zfs',
+              'cleanup_cmds': ['zpool destroy -f ps-zfs']
+            },
+            {
+              'label': _node ~ ' zfsthin',
+              'node': _node, 'device': _devices[_node], 'kind': 'zfsthin',
+              'pool': 'ps-zfst', 'sp': 'ps-zfst-sp',
+              'expect_driver_pool': 'ps-zfst',
+              'expect_kind': 'ZFS_THIN',
+              'verify_cmd': 'zpool list -H -o name ps-zfst',
+              'verify_match': 'ps-zfst',
+              'cleanup_cmds': ['zpool destroy -f ps-zfst']
+            }
+          ] if hostvars[_node].ps_has_zfs | default(false) else []
+        )
+        + (
+          [
+            {
+              'label': _node ~ ' vdo',
+              'node': _node, 'device': _devices[_node], 'kind': 'lvmthin',
+              'pool': 'ps-vdo', 'sp': 'ps-vdo-sp',
+              'vdo': true, 'vdo_logical_size': '20G',
+              'expect_driver_pool': 'ps-vdo-vdobase/ps-vdo',
+              'expect_kind': 'LVM_THIN',
+              'verify_cmd': 'lvs --noheadings -o lv_name,segtype ps-vdo-vdobase',
+              'verify_match': 'vdo',
+              'cleanup_cmds': ['vgremove -f -y ps-vdo-vdobase']
+            }
+          ] if (hostvars[_node].ps_has_vdo | default(false)) and not _skip_vdo else []
+        )
+      }}
+
+- name: "Run the scenarios on {{ _node }}"
+  ansible.builtin.include_tasks: physical-storage-case.yml
+  loop: "{{ _cases }}"
+  loop_control:
+    loop_var: _c
+    label: "{{ _c.label }}"

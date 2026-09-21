@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Check mode reports a change - {{ _c.label }}"
+  linbit.linstor.physical_storage:
+    node: "{{ _c.node }}"
+    provider_kind: "{{ _c.kind }}"
+    device_paths: "{{ [_c.device] }}"
+    pool_name: "{{ _c.pool }}"
+    storage_pool: "{{ _c.sp | default(omit) }}"
+    vdo: "{{ _c.vdo | default(omit) }}"
+    vdo_logical_size: "{{ _c.vdo_logical_size | default(omit) }}"
+    pv_create_arguments: "{{ _c.pv_args | default(omit) }}"
+    vg_create_arguments: "{{ _c.vg_args | default(omit) }}"
+    zpool_create_arguments: "{{ _c.zpool_args | default(omit) }}"
+  check_mode: true
+  register: _case_check
+  failed_when: not _case_check.changed
+
+- name: "Check mode created nothing - {{ _c.label }}"
+  linbit.linstor.physical_storage_info:
+    node: "{{ _c.node }}"
+  register: _case_check_info
+  failed_when: _c.device not in (_case_check_info.physical_devices | map(attribute='device') | list)
+
+- name: "Create the device pool - {{ _c.label }}"
+  linbit.linstor.physical_storage:
+    node: "{{ _c.node }}"
+    provider_kind: "{{ _c.kind }}"
+    device_paths: "{{ [_c.device] }}"
+    pool_name: "{{ _c.pool }}"
+    storage_pool: "{{ _c.sp | default(omit) }}"
+    vdo: "{{ _c.vdo | default(omit) }}"
+    vdo_logical_size: "{{ _c.vdo_logical_size | default(omit) }}"
+    pv_create_arguments: "{{ _c.pv_args | default(omit) }}"
+    vg_create_arguments: "{{ _c.vg_args | default(omit) }}"
+    zpool_create_arguments: "{{ _c.zpool_args | default(omit) }}"
+  register: _case_create
+  failed_when: >-
+    not _case_create.changed
+    or (_c.sp is defined and _case_create.driver_pool | default('') != _c.expect_driver_pool)
+
+- name: "Device is no longer listed as unused - {{ _c.label }}"
+  linbit.linstor.physical_storage_info:
+    node: "{{ _c.node }}"
+  register: _case_used
+  failed_when: _c.device in (_case_used.physical_devices | map(attribute='device') | list)
+
+- name: "Re-run is idempotent - {{ _c.label }}"
+  linbit.linstor.physical_storage:
+    node: "{{ _c.node }}"
+    provider_kind: "{{ _c.kind }}"
+    device_paths: "{{ [_c.device] }}"
+    pool_name: "{{ _c.pool }}"
+    storage_pool: "{{ _c.sp | default(omit) }}"
+    vdo: "{{ _c.vdo | default(omit) }}"
+    vdo_logical_size: "{{ _c.vdo_logical_size | default(omit) }}"
+  register: _case_idem
+  failed_when: _case_idem.changed
+
+- name: "Storage pool reports the expected kind and capacity - {{ _c.label }}"
+  linbit.linstor.storage_pool_info:
+    name: "{{ _c.sp }}"
+    node: "{{ _c.node }}"
+  register: _case_sp
+  failed_when: >-
+    _case_sp.storage_pools | length != 1
+    or _case_sp.storage_pools[0].provider_kind != _c.expect_kind
+    or _case_sp.storage_pools[0].driver_pool != _c.expect_driver_pool
+    or (_case_sp.storage_pools[0].total_capacity | default(0) | int) <= 0
+  when: _c.sp is defined
+
+- name: "Backing storage exists on the node - {{ _c.label }}"
+  ansible.builtin.command: "{{ _c.verify_cmd }}"
+  delegate_to: "{{ _c.node }}"
+  become: true
+  register: _case_verify
+  changed_when: false
+  failed_when: _c.verify_match not in _case_verify.stdout
+
+- name: "Remove the storage pool - {{ _c.label }}"
+  linbit.linstor.storage_pool:
+    name: "{{ _c.sp }}"
+    node: "{{ _c.node }}"
+    state: absent
+  when: _c.sp is defined
+
+- name: "Remove the backing storage on the node - {{ _c.label }}"
+  ansible.builtin.command: "{{ item }}"
+  loop: "{{ _c.cleanup_cmds + ['wipefs -a ' ~ _c.device] }}"
+  delegate_to: "{{ _c.node }}"
+  become: true
+  changed_when: true
+
+- name: "Device is listed as unused again - {{ _c.label }}"
+  linbit.linstor.physical_storage_info:
+    node: "{{ _c.node }}"
+  register: _case_free
+  until: _c.device in (_case_free.physical_devices | map(attribute='device') | list)
+  retries: 6
+  delay: 5

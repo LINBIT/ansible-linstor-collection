@@ -1,0 +1,210 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "VDO: create a VDO backed storage pool on both nodes"
+  linbit.linstor.physical_storage:
+    node: "{{ item }}"
+    provider_kind: lvmthin
+    device_paths: "{{ [_devices[item]] }}"
+    pool_name: psvdo
+    vdo: true
+    vdo_logical_size: 20G
+    storage_pool: psvdo
+  loop: "{{ _vdo_pair }}"
+  register: _vdo_pools
+  failed_when: not _vdo_pools.changed
+
+- name: "VDO: create the resource group"
+  linbit.linstor.resource_group:
+    name: psvdorg
+    storage_pool: psvdo
+    place_count: 2
+
+- name: "VDO: spawn a resource from the group"
+  linbit.linstor.resource:
+    name: psvdores
+    mode: spawn
+    resource_group: psvdorg
+    sizes:
+      - 4G
+
+- name: "VDO: both replicas are placed on the VDO pools"
+  linbit.linstor.resource_info:
+    name: psvdores
+  register: _vdo_rsc
+  failed_when: _vdo_pair | difference(_vdo_rsc.resources[0].nodes) | length > 0
+
+- name: "VDO: wait for the initial sync"
+  ansible.builtin.command: drbdadm wait-sync psvdores
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  changed_when: false
+  timeout: 300
+
+- name: "VDO: build the physical usage probe"
+  ansible.builtin.set_fact:
+    _vdo_used: |
+      set -e -o pipefail
+      dev=$(dmsetup ls --target vdo 2>/dev/null | awk 'NR==1{print $1}')
+      if [ -n "$dev" ] && command -v vdostats >/dev/null 2>&1; then
+        blocks=$(vdostats --verbose "/dev/mapper/$dev" | awk -F: '/data blocks used/{gsub(/ /,"",$2); print $2}')
+        echo $((blocks * 4096))
+      else
+        lvs --noheadings --units b --nosuffix -o lv_size,data_percent psvdo-vdobase/vdopool0 \
+          | awk '{printf "%d\n", $1 * $2 / 100}'
+      fi
+
+- name: "VDO: make a file system and mount it, writing all metadata up front"
+  ansible.builtin.shell: |
+    set -e
+    mkfs.ext4 -q -F -E lazy_itable_init=0,lazy_journal_init=0 /dev/drbd/by-res/psvdores/0
+    mkdir -p /mnt/psvdo
+    mount /dev/drbd/by-res/psvdores/0 /mnt/psvdo
+    sync
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  changed_when: true
+
+- name: "VDO: physical usage before any data"
+  ansible.builtin.shell: "{{ _vdo_used }}" # noqa: command-instead-of-shell
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  register: _vdo_base
+  changed_when: false
+
+- name: "VDO: control, write one unique 128 MiB random file"
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      set -e -o pipefail
+      dd if=/dev/urandom of=/mnt/psvdo/rand0.bin bs=1M count=128 status=none
+      sync
+      sha256sum /mnt/psvdo/rand0.bin | cut -d' ' -f1
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  register: _vdo_control_write
+  changed_when: true
+
+- name: "VDO: physical usage after the unique file"
+  ansible.builtin.shell: "{{ _vdo_used }}" # noqa: command-instead-of-shell
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  register: _vdo_after_control
+  changed_when: false
+
+- name: "VDO: dedup, write ten copies of that same file"
+  ansible.builtin.shell: |
+    set -e
+    for i in $(seq 1 10); do cp /mnt/psvdo/rand0.bin /mnt/psvdo/copy$i.bin; done
+    sync
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  changed_when: true
+
+- name: "VDO: physical usage after the ten copies"
+  ansible.builtin.shell: "{{ _vdo_used }}" # noqa: command-instead-of-shell
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  register: _vdo_after_dedup
+  changed_when: false
+
+- name: "VDO: zero elimination, write a 1 GiB file of zeros"
+  ansible.builtin.shell: |
+    set -e
+    dd if=/dev/zero of=/mnt/psvdo/zeros.bin bs=1M count=1024 status=none
+    sync
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  changed_when: true
+
+- name: "VDO: physical usage after the zero file"
+  ansible.builtin.shell: "{{ _vdo_used }}" # noqa: command-instead-of-shell
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  register: _vdo_after_zeros
+  changed_when: false
+
+- name: "VDO: unmount the first node"
+  ansible.builtin.command: umount /mnt/psvdo
+  delegate_to: "{{ _vdo_pair[0] }}"
+  become: true
+  changed_when: true
+
+- name: "VDO: read the files back on the second node"
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      set -e -o pipefail
+      mkdir -p /mnt/psvdo
+      mount /dev/drbd/by-res/psvdores/0 /mnt/psvdo
+      sha256sum /mnt/psvdo/rand0.bin | cut -d' ' -f1
+      sha256sum /mnt/psvdo/copy10.bin | cut -d' ' -f1
+      umount /mnt/psvdo
+  delegate_to: "{{ _vdo_pair[1] }}"
+  become: true
+  register: _vdo_read
+  changed_when: true
+
+- name: "VDO: the data survived the failover"
+  ansible.builtin.assert:
+    that:
+      - _vdo_read.stdout_lines[0] == _vdo_control_write.stdout_lines[-1]
+      - _vdo_read.stdout_lines[1] == _vdo_control_write.stdout_lines[-1]
+    fail_msg: >-
+      sha256 mismatch after failover: {{ _vdo_pair[0] }} wrote
+      {{ _vdo_control_write.stdout_lines[-1] }}, {{ _vdo_pair[1] }} read
+      {{ _vdo_read.stdout_lines | join(' and ') }}
+    quiet: true
+
+- name: "VDO: report the physical usage of each step"
+  ansible.builtin.debug:
+    msg: >-
+      unique 128 MiB grew physical by {{ (_ctl_growth | int) // 1048576 }} MiB,
+      ten copies (1280 MiB logical) grew it by {{ (_dedup_growth | int) // 1048576 }} MiB,
+      1024 MiB of zeros grew it by {{ (_zero_growth | int) // 1048576 }} MiB
+  vars:
+    _ctl_growth: "{{ _vdo_after_control.stdout | int - _vdo_base.stdout | int }}"
+    _dedup_growth: "{{ _vdo_after_dedup.stdout | int - _vdo_after_control.stdout | int }}"
+    _zero_growth: "{{ _vdo_after_zeros.stdout | int - _vdo_after_dedup.stdout | int }}"
+
+- name: "VDO: unique data allocates, duplicates and zeros do not"
+  ansible.builtin.assert:
+    that:
+      - _ctl_growth | int > 67108864
+      - _ctl_growth | int < 209715200
+      - _dedup_growth | int < 33554432
+      - _zero_growth | int < 16777216
+    fail_msg: >-
+      VDO savings look wrong: unique {{ (_ctl_growth | int) // 1048576 }} MiB
+      (want 64 to 200), duplicates {{ (_dedup_growth | int) // 1048576 }} MiB
+      (want under 32), zeros {{ (_zero_growth | int) // 1048576 }} MiB (want under 16)
+    quiet: true
+  vars:
+    _ctl_growth: "{{ _vdo_after_control.stdout | int - _vdo_base.stdout | int }}"
+    _dedup_growth: "{{ _vdo_after_dedup.stdout | int - _vdo_after_control.stdout | int }}"
+    _zero_growth: "{{ _vdo_after_zeros.stdout | int - _vdo_after_dedup.stdout | int }}"
+
+- name: "VDO: remove the resource"
+  linbit.linstor.resource_definition:
+    name: psvdores
+    state: absent
+
+- name: "VDO: remove the resource group"
+  linbit.linstor.resource_group:
+    name: psvdorg
+    state: absent
+
+- name: "VDO: remove the storage pools"
+  linbit.linstor.storage_pool:
+    name: psvdo
+    node: "{{ item }}"
+    state: absent
+  loop: "{{ _vdo_pair }}"
+
+- name: "VDO: remove the backing storage on both nodes"
+  ansible.builtin.shell: |
+    vgremove -f -y psvdo-vdobase
+    wipefs -a {{ _devices[item] }}
+  loop: "{{ _vdo_pair }}"
+  delegate_to: "{{ item }}"
+  become: true
+  changed_when: true
