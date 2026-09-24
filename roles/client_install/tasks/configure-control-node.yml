@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Ensure control-node linstor config directory exists
+- name: Ensure control node linstor config directory exists
   ansible.builtin.file:
     path: "{{ lookup('env', 'HOME') }}/.config/linstor"
     state: directory
@@ -10,7 +10,7 @@
   run_once: true  # noqa: run-once[task]
 
 # Preserve an existing auth-token so unrelated re-renders do not strip it
-- name: Resolve auth token to preserve in control-node config
+- name: Resolve auth token to preserve in control node config
   ansible.builtin.set_fact:
     _client_install_local_auth_token: >-
       {{ linstor_client_auth_token | default('')
@@ -21,7 +21,7 @@
          or '' }}
   no_log: true
 
-- name: Render control-node linstor-client.conf
+- name: Render control node linstor-client.conf
   ansible.builtin.template:
     src: linstor-client.j2
     dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"

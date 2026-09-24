@@ -38,7 +38,7 @@
     - _auth_init_token | length == 0
   run_once: true  # noqa: run-once[task]
 
-- name: Render control-node linstor-client.conf with auth token
+- name: Render control node linstor-client.conf with auth token
   ansible.builtin.include_role:
     name: linbit.linstor.client_install
     tasks_from: configure-control-node

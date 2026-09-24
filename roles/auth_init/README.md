@@ -6,7 +6,7 @@ LINSTOR 1.34.0 adds bearer-token authentication for the REST API, which also ena
 This role initializes it on a deployed cluster.
 It enables token authentication, creates the first user token, and distributes a per-satellite token to `/var/lib/linstor.d/auth.json`.
 
-The user token is saved where the collection needs it: the control-node `~/.config/linstor/linstor-client.conf` for the `linbit.linstor` modules, and the controller's `/root/.config/linstor/linstor-client.conf` for the `linstor` CLI.
+The user token is saved where the collection needs it: the control node `~/.config/linstor/linstor-client.conf` for the `linbit.linstor` modules, and the controller's `/root/.config/linstor/linstor-client.conf` for the `linstor` CLI.
 Satellite nodes are left untouched; their CLI uses the satellite token automatically.
 
 It gates on the controller's running version reported by the REST API, so it skips cleanly on controllers older than 1.34.0 and is safe to run by default.
@@ -41,10 +41,10 @@ Satellites that join later receive their token automatically on connect.
 | `auth_init_description` | `ansible-managed` | Description label for the initial user token |
 | `auth_init_no_https` | `false` | Skip the automatic HTTPS setup (use with `ssl_init`-managed HTTPS) |
 | `auth_init_no_log` | `true` | Hide the raw token in task output |
-| `auth_init_save_control_node` | `true` | Save the token to the control-node client config |
+| `auth_init_save_control_node` | `true` | Save the token to the control node client config |
 | `auth_init_save_controllers` | `true` | Save the token to the root user's `/root/.config/linstor/linstor-client.conf` on controllers |
 | `auth_init_client_https` | `{{ linstor_ssl \| default(false) }}` | Render client configs with the `linstor+ssl://` scheme |
-| `auth_init_local_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the control-node client config |
+| `auth_init_local_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the control node client config |
 | `auth_init_cluster_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the controller-node client config |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
@@ -86,7 +86,7 @@ The role captures that one-time token and writes it into the client configuratio
 Token reading is handled once at the collection's base level (`module_utils`), mirroring the `linstor` CLI resolution order: the `auth_token` parameter, then `auth-token` in `linstor-client.conf`, then the satellite `auth.json` fallback.
 Every module inherits this, so no module or role needs token-specific code.
 
-On re-runs the module detects authentication is already enabled, skips the init call, and returns no token, so the role reuses the token already saved in the control-node config.
+On re-runs the module detects authentication is already enabled, skips the init call, and returns no token, so the role reuses the token already saved in the control node config.
 This keeps re-runs idempotent and the saved configs stable.
 
 ## Recovering from a lockout

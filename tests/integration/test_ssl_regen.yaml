@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-# Verify ssl_init regenerates stale per-node certs when the control-node
+# Verify ssl_init regenerates stale per-node certs when the control node
 # cache no longer matches the current inventory.
 #
 # Run AFTER ssl_init has succeeded once on the cluster (test_ssl.yaml green).
@@ -28,7 +28,7 @@
 # Out of scope for this file (covered in follow-up):
 #   - CA rotation and truststore rebuild on managed node.
 #
-# Note on cleanup: the always-block restores the control-node cert cache.
+# Note on cleanup: the always-block restores the control node cert cache.
 # If the assertion fails on the buggy code path, the managed node retains
 # the stale cert in /etc/linstor/ssl until the stack playbook is re-run.
 
@@ -254,7 +254,7 @@
           register: _keystore_fp_before
           changed_when: false
 
-        - name: Delete control-node cert and key (simulate operator-forced regen)
+        - name: Delete control node cert and key (simulate operator-forced regen)
           ansible.builtin.file:
             path: "{{ _local_dir }}/{{ item }}"
             state: absent

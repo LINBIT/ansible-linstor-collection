@@ -73,7 +73,7 @@
     - _ssl_init_local_ca.content is defined
   run_once: true  # noqa: run-once[task]
 
-- name: Ensure control-node SSL directory exists
+- name: Ensure control node SSL directory exists
   ansible.builtin.file:
     path: "{{ ssl_init_local_dir }}"
     state: directory
@@ -103,7 +103,7 @@
   register: _ssl_init_local_client_cert
   changed_when: false
 
-- name: Render control-node linstor-client.conf for HTTPS
+- name: Render control node linstor-client.conf for HTTPS
   ansible.builtin.include_role:
     name: linbit.linstor.client_install
     tasks_from: configure-control-node

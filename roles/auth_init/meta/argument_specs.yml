@@ -11,7 +11,7 @@ argument_specs:
         first user token, and distributes individual satellite tokens to every connected satellite
         node.
       - >-
-        Saves the user token into the control-node C(~/.config/linstor/linstor-client.conf) and
+        Saves the user token into the control node C(~/.config/linstor/linstor-client.conf) and
         into the root user's C(/root/.config/linstor/linstor-client.conf) on controller nodes, so
         the LINSTOR modules and the C(linstor) CLI keep working against the secured API.
       - >-
@@ -41,7 +41,7 @@ argument_specs:
         type: bool
         default: true
         description:
-          - Write the user token into the control-node C(~/.config/linstor/linstor-client.conf).
+          - Write the user token into the control node C(~/.config/linstor/linstor-client.conf).
       auth_init_save_controllers:
         type: bool
         default: true
@@ -67,8 +67,8 @@ argument_specs:
         type: str
         default: ""
         description:
-          - CA certificate path for the control-node client config.
-          - Defaults to the C(ssl_init) control-node CA path when C(auth_init_client_https) is true.
+          - CA certificate path for the control node client config.
+          - Defaults to the C(ssl_init) control node CA path when C(auth_init_client_https) is true.
       auth_init_cluster_cafile:
         type: str
         default: ""

@@ -7,7 +7,7 @@ auth_init_no_https: false
 # Hide the raw token in task output. Disable only for debugging.
 auth_init_no_log: true
 
-# Write the user token into the control-node ~/.config/linstor/linstor-client.conf
+# Write the user token into the control node ~/.config/linstor/linstor-client.conf
 auth_init_save_control_node: true
 
 # Write the user token into the root user's

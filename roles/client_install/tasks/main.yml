@@ -29,5 +29,5 @@
     (_client_install_package is changed) or
     (client_install_force_reconfigure | bool)
 
-- name: Configure control-node linstor-client.conf
+- name: Configure control node linstor-client.conf
   ansible.builtin.include_tasks: configure-control-node.yml

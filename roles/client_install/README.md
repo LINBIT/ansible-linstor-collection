@@ -22,7 +22,7 @@ If `linstor_ha_vip` is set in inventory it is used by the `ha_database` role to 
 
 The token-bearing configs are written by the `configure-control-node` task (the Ansible control node's `~/.config/linstor/linstor-client.conf`) and the `configure-controller-node` task (a controller's `/root/.config/linstor/linstor-client.conf`), both at mode `0600`.
 The `auth_init` role drives both.
-The control-node render preserves an `auth-token` already present in the file, so re-runs do not strip a saved token.
+The control node render preserves an `auth-token` already present in the file, so re-runs do not strip a saved token.
 The system-wide `/etc/linstor/linstor-client.conf` written by `configure-client` never carries the token and stays a stock `0644` file.
 
 ## Dependencies
