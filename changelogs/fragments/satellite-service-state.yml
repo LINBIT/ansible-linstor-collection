@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    satellite_install - enable and start linstor-satellite on every run. A
-    node whose package was installed outside the role, or whose service was
-    stopped, never started it.

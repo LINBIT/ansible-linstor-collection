@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-breaking_changes:
-  - >-
-    ha_database - ``ha_database_res`` is removed and the HA database
-    resource is always named ``linstor_db``, the name the LINSTOR User Guide
-    and the linstor-controller-ha-setup script use.

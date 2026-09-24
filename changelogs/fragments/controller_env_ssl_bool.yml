@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    controller_env lookup - read ``linstor_ssl`` as a boolean, so a string
-    such as ``-e linstor_ssl=false`` no longer selects the SSL scheme and
-    breaks connections to non-SSL clusters.

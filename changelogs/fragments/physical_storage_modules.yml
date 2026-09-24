@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    physical_storage - new module that creates LVM, LVM thin, ZFS, or SPDK
-    device pools from unused block devices on a satellite, with optional VDO
-    or self-encrypting drive setup, and can register the result as a storage
-    pool. ``physical_storage_info`` lists the eligible devices.

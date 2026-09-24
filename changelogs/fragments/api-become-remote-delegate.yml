@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    LINSTOR API modules - keep privilege escalation when
-    ``linstor_api_delegate`` points at a remote host, so the modules can
-    read root-owned client configuration there. Only ``delegate_to:
-    localhost`` runs drop ``become``.

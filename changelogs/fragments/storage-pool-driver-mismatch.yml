@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    storage_pool - fail when a pool already exists with a different driver
-    or backing pool instead of reporting ``ok``. LINSTOR cannot change
-    either, so delete the pool and create it again.

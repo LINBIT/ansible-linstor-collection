@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    storage_pool - new ``vdevs`` key adds log, special, cache, and extra
-    data vdevs to ZFS pools.

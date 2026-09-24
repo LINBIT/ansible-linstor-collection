@@ -17,6 +17,21 @@ plugins:
       name: group_addresses
       version_added: 0.9.7
   module:
+    auth_init:
+      description: Initialize LINSTOR token authentication
+      name: auth_init
+      namespace: ''
+      version_added: 0.9.10
+    auth_token:
+      description: Manage LINSTOR auth tokens
+      name: auth_token
+      namespace: ''
+      version_added: 0.9.10
+    auth_token_info:
+      description: Query LINSTOR auth tokens
+      name: auth_token_info
+      namespace: ''
+      version_added: 0.9.10
     backup:
       description: Create or delete LINSTOR backups on a remote
       name: backup
@@ -47,21 +62,41 @@ plugins:
       name: controller
       namespace: ''
       version_added: 0.9.7
+    controller_info:
+      description: Query LINSTOR controller properties
+      name: controller_info
+      namespace: ''
+      version_added: 0.9.10
     encryption:
       description: Manage LINSTOR encryption passphrase
       name: encryption
       namespace: ''
       version_added: 0.9.7
+    encryption_info:
+      description: Query LINSTOR encryption status
+      name: encryption_info
+      namespace: ''
+      version_added: 0.9.10
     file:
       description: Manage LINSTOR external files
       name: file
       namespace: ''
       version_added: 0.9.7
+    file_info:
+      description: Query a LINSTOR external file
+      name: file_info
+      namespace: ''
+      version_added: 0.9.10
     key_value_store:
       description: Manage LINSTOR key-value store
       name: key_value_store
       namespace: ''
       version_added: 0.9.7
+    key_value_store_info:
+      description: Query a LINSTOR key-value store
+      name: key_value_store_info
+      namespace: ''
+      version_added: 0.9.10
     linstor_installed:
       description: Detect whether LINSTOR is installed on the target host
       name: linstor_installed
@@ -72,16 +107,41 @@ plugins:
       name: node
       namespace: ''
       version_added: 0.9.7
+    node_info:
+      description: Query LINSTOR nodes
+      name: node_info
+      namespace: ''
+      version_added: 0.9.10
     node_interface:
       description: Manage LINSTOR node network interfaces
       name: node_interface
       namespace: ''
       version_added: 0.9.7
+    node_interface_info:
+      description: Query LINSTOR node network interfaces
+      name: node_interface_info
+      namespace: ''
+      version_added: 0.9.10
+    physical_storage:
+      description: Create LVM, ZFS, or SPDK device pools on LINSTOR satellites
+      name: physical_storage
+      namespace: ''
+      version_added: 0.9.10
+    physical_storage_info:
+      description: Query unused block devices on LINSTOR satellites
+      name: physical_storage_info
+      namespace: ''
+      version_added: 0.9.10
     remote:
       description: Manage LINSTOR remotes for backup shipping
       name: remote
       namespace: ''
       version_added: 0.9.7
+    remote_info:
+      description: Query LINSTOR remotes
+      name: remote_info
+      namespace: ''
+      version_added: 0.9.10
     resource:
       description: Deploy LINSTOR resources
       name: resource
@@ -92,33 +152,68 @@ plugins:
       name: resource_definition
       namespace: ''
       version_added: 0.9.7
+    resource_definition_info:
+      description: Query LINSTOR resource definitions
+      name: resource_definition_info
+      namespace: ''
+      version_added: 0.9.10
     resource_group:
       description: Manage LINSTOR resource groups
       name: resource_group
       namespace: ''
       version_added: 0.9.7
+    resource_group_info:
+      description: Query LINSTOR resource groups
+      name: resource_group_info
+      namespace: ''
+      version_added: 0.9.10
+    resource_info:
+      description: Query LINSTOR resources
+      name: resource_info
+      namespace: ''
+      version_added: 0.9.10
     schedule:
       description: Manage LINSTOR backup schedules
       name: schedule
       namespace: ''
       version_added: 0.9.7
+    schedule_info:
+      description: Query LINSTOR backup schedules
+      name: schedule_info
+      namespace: ''
+      version_added: 0.9.10
     snapshot:
       description: Manage LINSTOR snapshots
       name: snapshot
       namespace: ''
       version_added: 0.9.7
+    snapshot_info:
+      description: Query LINSTOR snapshots
+      name: snapshot_info
+      namespace: ''
+      version_added: 0.9.10
     storage_pool:
       description: Manage LINSTOR storage pools
       name: storage_pool
       namespace: ''
       version_added: 0.9.7
+    storage_pool_info:
+      description: Query LINSTOR storage pools
+      name: storage_pool_info
+      namespace: ''
+      version_added: 0.9.10
     volume_group:
       description: Manage LINSTOR volume groups
       name: volume_group
       namespace: ''
       version_added: 0.9.7
+    volume_group_info:
+      description: Query LINSTOR volume groups
+      name: volume_group_info
+      namespace: ''
+      version_added: 0.9.10
   netconf: {}
   shell: {}
   strategy: {}
   vars: {}
-version: 0.9.9
+version: 0.9.10

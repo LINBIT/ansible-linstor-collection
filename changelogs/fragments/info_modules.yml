@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    Add read-only ``_info`` modules for every queryable LINSTOR object type.

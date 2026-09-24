@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    Requirements - raise the minimum python-linstor version to 1.28.1.

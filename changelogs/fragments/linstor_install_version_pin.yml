@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    controller_install, satellite_install - new ``linstor_install_version``
-    variable pins ``linstor-controller``, ``linstor-satellite``, and
-    ``linstor-common`` to a version, for example ``1.33.3``, and locks them
-    in the package manager. Empty, the default, installs the newest version.

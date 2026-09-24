@@ -208,3 +208,305 @@ releases:
       - gpl-non-module-plugins.yml
       - module-play-structure-docs.yml
     release_date: '2026-05-21'
+  0.9.10:
+    changes:
+      breaking_changes:
+        - 'Remove ``state: query`` from the LINSTOR manage modules (``controller``,
+          ``node``, ``node_interface``, ``storage_pool``, ``resource``, ``resource_definition``,
+          ``resource_group``, ``volume_group``, ``snapshot``, ``remote``, ``schedule``,
+          ``key_value_store``, and ``file``). Use the matching ``_info`` module instead.'
+        - The ``controller_env`` filter is removed. Use the ``linbit.linstor.controller_env``
+          lookup, which returns the same ``LS_CONTROLLERS`` string.
+        - 'cluster_init - ``cluster_init_deploy_storage`` defaults to ``true``, and
+          the HA database conversion (``cluster_init_ha_database``, default ``true``)
+          no longer requires it. Set ``cluster_init_ha_database: false`` to keep a
+          cluster without an HA database.'
+        - 'cluster_init - enables token authentication by default on clusters running
+          LINSTOR 1.34.0 or later. Clients that do not send a token, such as storage
+          plugins without token support, get ``401`` responses. Set ``cluster_init_token_auth:
+          false`` to keep token authentication off.'
+        - gateway_satellite - ``gateway_satellite_scst_version`` is removed. Set ``scst_install_version``
+          to pin the SCST build reference.
+        - ha_database - ``ha_database_res`` is removed and the HA database resource
+          is always named ``linstor_db``, the name the LINSTOR User Guide and the
+          linstor-controller-ha-setup script use.
+        - storage_pool - a pool without ``nodes`` or ``groups`` targets every host
+          in ``linstor_satellites``. The ``linstor_diskful_satellites`` and ``linstor_diskless_satellites``
+          groups no longer limit pool placement, so scope pools away from diskless
+          satellites with ``nodes`` or ``groups``.
+      bugfixes:
+        - 'LINSTOR API modules - keep privilege escalation when ``linstor_api_delegate``
+          points at a remote host, so the modules can read root-owned client configuration
+          there. ``become`` is dropped only for ``delegate_to: localhost``.'
+        - cluster_membership - do not restart the controller service after node registration.
+          On multi-controller clusters it started standby controllers that must stay stopped.
+        - controller_env lookup - read ``linstor_ssl`` as a boolean, so a string such
+          as ``-e linstor_ssl=false`` no longer selects the SSL scheme and breaks
+          connections to non-SSL clusters.
+        - controller_env lookup, client_install - write the ``linstor+ssl://`` scheme
+          for SSL clusters instead of ``linstors://``, which python-linstor does not
+          recognize. Clients connect to the HTTPS port directly instead of relying
+          on the redirect from the plain port.
+        - controller_install - select the first controller by exact hostname match,
+          so hostnames that contain one another no longer confuse the controller start
+          and stop selection.
+        - galaxy.yml - require ``community.general`` 11.0.0 or later for the ``zpool``
+          module, ``linbit.common`` 0.9.9 or later for the ``zfs_install`` role, and
+          ``linbit.drbd_reactor`` 0.9.9 or later for the ``scst_install`` and ``ganesha_install``
+          roles.
+        - gateway_install - restart linstor-gateway when ``linstor-gateway.toml``
+          changes.
+        - gateway_install - restore the fallback to the GitHub release binary when
+          the package install fails. The package install is retried up to three times
+          first, so a transient repository failure does not trigger the fallback.
+        - gateway_install - write a valid ``linstor-gateway.toml`` with full controller
+          URLs, including scheme and port. The template produced invalid TOML and
+          a garbled address, so LINSTOR Gateway fell back to ``localhost:3370``.
+        - gateway_satellite - fail when the NFS or iSCSI backend packages do not install.
+          The error was ignored and left targets unable to promote.
+        - ha_database - an empty ``ha_database_pool`` selects the first diskful pool
+          on the combined nodes, as documented, instead of failing the conversion.
+        - ha_database - stop setting the immutable attribute on ``/var/lib/linstor``.
+          It blocked teardown and re-initialization of the HA database.
+        - ha_database - treat an existing HA database resource definition as an already
+          converted cluster. Clusters converted with the linstor-controller-ha-setup
+          script do not carry the ``ClusterIsHA`` property, and a second conversion
+          failed on the mounted database.
+        - ha_gateway - reject targets that set both ``nodes`` and ``resource_group``.
+          The combination ignored the resource group's storage pool and layer settings.
+        - ha_gateway - remove absent targets one at a time and retry each delete until
+          the resource is no longer in use. Removing them all at once could leave
+          a resource promoted, so its delete never succeeded.
+        - roles - fix argument spec validation on ansible-core 2.19 and later when
+          the ``linstor_controllers`` group is empty. A Jinja expression in the ``linstor_api_delegate``
+          description crashed the validation.
+        - 'roles - stop adding ``localhost`` to the ``all`` inventory group. A later
+          play with ``hosts: all`` and ``become: true`` gathered facts on localhost
+          and failed with a sudo prompt on control nodes without passwordless root.'
+        - satellite_install - enable and start linstor-satellite on every run. A node
+          whose package was installed outside the role, or whose service was stopped,
+          never started it.
+        - satellite_install - fix the ZFS install on Oracle Linux (EPEL package and
+          UEK DKMS compiler) and on Debian OS family cloud kernels. The Red Hat family
+          kmod install no longer pulls an unversioned ``kernel-devel``.
+        - ssl_init - create ``/etc/linstor/ssl`` at mode ``0755`` so the non-root
+          controller service user of LINSTOR 1.34.0 can read its keystore. The private
+          key keeps mode ``0600``.
+        - ssl_init - regenerate a cached node certificate whose SAN no longer matches
+          the inventory, and rebuild the keystore and truststores when the pushed
+          certificate, key, or CA changes. Stale material failed TLS hostname verification
+          and skipped the service restart.
+        - ssl_init - restore macOS control hosts. LibreSSL wrote EC keys with explicit
+          curve parameters that Java rejects, so the role requests named-curve keys.
+          Delete a ``ca.key`` generated on a Mac under ``ssl_init_local_dir`` before
+          running the role again.
+        - ssl_init - retry the controller status query on transient failures and do
+          not double-count controllers when the role runs twice in one play.
+        - storage_pool - fail when a pool already exists with a different driver or
+          backing pool instead of reporting ``ok``. LINSTOR cannot change either,
+          so delete the pool and create it again.
+      major_changes:
+        - Support LINSTOR token authentication (LINSTOR 1.34.0 and later). All LINSTOR
+          API modules authenticate with the ``auth-token`` from ``linstor-client.conf``
+          or the ``auth_token`` module parameter. The ``auth_init``, ``auth_token``,
+          and ``auth_token_info`` modules enable authentication and manage tokens.
+      minor_changes:
+        - Add read-only ``_info`` modules for every queryable LINSTOR object type.
+        - LINSTOR modules - add a ``config_file`` option that reads the controller
+          list, auth token, and TLS certificate paths from a given ``linstor-client.conf``
+          in place of ``~/.config/linstor`` and ``/etc/linstor``. When a module runs
+          on the Ansible control node, the action plugin fills the option from the
+          ``linstor_client_config_file`` variable, so one inventory variable gives
+          each cluster its own control node client configuration and several clusters,
+          or parallel playbook runs, no longer overwrite each other's controllers
+          and token.
+        - Requirements - raise the minimum python-linstor version to 1.28.1.
+        - auth_init - ``auth_init_local_cafile`` follows ``ssl_init_local_dir`` when
+          it is set.
+        - auth_init - new role that enables token authentication and saves the user
+          token at mode ``0600`` in ``linstor-client.conf`` for the control node user
+          and for root on the controllers. The role skips controllers older than LINSTOR
+          1.34.0.
+        - client_install - new ``linstor_client_auth_token`` variable writes an ``auth-token``
+          entry into ``linstor-client.conf``.
+        - client_install - new ``linstor_client_cafile`` variable sets the CA file
+          in the control node ``linstor-client.conf``.
+        - client_install, auth_init - add ``linstor_client_config_file`` to set where
+          the ``linstor-client.conf`` on the control node is written, and ``client_install_local_config``
+          to skip writing it. It defaults to ``false`` when ``linstor_api_delegate``
+          points at another host, so delegating to a controller node leaves the control
+          node untouched. A saved auth token is kept in the control node config only
+          when the file shares a controller address with the inventory, so a cluster
+          at other addresses never inherits it.
+        - cluster_init - new ``cluster_init_token_auth`` variable (default ``true``)
+          runs the ``auth_init`` role after cluster membership registration.
+        - cluster_membership, controller_install, ssl_init, ha_database - fail with
+          a clear message when the ``linstor_controllers`` group is empty.
+        - controller_install, satellite_install - new ``linstor_install_version``
+          variable pins ``linstor-controller``, ``linstor-satellite``, and ``linstor-common``
+          to a version, for example ``1.33.3``, and locks them in the package manager.
+          Empty, the default, installs the newest version.
+        - controller_install, satellite_install, gateway_install, gateway_satellite,
+          ha_controller_proxy - new ``<role>_firewalld_zone`` variable selects the
+          firewalld zone for the ports each role opens. Set it when a zone is bound
+          to a source, because a port in the default zone does not apply to traffic
+          matched into a source zone. Empty, the default, uses the default zone (https://github.com/LINBIT/ansible-linstor-collection/issues/2).
+        - gateway_install - new ``gateway_install_from_github`` variable installs
+          the latest ``linstor-gateway`` release binary from GitHub instead of the
+          distribution package.
+        - gateway_install - new ``gateway_install_package_state`` variable (default
+          ``present``). Set it to ``latest`` to upgrade.
+        - gateway_install, gateway_satellite - configure LINSTOR Gateway for token-authenticated
+          clusters. The daemon connects to the controller HTTPS endpoint, trusts the
+          controller CA, and reads its token from the ``token_file`` key in ``linstor-gateway.toml``.
+          Nodes holding a satellite token in ``/var/lib/linstor.d/auth.json`` use
+          it, and other nodes get a dedicated token that ``gateway_satellite_token_force``
+          rotates.
+        - gateway_satellite - install SCST with the ``linbit.drbd_reactor.scst_install``
+          role when ``gateway_satellite_scst`` is ``true``. By default it builds the
+          latest SCST release.
+        - gateway_satellite - install the HA dependencies on every host in ``linstor_gateway_satellites``.
+        - gateway_satellite - new ``gateway_satellite_ganesha`` variable (default
+          ``false``) installs the NFS-Ganesha userspace NFS server with the ``linbit.drbd_reactor.ganesha_install``
+          role.
+        - gateway_satellite - token authentication is detected from the controller
+          or set with ``gateway_satellite_token_auth``. Without ``ssl_init``, the
+          role trusts the controller's auto-generated certificate, or the CA in ``gateway_satellite_ca_cert``.
+          Requires linstor-gateway 2.3.0 or later.
+        - ha_controller_proxy - new role that runs a dedicated HAProxy instance (``linstor-haproxy.service``)
+          on the controllers and forwards LINSTOR API and GUI traffic to the active
+          controller. It is an alternative to a virtual IP that also works on routed
+          and cloud networks, and it leaves the distribution ``haproxy.service`` untouched.
+        - ha_database - check that an explicit ``ha_database_pool`` is a diskful pool
+          on every combined node before the conversion starts.
+        - ha_database - new ``ha_database_haproxy`` variable (default ``false``) deploys
+          the ``ha_controller_proxy`` role after the HA database conversion.
+        - ha_database, ha_gateway - find the diskful nodes from the storage pools
+          registered in LINSTOR instead of from inventory groups.
+        - host_storage_pools filter - new filter that returns the ``linstor_storage_pools``
+          entries that target a host.
+        - ha_gateway - NFS exports accept an ``implementation`` key (``kernel`` or
+          ``ganesha``, default from ``ha_gateway_nfs_implementation``). ``ganesha``
+          serves the export with NFS-Ganesha and matches ``linstor-gateway nfs create
+          --implementation=ganesha``.
+        - ha_gateway - new per-target ``layer_list`` option sets the layer stack of
+          iSCSI, NFS, and NVMe-oF targets, for example to add LUKS encryption. Targets
+          placed with a resource group take the layers from the group.
+        - physical_storage - new module that creates LVM, LVM thin, ZFS, or SPDK device
+          pools from unused block devices on a satellite, with optional VDO or self-encrypting
+          drive setup, and can register the result as a storage pool. ``physical_storage_info``
+          lists the eligible devices.
+        - resource - new ``layer_list`` parameter sets the layer stack of the resource
+          definition in manual and autoplace modes.
+        - roles - support Ubuntu 26.04 (Resolute).
+        - satellite_install - install ZFS with the ``linbit.common.zfs_install`` role.
+        - storage_pool - create Windows Storage Spaces pools on LINBIT SDS for Windows
+          satellites with the ``storagespaces`` and ``storagespaces_thin`` types and
+          the ``wss`` key. The role builds the pool from ``physical_devices`` and
+          refuses boot and system disks.
+        - storage_pool - new ``vdevs`` key adds log, special, cache, and extra data
+          vdevs to ZFS pools.
+        - 'storage_pool - support diskless storage pools with ``driver: diskless``
+          in the module and ``type: diskless`` in the role. The role only registers
+          the pool and needs no ``physical_devices`` (https://github.com/LINBIT/ansible-linstor-collection/issues/1).'
+    fragments:
+      - api-become-remote-delegate.yml
+      - auth_init_role.yml
+      - auth_token_modules.yml
+      - client-config-file.yml
+      - cluster_membership_drop_restart.yml
+      - controller_env_ssl_bool.yml
+      - diskful-nodes-derivation.yml
+      - drop-localhost-add-host.yml
+      - firewalld-zone.yml
+      - galaxy-dependency-floors.yml
+      - gateway-install-controller-config.yml
+      - gateway-satellite-scst-delegation.yml
+      - gateway_install_from_github.yml
+      - gateway_satellite_token_auth.yml
+      - gateway_satellite_ubuntu2604_backends.yml
+      - ha-database-detect-script-conversion.yml
+      - ha-database-fixed-resource-name.yml
+      - ha-database-pool-auto-select.yml
+      - ha-gateway-layer-list.yml
+      - ha-gateway-rg-nodes-exclusive.yml
+      - ha-gateway-teardown-sequential.yml
+      - ha_controller_proxy_role.yml
+      - ha_database_drop_immutable_attr.yml
+      - ha_gateway_nfs_ganesha.yml
+      - info_modules.yml
+      - inventory-group-preflight-and-doc-templating.yml
+      - linstor_install_version_pin.yml
+      - package-install-retries.yml
+      - physical_storage_modules.yml
+      - python_linstor_1_28_1.yml
+      - remove_query_state.yml
+      - retire-controller-env-filter.yml
+      - satellite-service-state.yml
+      - satellite_install_zfs_role.yml
+      - ssl-init-macos-control-host.yml
+      - ssl_init_1340_nonroot_controller.yml
+      - ssl_init_stale_cache_regen.yml
+      - storage-pool-diskless.yml
+      - storage-pool-driver-mismatch.yml
+      - storage-pool-zfs-vdevs.yml
+      - storage_pool_storagespaces.yml
+    modules:
+      - description: Initialize LINSTOR token authentication.
+        name: auth_init
+        namespace: ''
+      - description: Manage LINSTOR auth tokens.
+        name: auth_token
+        namespace: ''
+      - description: Query LINSTOR auth tokens.
+        name: auth_token_info
+        namespace: ''
+      - description: Query LINSTOR controller properties.
+        name: controller_info
+        namespace: ''
+      - description: Query LINSTOR encryption status.
+        name: encryption_info
+        namespace: ''
+      - description: Query a LINSTOR external file.
+        name: file_info
+        namespace: ''
+      - description: Query a LINSTOR key\-value store.
+        name: key_value_store_info
+        namespace: ''
+      - description: Query LINSTOR nodes.
+        name: node_info
+        namespace: ''
+      - description: Query LINSTOR node network interfaces.
+        name: node_interface_info
+        namespace: ''
+      - description: Create LVM, ZFS, or SPDK device pools on LINSTOR satellites.
+        name: physical_storage
+        namespace: ''
+      - description: Query unused block devices on LINSTOR satellites.
+        name: physical_storage_info
+        namespace: ''
+      - description: Query LINSTOR remotes.
+        name: remote_info
+        namespace: ''
+      - description: Query LINSTOR resource definitions.
+        name: resource_definition_info
+        namespace: ''
+      - description: Query LINSTOR resource groups.
+        name: resource_group_info
+        namespace: ''
+      - description: Query LINSTOR resources.
+        name: resource_info
+        namespace: ''
+      - description: Query LINSTOR backup schedules.
+        name: schedule_info
+        namespace: ''
+      - description: Query LINSTOR snapshots.
+        name: snapshot_info
+        namespace: ''
+      - description: Query LINSTOR storage pools.
+        name: storage_pool_info
+        namespace: ''
+      - description: Query LINSTOR volume groups.
+        name: volume_group_info
+        namespace: ''
+    release_date: '2026-09-24'

@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    ha_gateway - reject targets that set both ``nodes`` and
-    ``resource_group``. The combination ignored the resource group's storage
-    pool and layer settings.

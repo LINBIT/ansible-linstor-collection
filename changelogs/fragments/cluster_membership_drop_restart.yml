@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    cluster_membership - do not restart the controller service after node
-    registration. The restart started stopped standby controllers on
-    multi-controller clusters.

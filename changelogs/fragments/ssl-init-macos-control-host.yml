@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    ssl_init - restore macOS control hosts. LibreSSL wrote EC keys with
-    explicit curve parameters that Java rejects, so the role requests
-    named-curve keys. Delete a ``ca.key`` generated on a Mac under
-    ``ssl_init_local_dir`` before running the role again.

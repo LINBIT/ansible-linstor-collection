@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    ha_gateway - remove absent targets one at a time and retry each delete
-    until the resource is no longer in use. Removing them all at once could
-    leave a resource promoted, so its delete never succeeded.

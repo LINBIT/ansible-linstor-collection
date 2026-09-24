@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    gateway_install - new ``gateway_install_from_github`` variable installs
-    the latest ``linstor-gateway`` release binary from GitHub instead of the
-    distribution package.

@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    roles - stop adding ``localhost`` to the ``all`` inventory group. A
-    later play with ``hosts: all`` and ``become: true`` gathered facts on
-    localhost and failed with a sudo prompt on control nodes without
-    passwordless root.

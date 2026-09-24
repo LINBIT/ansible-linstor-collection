@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    gateway_install - restore the fallback to the GitHub release binary when
-    the package install fails. The package install is retried up to three
-    times first, so a transient repository failure does not trigger the
-    fallback.
