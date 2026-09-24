@@ -28,6 +28,12 @@ for ``localhost`` that connects over SSH counts as remote and keeps become.
 
 Users who genuinely need privileged execution on a local delegate can still
 set ``become_user: root`` (or use a shell wrapper) on the individual task.
+
+For local execution the base also fills the module's ``config_file`` option
+from the ``linstor_client_config_file`` variable when the task does not set
+it, so one inventory variable points every LINSTOR module at a per-inventory
+client configuration instead of the shared ``~/.config/linstor`` file. The
+path names a file on the control node, so a remote delegate never gets it.
 """
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -59,4 +65,12 @@ class LinstorActionModule(NormalAction):
             # self._connection.become directly.
             if self._connection is not None:
                 self._connection.become = None
+            self._set_config_file(task_vars or {})
         return super(LinstorActionModule, self).run(tmp, task_vars)
+
+    def _set_config_file(self, task_vars):
+        if self._task.args.get('config_file'):
+            return
+        config_file = task_vars.get('linstor_client_config_file')
+        if config_file:
+            self._task.args['config_file'] = self._templar.template(config_file)

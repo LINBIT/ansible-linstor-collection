@@ -75,7 +75,7 @@ The following files are pushed to each cluster node at `ssl_init_dir`:
 | `keystore.jks` | Java keystore containing node key and certificate |
 | `certificates.jks` | Java truststore containing the CA certificate |
 
-After completing the SSL configuration, `~/.config/linstor/linstor-client.conf` is written on the Ansible control node with the `linstor+ssl://` controller address and `cafile` pointing to `ssl_init_local_dir/ca.crt`.
+After completing the SSL configuration, the `linstor-client.conf` on the control node, set by `linstor_client_config_file` from `client_install` (default `~/.config/linstor/linstor-client.conf`), is written with the `linstor+ssl://` controller address and `cafile` pointing to `ssl_init_local_dir/ca.crt`.
 
 The CA certificate is also installed into the operating system trust store:
 

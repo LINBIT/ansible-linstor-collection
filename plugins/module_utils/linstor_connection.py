@@ -25,6 +25,10 @@ LINSTOR_COMMON_ARGS = dict(
         default=None,
         no_log=True,
     ),
+    config_file=dict(
+        type='path',
+        default=None,
+    ),
 )
 
 
@@ -41,21 +45,25 @@ def get_linstor_connection(module, unauthorized_ok=False):
     instead of failing the module. Used by auth_init to detect an
     already initialized cluster without credentials.
 
+    Client config file: the module 'config_file' parameter when it names
+    an existing file, otherwise ~/.config/linstor/linstor-client.conf,
+    otherwise /etc/linstor/linstor-client.conf (python-linstor reads the
+    first one that exists).
+
     Controller URI resolution order (mirrors the linstor CLI):
     1. Module 'controllers' parameter (if provided)
     2. LS_CONTROLLERS environment variable
-    3. ~/.config/linstor/linstor-client.conf (XDG user config)
-    4. /etc/linstor/linstor-client.conf [global] controllers= key
-    5. Fallback: linstor://localhost
+    3. [global] controllers= key of the client config file
+    4. Fallback: linstor://localhost
 
-    Steps 2-5 are handled by linstor.Config.get_controllers().
-    SSL cert paths (certfile/keyfile/cafile) are read from the same
-    config files in the same order, with user-level overriding system.
+    Steps 2-4 are handled by linstor.Config.get_controllers().
+    SSL cert paths (certfile/keyfile/cafile) are read from 'config_file'
+    alone when it is set, otherwise from the system and user config
+    files, with user-level overriding system.
 
     Auth token resolution order (mirrors the linstor CLI):
     1. Module 'auth_token' parameter (if provided)
-    2. linstor-client.conf [global] auth-token= key (user config
-       overriding system config)
+    2. [global] auth-token= key of the client config file
     3. /var/lib/linstor.d/auth.json fallback (handled inside
        python-linstor when no token is passed; satellite nodes only)
     """
@@ -66,18 +74,22 @@ def get_linstor_connection(module, unauthorized_ok=False):
                 "Import error: %s" % LINSTOR_IMPORT_ERROR)
 
     controllers_param = module.params.get('controllers')
+    config_file = module.params.get('config_file')
+    if config_file and not os.path.exists(config_file):
+        config_file = None
 
     if controllers_param:
         uri_list = linstor.MultiLinstor.controller_uri_list(controllers_param)
     else:
-        uri_list = linstor.Config.get_controllers()
+        uri_list = linstor.Config.get_controllers(config_file_name=config_file)
 
     if not uri_list:
         uri_list = ['linstor://localhost']
 
     auth_token = module.params.get('auth_token')
     if not auth_token:
-        auth_token = linstor.Config.get_section('global').get('auth-token')
+        auth_token = linstor.Config.get_section(
+            'global', config_file).get('auth-token')
 
     try:
         if auth_token:
@@ -92,12 +104,15 @@ def get_linstor_connection(module, unauthorized_ok=False):
         # System config first, then XDG user config; user-level wins.
         import configparser
         config = configparser.ConfigParser()
-        xdg_config_home = os.environ.get(
-            'XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
-        config.read([
-            '/etc/linstor/linstor-client.conf',
-            os.path.join(xdg_config_home, 'linstor', 'linstor-client.conf'),
-        ])
+        if config_file:
+            config.read([config_file])
+        else:
+            xdg_config_home = os.environ.get(
+                'XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+            config.read([
+                '/etc/linstor/linstor-client.conf',
+                os.path.join(xdg_config_home, 'linstor', 'linstor-client.conf'),
+            ])
         certfile = config.get('global', 'certfile', fallback=None)
         keyfile = config.get('global', 'keyfile', fallback=None)
         cafile = config.get('global', 'cafile', fallback=None)

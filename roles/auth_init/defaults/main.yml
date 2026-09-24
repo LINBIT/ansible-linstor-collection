@@ -7,7 +7,7 @@ auth_init_no_https: false
 # Hide the raw token in task output. Disable only for debugging.
 auth_init_no_log: true
 
-# Write the user token into the control node ~/.config/linstor/linstor-client.conf
+# Write the user token into the control node linstor-client.conf
 auth_init_save_control_node: true
 
 # Write the user token into the root user's
@@ -20,8 +20,13 @@ auth_init_save_controllers: true
 # ssl_init. Matches the paths ssl_init renders into linstor-client.conf so
 # the auth token render does not drop the SSL settings.
 auth_init_client_https: "{{ linstor_ssl | default(false) | bool }}"
-auth_init_local_cafile: "{{ (lookup('env', 'HOME') + '/.config/linstor/ssl/ca.crt') if auth_init_client_https | bool else '' }}"
+auth_init_local_cafile: >-
+  {{ (ssl_init_local_dir | default(lookup('env', 'HOME') + '/.config/linstor/ssl')) + '/ca.crt'
+     if auth_init_client_https | bool else '' }}
 auth_init_cluster_cafile: "{{ '/etc/linstor/ssl/ca.crt' if auth_init_client_https | bool else '' }}"
+
+# Control node client config the user token is saved into
+linstor_client_config_file: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
 
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint

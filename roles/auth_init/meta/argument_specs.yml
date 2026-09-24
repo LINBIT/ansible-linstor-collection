@@ -11,8 +11,8 @@ argument_specs:
         first user token, and distributes individual satellite tokens to every connected satellite
         node.
       - >-
-        Saves the user token into the control node C(~/.config/linstor/linstor-client.conf) and
-        into the root user's C(/root/.config/linstor/linstor-client.conf) on controller nodes, so
+        Saves the user token into the C(linstor-client.conf) on the control node, set by
+        C(linstor_client_config_file), and into the root user's C(/root/.config/linstor/linstor-client.conf) on controller nodes, so
         the LINSTOR modules and the C(linstor) CLI keep working against the secured API.
       - >-
         Gates on the controller's running version reported by the REST API and skips cleanly on
@@ -41,7 +41,7 @@ argument_specs:
         type: bool
         default: true
         description:
-          - Write the user token into the control node C(~/.config/linstor/linstor-client.conf).
+          - Write the user token into the C(linstor-client.conf) on the control node, set by C(linstor_client_config_file).
       auth_init_save_controllers:
         type: bool
         default: true
@@ -75,6 +75,12 @@ argument_specs:
         description:
           - CA certificate path for the controller-node client config.
           - Defaults to the C(ssl_init) cluster CA path when C(auth_init_client_https) is true.
+      linstor_client_config_file:
+        type: path
+        description:
+          - Path of the C(linstor-client.conf) on the control node that the user token is saved into.
+          - Defaults to C(~/.config/linstor/linstor-client.conf) of the user running Ansible.
+          - Set it in inventory so C(client_install), this role, and the LINSTOR modules share one path.
       linstor_api_delegate:
         type: str
         required: false

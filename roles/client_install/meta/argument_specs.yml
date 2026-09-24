@@ -46,6 +46,34 @@ argument_specs:
             files, which write their token-bearing config C(0600). The system-wide
             C(configure-client) task does not set this and leaves C(/etc/linstor/linstor-client.conf)
             a stock C(0644) file without a token.
+      linstor_client_config_file:
+        type: path
+        description:
+          - Path of the C(linstor-client.conf) on the control node that the C(configure-control-node)
+            task renders.
+          - >-
+            Defaults to C(~/.config/linstor/linstor-client.conf) of the user running Ansible, the
+            per-user location the C(linstor) CLI and python-linstor read.
+          - >-
+            Point it at a per-inventory path to keep the controller list, auth token, and
+            certificate paths of several clusters apart on one control node.
+          - >-
+            The collection's action plugin passes the same path to every LINSTOR module that runs
+            on the control node as its O(linbit.linstor.node#module:config_file) option, so the
+            modules read the file this role writes.
+      client_install_local_config:
+        type: bool
+        description:
+          - Render the C(linstor-client.conf) on the control node, set by C(linstor_client_config_file).
+          - >-
+            Defaults to true when C(linstor_api_delegate) is C(localhost) or unset, and to false
+            when it points at another host, because only LINSTOR modules that run on the control
+            node read this file.
+          - This also gates the control node renders that the C(auth_init) and C(ssl_init) roles request.
+          - >-
+            Setting it to false while the modules still run on the control node leaves them without
+            a saved auth token or CA file, which only works against a cluster without token
+            authentication or HTTPS.
       client_install_force_reconfigure:
         type: bool
         default: false

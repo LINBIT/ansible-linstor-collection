@@ -1,33 +1,42 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Ensure control node linstor config directory exists
-  ansible.builtin.file:
-    path: "{{ lookup('env', 'HOME') }}/.config/linstor"
-    state: directory
-    mode: '0700'
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
+- name: Configure control node linstor-client.conf
+  when: client_install_local_config | bool
+  block:
+    - name: Ensure control node linstor config directory exists
+      ansible.builtin.file:
+        path: "{{ linstor_client_config_file | dirname }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+      run_once: true  # noqa: run-once[task]
 
-# Preserve an existing auth-token so unrelated re-renders do not strip it
-- name: Resolve auth token to preserve in control node config
-  ansible.builtin.set_fact:
-    _client_install_local_auth_token: >-
-      {{ linstor_client_auth_token | default('')
-         or lookup('ansible.builtin.ini', 'auth-token',
-                   section='global',
-                   file=lookup('env', 'HOME') + '/.config/linstor/linstor-client.conf',
-                   default='', errors='ignore')
-         or '' }}
-  no_log: true
+    # Keep a saved auth-token across re-renders, but only for a cluster that shares a controller
+    - name: Resolve auth token to preserve in control node config
+      ansible.builtin.set_fact:
+        _client_install_local_auth_token: >-
+          {{ linstor_client_auth_token | default('')
+             or (_client_install_saved_token
+                 if _client_install_saved_controllers | replace('linstor+ssl://', '') | split(',')
+                    | intersect(linstor_controller_addresses) | length > 0
+                 else '') }}
+      vars:
+        _client_install_saved_token: >-
+          {{ lookup('ansible.builtin.ini', 'auth-token', section='global',
+                    file=linstor_client_config_file, default='', errors='ignore') }}
+        _client_install_saved_controllers: >-
+          {{ lookup('ansible.builtin.ini', 'controllers', section='global',
+                    file=linstor_client_config_file, default='', errors='ignore') }}
+      no_log: true
 
-- name: Render control node linstor-client.conf
-  ansible.builtin.template:
-    src: linstor-client.j2
-    dest: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
-    mode: '0600'
-  vars:
-    linstor_client_auth_token: "{{ _client_install_local_auth_token }}"
-  delegate_to: localhost
-  become: false
-  run_once: true  # noqa: run-once[task]
+    - name: Render control node linstor-client.conf
+      ansible.builtin.template:
+        src: linstor-client.j2
+        dest: "{{ linstor_client_config_file }}"
+        mode: '0600'
+      vars:
+        linstor_client_auth_token: "{{ _client_install_local_auth_token }}"
+      delegate_to: localhost
+      become: false
+      run_once: true  # noqa: run-once[task]

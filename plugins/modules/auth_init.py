@@ -46,20 +46,8 @@ options:
         through the C(ssl_init) role.
     type: bool
     default: false
-  controllers:
-    description:
-      - Comma-separated list of LINSTOR controller URIs.
-      - If omitted, reads from C(LS_CONTROLLERS) env, then
-        C(/etc/linstor/linstor-client.conf), then falls back to
-        C(linstor://localhost).
-    type: str
-  auth_token:
-    description:
-      - LINSTOR auth token for clusters with token authentication enabled.
-      - If omitted, reads C(auth-token) from C(linstor-client.conf) (user
-        configuration overriding system configuration), then falls back to
-        C(/var/lib/linstor.d/auth.json) on satellite nodes.
-    type: str
+extends_documentation_fragment:
+  - linbit.linstor.connection
 requirements:
   - python-linstor
 notes:

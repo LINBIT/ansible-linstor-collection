@@ -15,21 +15,9 @@ description:
   - Returns both user tokens and satellite tokens; filter on the
     C(is_user_token) field to separate them.
   - Revoked tokens are not returned.
-options:
-  controllers:
-    description:
-      - Comma-separated list of LINSTOR controller URIs.
-      - If omitted, reads from C(LS_CONTROLLERS) env, then
-        C(/etc/linstor/linstor-client.conf), then falls back to
-        C(linstor://localhost).
-    type: str
-  auth_token:
-    description:
-      - LINSTOR auth token for clusters with token authentication enabled.
-      - If omitted, reads C(auth-token) from C(linstor-client.conf) (user
-        configuration overriding system configuration), then falls back to
-        C(/var/lib/linstor.d/auth.json) on satellite nodes.
-    type: str
+options: {}
+extends_documentation_fragment:
+  - linbit.linstor.connection
 requirements:
   - python-linstor
 notes:

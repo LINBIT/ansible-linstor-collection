@@ -20,7 +20,7 @@
          else (_auth_init_result.token | default('', true)
                or lookup('ansible.builtin.ini', 'auth-token',
                          section='global',
-                         file=lookup('env', 'HOME') + '/.config/linstor/linstor-client.conf',
+                         file=linstor_client_config_file,
                          default='', errors='ignore')
                or '') }}
   no_log: "{{ auth_init_no_log | bool }}"

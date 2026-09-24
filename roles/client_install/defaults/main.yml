@@ -9,5 +9,8 @@ linstor_client_cafile: ""
 linstor_client_certfile: ""
 linstor_client_keyfile: ""
 linstor_client_auth_token: ""
+linstor_client_config_file: "{{ lookup('env', 'HOME') }}/.config/linstor/linstor-client.conf"
+
+client_install_local_config: "{{ linstor_api_delegate | default('localhost') == 'localhost' }}"
 
 client_install_force_reconfigure: false

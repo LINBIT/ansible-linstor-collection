@@ -6,7 +6,7 @@ LINSTOR 1.34.0 adds bearer-token authentication for the REST API, which also ena
 This role initializes it on a deployed cluster.
 It enables token authentication, creates the first user token, and distributes a per-satellite token to `/var/lib/linstor.d/auth.json`.
 
-The user token is saved where the collection needs it: the control node `~/.config/linstor/linstor-client.conf` for the `linbit.linstor` modules, and the controller's `/root/.config/linstor/linstor-client.conf` for the `linstor` CLI.
+The user token is saved where the collection needs it: the `linstor-client.conf` on the control node, set by `linstor_client_config_file`, for the `linbit.linstor` modules, and the controller's `/root/.config/linstor/linstor-client.conf` for the `linstor` CLI.
 Satellite nodes are left untouched; their CLI uses the satellite token automatically.
 
 It gates on the controller's running version reported by the REST API, so it skips cleanly on controllers older than 1.34.0 and is safe to run by default.
@@ -46,6 +46,7 @@ Satellites that join later receive their token automatically on connect.
 | `auth_init_client_https` | `{{ linstor_ssl \| default(false) }}` | Render client configs with the `linstor+ssl://` scheme |
 | `auth_init_local_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the control node client config |
 | `auth_init_cluster_cafile` | `ssl_init` CA path when HTTPS, else empty | CA file for the controller-node client config |
+| `linstor_client_config_file` | `~/.config/linstor/linstor-client.conf` | Control node client config the token is saved into; set in inventory so `client_install` and the LINSTOR modules share the path |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 The HTTPS variables only matter on clusters that ran `ssl_init` previously.
@@ -79,7 +80,7 @@ The raw user token is returned exactly once by that call and is never retrievabl
 
 The role captures that one-time token and writes it into the client configuration files so the rest of the collection keeps working:
 
-- Control node: `~/.config/linstor/linstor-client.conf`, so `linbit.linstor` modules (which run delegated to the control node) authenticate automatically.
+- Control node: `linstor_client_config_file`, by default `~/.config/linstor/linstor-client.conf`, so `linbit.linstor` modules (which run delegated to the control node) authenticate automatically.
 - Controller nodes: `/root/.config/linstor/linstor-client.conf`, the location native `linstor controller auth init` uses, so the `linstor` CLI on a controller keeps working.
 - Satellite nodes: not touched. Each already has its own token in `/var/lib/linstor.d/auth.json`, which the `linstor` CLI reads automatically.
 
@@ -103,7 +104,7 @@ Recovery requires root (or equivalent) access to a node, and does not need the l
   linstor controller auth create recovery-admin
   ```
 
-  Copy the printed token into the `[global]` section of `~/.config/linstor/linstor-client.conf` on the control node as `auth-token = <token>`, then re-run the role.
+  Copy the printed token into the `[global]` section of the `linstor-client.conf` on the control node, set by `linstor_client_config_file`, as `auth-token = <token>`, then re-run the role.
 
 - Or disable token authentication on the controller, which requires brief controller downtime:
 
