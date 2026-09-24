@@ -11,7 +11,7 @@ __metaclass__ = type
 DOCUMENTATION = '''
   name: host_storage_pools
   short_description: Select the linstor_storage_pools entries that target a given host
-  version_added: "0.9.7"
+  version_added: "0.9.10"
   description:
     - Returns the entries of C(linstor_storage_pools) that apply to a given host, which is
       the per-host pool list the C(storage_pool) role creates (its C(_my_pools)).

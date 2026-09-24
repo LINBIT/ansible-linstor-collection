@@ -1,17 +1,21 @@
 # SPDX-License-Identifier: MIT
+---
 minor_changes:
-  - auth_init - new role to initialize LINSTOR token authentication. Saves the
-    user token to the control-node ``~/.config/linstor/linstor-client.conf`` and
-    to the controller's ``/root/.config/linstor/linstor-client.conf`` (the same
-    location native ``linstor controller auth init`` uses), both at mode
-    ``0600``. The system-wide ``/etc/linstor/linstor-client.conf`` is left a
-    stock ``0644`` file without a token.
-  - client_install - new ``linstor_client_auth_token`` variable renders an
-    ``auth-token`` entry into ``linstor-client.conf``. New
-    ``configure-controller-node`` task file writes the root user's
-    ``/root/.config/linstor/linstor-client.conf`` at mode ``0600``.
-  - cluster_init - new ``cluster_init_token_auth`` flag (default ``true``) includes
-    the ``auth_init`` role after cluster membership registration. The role
-    version-gates itself on the controller's running version reported by the REST
-    API, so clusters older than 1.34.0 skip token authentication cleanly. Set the
-    flag to ``false`` to disable.
+  - >-
+    auth_init - new role that enables token authentication and saves the
+    user token at mode ``0600`` in ``linstor-client.conf`` for the control
+    node user and for root on the controllers. The role skips controllers
+    older than LINSTOR 1.34.0.
+  - >-
+    client_install - new ``linstor_client_auth_token`` variable writes an
+    ``auth-token`` entry into ``linstor-client.conf``.
+  - >-
+    cluster_init - new ``cluster_init_token_auth`` variable (default
+    ``true``) runs the ``auth_init`` role after cluster membership
+    registration.
+breaking_changes:
+  - >-
+    cluster_init - enables token authentication by default on clusters
+    running LINSTOR 1.34.0 or later. Clients that do not send a token, such
+    as storage plugins without token support, get ``401`` responses. Set
+    ``cluster_init_token_auth: false`` to keep token authentication off.

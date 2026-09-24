@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: schedule_info
 short_description: Query LINSTOR backup schedules
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns LINSTOR backup schedules (cron expressions and retention settings).
   - Read-only; C(changed) is always C(false).

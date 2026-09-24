@@ -2,14 +2,10 @@
 ---
 minor_changes:
   - >-
-    controller_install, satellite_install, gateway_install, gateway_satellite,
-    ha_controller_proxy - add a ``<role>_firewalld_zone`` variable to choose the
-    firewalld zone the role opens its ports in. Empty, the default, omits the
-    zone argument and firewalld uses the default zone, so behaviour is unchanged
-    unless the variable is set. Set it when a zone is bound to a source, because
-    firewalld matches a source before an interface and zone drifting was removed
-    in firewalld 1.0, so a port opened in the default zone does not apply to
-    traffic matched into a source zone. A single port can still be placed in
-    another zone by overriding its entry in the role's firewall ports list. UFW
-    has no zones and ignores the setting
+    controller_install, satellite_install, gateway_install,
+    gateway_satellite, ha_controller_proxy - new ``<role>_firewalld_zone``
+    variable selects the firewalld zone for the ports each role opens. Set
+    it when a zone is bound to a source, because a port in the default zone
+    does not apply to traffic matched into a source zone. Empty, the
+    default, uses the default zone
     (https://github.com/LINBIT/ansible-linstor-collection/issues/2).

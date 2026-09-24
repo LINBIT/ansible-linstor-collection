@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: key_value_store_info
 short_description: Query a LINSTOR key-value store
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the entries of a LINSTOR key-value store instance.
   - Read-only; C(changed) is always C(false).

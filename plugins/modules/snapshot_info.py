@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: snapshot_info
 short_description: Query LINSTOR snapshots
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the snapshots of a LINSTOR resource.
   - Read-only; C(changed) is always C(false).

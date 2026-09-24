@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
 bugfixes:
-  - ha_database - treat an existing HA database resource definition as an
-    already converted cluster. Clusters migrated with the
-    linstor-controller-ha-setup script (linstor-controller 1.35.0+) do not
-    carry the ClusterIsHA property, and the role previously attempted a
-    second conversion that failed mid-migration on the mounted database.
+  - >-
+    ha_database - treat an existing HA database resource definition as an
+    already converted cluster. Clusters converted with the
+    linstor-controller-ha-setup script do not carry the ``ClusterIsHA``
+    property, and a second conversion failed on the mounted database.

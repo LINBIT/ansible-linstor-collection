@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: node_info
 short_description: Query LINSTOR nodes
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns information about LINSTOR cluster nodes.
   - Read-only; C(changed) is always C(false).

@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: node_interface_info
 short_description: Query LINSTOR node network interfaces
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the network interfaces of a LINSTOR node.
   - Read-only; C(changed) is always C(false).

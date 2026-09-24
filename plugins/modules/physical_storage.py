@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: physical_storage
 short_description: Create LVM, ZFS, or SPDK device pools on LINSTOR satellites
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Prepares unused block devices on a satellite through the LINSTOR physical
     storage API, the same call behind

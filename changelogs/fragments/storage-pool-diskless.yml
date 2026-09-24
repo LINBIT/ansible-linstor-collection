@@ -2,10 +2,7 @@
 ---
 minor_changes:
   - >-
-    storage_pool module - accept ``driver: diskless`` to register a custom
-    diskless storage pool. ``driver_pool`` must not be set for it
+    storage_pool - support diskless storage pools with ``driver: diskless``
+    in the module and ``type: diskless`` in the role. The role only
+    registers the pool and needs no ``physical_devices``
     (https://github.com/LINBIT/ansible-linstor-collection/issues/1).
-  - >-
-    storage_pool role - accept ``type: diskless`` pool entries. The role
-    creates no storage on the node and only registers the pool with LINSTOR,
-    so ``physical_devices`` is not required.

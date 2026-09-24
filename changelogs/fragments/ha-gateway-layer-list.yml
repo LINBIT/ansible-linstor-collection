@@ -1,12 +1,10 @@
 # SPDX-License-Identifier: MIT
 ---
 minor_changes:
-  - >
-    resource - add a layer_list parameter to set the resource definition's
-    DRBD layer stack in manual and autoplace modes. Spawn mode takes its
-    layers from the resource group.
-  - >
-    ha_gateway - add a per-target layer_list option to set the DRBD layer
-    stack on iSCSI, NFS, and NVMe-oF targets, for example to add a LUKS
-    layer for encryption. It applies to manual and autoplace targets.
-    Resource group targets take their layers from the group.
+  - >-
+    resource - new ``layer_list`` parameter sets the layer stack of the
+    resource definition in manual and autoplace modes.
+  - >-
+    ha_gateway - new per-target ``layer_list`` option sets the layer stack
+    of iSCSI, NFS, and NVMe-oF targets, for example to add LUKS encryption.
+    Targets placed with a resource group take the layers from the group.

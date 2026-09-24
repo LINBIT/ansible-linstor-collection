@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: controller_info
 short_description: Query LINSTOR controller properties
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the cluster-wide LINSTOR controller properties.
   - Read-only; C(changed) is always C(false).

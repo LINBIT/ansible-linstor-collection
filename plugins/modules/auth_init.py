@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: auth_init
 short_description: Initialize LINSTOR token authentication
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Initializes bearer token authentication for the LINSTOR REST API.
   - This is a singleton module (no C(name) parameter) similar to

@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource_info
 short_description: Query LINSTOR resources
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns information about LINSTOR resources (resource definitions and
     their deployments).

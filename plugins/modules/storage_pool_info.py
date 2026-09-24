@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: storage_pool_info
 short_description: Query LINSTOR storage pools
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns information about LINSTOR storage pools.
   - Read-only; C(changed) is always C(false).

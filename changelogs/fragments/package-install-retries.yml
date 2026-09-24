@@ -1,8 +1,8 @@
+# SPDX-License-Identifier: MIT
 ---
-minor_changes:
-  - gateway_install - retry the package manager install up to three times so
-    a transient package repository failure does not silently fall back to the
-    GitHub binary.
-  - client_install, controller_install, satellite_install, gateway_satellite,
-    ha_controller_proxy, ssl_init - use the default retry delay on package
-    installation tasks for consistency across collections.
+bugfixes:
+  - >-
+    gateway_install - restore the fallback to the GitHub release binary when
+    the package install fails. The package install is retried up to three
+    times first, so a transient repository failure does not trigger the
+    fallback.

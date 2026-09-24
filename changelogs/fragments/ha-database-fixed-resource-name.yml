@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
 breaking_changes:
-  - ha_database - the HA database resource name is now fixed to linstor_db
-    and the ha_database_res role variable is removed. The name is shared
-    with the LINSTOR user guide and the linstor-controller-ha-setup script,
-    and overriding it would break the cross-tool conversion detection.
+  - >-
+    ha_database - ``ha_database_res`` is removed and the HA database
+    resource is always named ``linstor_db``, the name the LINSTOR User Guide
+    and the linstor-controller-ha-setup script use.

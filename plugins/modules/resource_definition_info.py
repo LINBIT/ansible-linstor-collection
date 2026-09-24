@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource_definition_info
 short_description: Query LINSTOR resource definitions
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns LINSTOR resource definitions, including their inline volume
     definitions and properties.

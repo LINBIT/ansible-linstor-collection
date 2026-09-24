@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: resource_group_info
 short_description: Query LINSTOR resource groups
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns information about LINSTOR resource groups.
   - Read-only; C(changed) is always C(false).

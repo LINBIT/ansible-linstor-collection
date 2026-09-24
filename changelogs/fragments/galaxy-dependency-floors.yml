@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    galaxy.yml - require ``community.general`` 11.0.0 or later for the
+    ``zpool`` module, ``linbit.common`` 0.9.9 or later for the
+    ``zfs_install`` role, and ``linbit.drbd_reactor`` 0.9.9 or later for the
+    ``scst_install`` and ``ganesha_install`` roles.

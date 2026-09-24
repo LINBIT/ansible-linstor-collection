@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: encryption_info
 short_description: Query LINSTOR encryption status
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the cluster-wide LINSTOR master passphrase (encryption) status.
   - Read-only; C(changed) is always C(false).

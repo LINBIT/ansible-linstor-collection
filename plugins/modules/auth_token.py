@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: auth_token
 short_description: Manage LINSTOR auth tokens
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Creates, modifies, or revokes LINSTOR REST API auth tokens.
   - Requires token authentication to be initialized first; see

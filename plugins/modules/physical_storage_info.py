@@ -8,7 +8,7 @@ DOCUMENTATION = r'''
 ---
 module: physical_storage_info
 short_description: Query unused block devices on LINSTOR satellites
-version_added: "1.0.0"
+version_added: "0.9.10"
 description:
   - Returns the block devices that LINSTOR satellites report as unused and
     eligible for M(linbit.linstor.physical_storage), the same data as

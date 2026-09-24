@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >
-    README - link role names in the Roles table to their per-role
-    README files for easier navigation.

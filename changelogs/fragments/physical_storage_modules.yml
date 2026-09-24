@@ -1,14 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
 minor_changes:
-  - physical_storage - new module wrapping the LINSTOR physical storage API
-    (``linstor physical-storage create-device-pool``). Creates LVM, LVM thin,
-    ZFS, or SPDK device pools from unused block devices on a satellite, with
-    optional VDO deduplication and compression (``vdo``, ``vdo_logical_size``,
-    ``vdo_slab_size``), self-encrypting drive initialization (``sed``), and
-    pass-through ``pv``, ``vg``, ``lv``, and ``zpool`` create arguments, and
-    can register the result as a storage pool in the same call. Supports only
-    ``state=present`` because the LINSTOR API has no device pool delete.
-  - physical_storage_info - new module listing the unused block devices that
-    satellites report as eligible for ``physical_storage``
-    (``linstor physical-storage list``).
+  - >-
+    physical_storage - new module that creates LVM, LVM thin, ZFS, or SPDK
+    device pools from unused block devices on a satellite, with optional VDO
+    or self-encrypting drive setup, and can register the result as a storage
+    pool. ``physical_storage_info`` lists the eligible devices.

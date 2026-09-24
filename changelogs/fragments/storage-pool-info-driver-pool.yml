@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    storage_pool_info - return the pool's backend identifier in ``driver_pool``.
-    The module read a ``backing_pool`` attribute that python-linstor's
-    ``StoragePool`` does not have, so ``driver_pool`` was always an empty
-    string. It now reads the ``StorDriver/StorPoolName`` property.

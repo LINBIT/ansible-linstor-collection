@@ -2,7 +2,6 @@
 ---
 bugfixes:
   - >-
-    storage_pool - fail when the pool already exists with a different driver or
-    backing pool instead of silently reporting ``ok``. LINSTOR cannot change
-    either on an existing pool, so the message tells the user to delete the pool
-    with ``state=absent`` and create it again.
+    storage_pool - fail when a pool already exists with a different driver
+    or backing pool instead of reporting ``ok``. LINSTOR cannot change
+    either, so delete the pool and create it again.
