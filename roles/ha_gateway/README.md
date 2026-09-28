@@ -32,6 +32,14 @@ It installs iSCSI and NFS resource agents, the portblock RA fix, and DRBD Reacto
         name: linbit.linstor.gateway_satellite
 ```
 
+IPv6 service IPs do not work with every resource agent in resource-agents v4.18.0, the latest release:
+
+| Target | IPv6 status in v4.18.0 |
+|---|---|
+| NVMe-oF | Limited by `portblock` (a bundled HA service requirement). Set `resource_agents_upstream_version: main` until the next release. |
+| NFS | Limited by `portblock` (a bundled HA service requirement). Set `resource_agents_upstream_version: main` until the next release. |
+| iSCSI | Not supported. `iSCSITarget` cannot parse IPv6 portal addresses for LIO. |
+
 ## Role variables
 
 See `defaults/main.yml`.
@@ -48,7 +56,7 @@ See `defaults/main.yml`.
 | `ha_gateway_iscsi_iqn_base` | `iqn.2026-06.com.linbit` | Default IQN base when `iqn` is not set on target |
 | `ha_gateway_nfs_port` | `2049` | NFS service port |
 | `ha_gateway_nfs_implementation` | `kernel` | Default NFS server for exports that do not set `implementation`: `kernel` (in-kernel nfsd) or `ganesha` (NFS-Ganesha userspace server) |
-| `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0.0.0.0"]` | Default client CIDRs for NFS exports; use the dotted-mask form (`rpc.mountd` rejects `0.0.0.0/0`, and a literal `0.0.0.0/0` is auto-corrected at template time) |
+| `ha_gateway_nfs_allowed_ips` | `["0.0.0.0/0.0.0.0"]` | Default client CIDRs for NFS exports; use the dotted-mask form (`rpc.mountd` rejects `0.0.0.0/0`, and a literal `0.0.0.0/0` is auto-corrected at template time). An export with an IPv6 service IP turns this default into `*`, since mountd also ignores `::/0` |
 | `ha_gateway_nfs_options` | `rw,all_squash,anonuid=0,anongid=0` | Default NFS export options |
 | `ha_gateway_nvmeof_port` | `4420` | Default NVMe-oF target port |
 | `ha_gateway_nvmeof_nqn_base` | `nqn.2026-06.io.linbit:nvme` | Default NQN base when `nqn` is not set on a target; must include the `:nvme` segment per NVMe-oF spec (`<vendor>:nvme:<subsystem>`) |

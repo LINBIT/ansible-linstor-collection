@@ -42,11 +42,18 @@
 {% set _path = export.path | default('/') %}
 {# 0.0.0.0/0 is rejected by every mountd we tested (2.3.3-2.8.3) - auto-correct to dotted-mask form which mountd accepts and linstor-gateway parses #}
 {% set _allowed = (export.allowed_ips | default(ha_gateway_nfs_allowed_ips)) | map('regex_replace', '^0\.0\.0\.0/0$', '0.0.0.0/0.0.0.0') | list %}
+{# The default catch-all only covers IPv4 and mountd ignores ::/0, so an IPv6 export takes * for every client #}
+{% if _allowed == ['0.0.0.0/0.0.0.0'] and _ips | select('search', ':') | list | length > 0 %}
+{% set _allowed = ['*'] %}
+{% endif %}
 {% set _options = export.export_options | default(ha_gateway_nfs_options) %}
 {% set _fsid_hash = (_resource ~ ':' ~ _vol | string) | hash('sha1') %}
 {% set _fsid = _fsid_hash[:8] ~ '-' ~ _fsid_hash[8:12] ~ '-' ~ _fsid_hash[12:16] ~ '-' ~ _fsid_hash[16:20] ~ '-' ~ _fsid_hash[20:32] %}
 {% for cidr in _allowed %}
-        "ocf:heartbeat:exportfs export_{{ _vol }}_{{ loop.index0 }} clientspec={{ cidr }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fsid={{ _fsid }} options='{{ _options }}'",
+{# exportfs reads an IPv6 client spec up to its first colon unless the address is in brackets #}
+{% set _host, _sep, _len = cidr.partition('/') %}
+{% set _spec = ('[' ~ _host ~ ']' ~ _sep ~ _len) if ':' in _host else cidr %}
+        "ocf:heartbeat:exportfs export_{{ _vol }}_{{ loop.index0 }} clientspec={{ _spec }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fsid={{ _fsid }} options='{{ _options }}'",
 {% endfor %}
 {% endfor %}
 {% for ip_cidr in _ips %}

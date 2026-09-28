@@ -18,8 +18,8 @@
         _client_install_local_auth_token: >-
           {{ linstor_client_auth_token | default('')
              or (_client_install_saved_token
-                 if _client_install_saved_controllers | replace('linstor+ssl://', '') | split(',')
-                    | intersect(linstor_controller_addresses) | length > 0
+                 if _client_install_saved_controllers | replace('linstor+ssl://', '') | replace('[', '') | replace(']', '')
+                    | split(',') | intersect(linstor_controller_addresses) | length > 0
                  else '') }}
       vars:
         _client_install_saved_token: >-

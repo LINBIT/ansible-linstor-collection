@@ -41,7 +41,7 @@
 {% endfor %}
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}
-        "ocf:heartbeat:nvmet-port port{{ loop.index0 }} nqns={{ _nqn }} addr={{ _ip }} port={{ _port }} type=tcp",
+        "ocf:heartbeat:nvmet-port port{{ loop.index0 }} nqns={{ _nqn }} addr={{ _ip }} port={{ _port }} type=tcp{{ ' addr_fam=ipv6' if ':' in _ip }}",
 {% endfor %}
 {% for ip_cidr in _ips %}
 {% set _ip = ip_cidr.split('/')[0] %}

@@ -47,7 +47,7 @@ argument_specs:
           - Virtual IP for the HA controller in CIDR notation (for example C(10.0.0.100/24)).
           - DRBD Reactor floats an IPaddr2 resource with the active controller.
           - The IP is stored as C(Aux/ha_database_vip) so C(client_install) discovers it on subsequent runs.
-          - Defaults to C(/24) if no CIDR is given.
+          - Defaults to C(/24) for IPv4 and C(/64) for IPv6 if no CIDR is given.
       ha_database_haproxy:
         type: bool
         default: false

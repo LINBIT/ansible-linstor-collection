@@ -82,6 +82,7 @@ argument_specs:
             Default client CIDRs for NFS exports. C(rpc.mountd) rejects C(0.0.0.0/0); the dotted-mask form
             C(0.0.0.0/0.0.0.0) is the equivalent that mountd accepts and that C(linstor-gateway) parses.
             Any literal C(0.0.0.0/0) in inventory is auto-corrected to C(0.0.0.0/0.0.0.0) at template time.
+          - An export with an IPv6 service IP turns this default into C(*), since mountd also ignores C(::/0).
       ha_gateway_nfs_options:
         type: str
         default: "rw,all_squash,anonuid=0,anongid=0"

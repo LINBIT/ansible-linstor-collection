@@ -3,7 +3,7 @@
 {% set scheme = 'https' if _gateway_install_https | bool else 'http' -%}
 {% set port = _gateway_install_rest_port_https if _gateway_install_https | bool else _gateway_install_rest_port_plain -%}
 [linstor]
-controllers = [ {% for a in addrs %}"{{ scheme }}://{{ a }}:{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %} ]
+controllers = [ {% for a in addrs %}"{{ scheme }}://{{ '[' ~ a ~ ']' if ':' in a else a }}:{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %} ]
 {% if _gw_token_auth | bool and _gateway_install_token_file %}
 token_file = "{{ _gateway_install_token_file }}"
 {% endif %}

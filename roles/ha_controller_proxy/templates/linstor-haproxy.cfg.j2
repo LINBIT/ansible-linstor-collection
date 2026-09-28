@@ -1,4 +1,8 @@
 {# SPDX-License-Identifier: MIT #}
+{# Bind dual stack only for IPv6 controllers, the IPv6 socket fails on hosts with IPv6 disabled #}
+{% set _ipv6 = _ha_controllers | select('search', ':') | list | length > 0 %}
+{% set _bind = ':::' if _ipv6 else ':' %}
+{% set _bind_opts = ' v4v6' if _ipv6 else '' %}
 global
     log /dev/log local0
     maxconn {{ _ha_controller_proxy_maxconn }}
@@ -14,15 +18,15 @@ defaults
     timeout server {{ _ha_controller_proxy_server_timeout }}
 
 listen linstor-controller-plain
-    bind :{{ ha_controller_proxy_plain_port }}
+    bind {{ _bind }}{{ ha_controller_proxy_plain_port }}{{ _bind_opts }}
     balance first
 {% for addr in _ha_controllers %}
-    server ctrl{{ loop.index }} {{ addr }}:3370 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
+    server ctrl{{ loop.index }} {{ '[' ~ addr ~ ']' if ':' in addr else addr }}:3370 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
 {% endfor %}
 
 listen linstor-controller-ssl
-    bind :{{ ha_controller_proxy_ssl_port }}
+    bind {{ _bind }}{{ ha_controller_proxy_ssl_port }}{{ _bind_opts }}
     balance first
 {% for addr in _ha_controllers %}
-    server ctrl{{ loop.index }} {{ addr }}:3371 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
+    server ctrl{{ loop.index }} {{ '[' ~ addr ~ ']' if ':' in addr else addr }}:3371 check inter {{ _ha_controller_proxy_check_interval }} rise {{ _ha_controller_proxy_check_rise }} fall {{ _ha_controller_proxy_check_fall }}
 {% endfor %}

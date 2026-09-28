@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    Support IPv6 ``linstor_ip`` and ``replication_ip`` addresses. Controller
+    URIs in ``linstor-client.conf``, the LINSTOR Gateway config and the
+    HAProxy backends wrap IPv6 addresses in brackets. ``ha_controller_proxy``
+    listens on IPv6 and IPv4 when a controller address is IPv6, and ``ssl_init``
+    adds an IPv6 ``ansible_host`` to the certificate SANs.
+  - >-
+    ha_database - ``ha_database_vip`` accepts an IPv6 address and defaults to
+    a ``/64`` prefix for it.
+  - >-
+    ha_gateway - IPv6 service IPs wrap iSCSI portals and NFS client specs in
+    brackets, and pass ``addr_fam=ipv6`` to the NVMe-oF ``nvmet-port`` agent.
+    An NFS export with an IPv6 service IP and the default ``allowed_ips``
+    allows every client, IPv4 and IPv6.

@@ -266,7 +266,7 @@
   ansible.builtin.copy:
     content: |
       [global]
-      controllers={{ _ha_db_vip_address }}
+      controllers={{ '[' ~ _ha_db_vip_address ~ ']' if ':' in _ha_db_vip_address else _ha_db_vip_address }}
     dest: /etc/linstor/linstor-client.conf
     owner: root
     group: root

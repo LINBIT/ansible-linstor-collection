@@ -194,10 +194,10 @@ EXAMPLES = r'''
     port: 3367
   run_once: true  # noqa: run-once[task]
 
-- name: Set auxiliary properties on a node
+- name: Set auxiliary properties on a node with an IPv6 address
   linbit.linstor.node:
     name: node-1
-    ip: 10.0.0.1
+    ip: 2001:db8::1
     aux_properties:
       datacenter: us-east-1
       rack: rack-3

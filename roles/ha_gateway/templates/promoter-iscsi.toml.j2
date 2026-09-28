@@ -10,7 +10,12 @@
 {% set _username = _target.username | default('') %}
 {% set _password = _target.password | default('') %}
 {% set _volumes = _target.volumes %}
-{% set _portals = _ips | map('regex_replace', '/.*', '') | map('regex_replace', '$', ':' ~ _port) | join(' ') %}
+{% set _portal_list = [] %}
+{% for ip_cidr in _ips %}
+{% set _a = ip_cidr.split('/')[0] %}
+{% set _ = _portal_list.append(('[' ~ _a ~ ']' if ':' in _a else _a) ~ ':' ~ _port) %}
+{% endfor %}
+{% set _portals = _portal_list | join(' ') %}
 [[promoter]]
 
   [promoter.metadata]

@@ -40,7 +40,7 @@ See `defaults/main.yml`.
 
 ## HA controller VIP
 
-`ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100/24` (defaults to `/24` if no CIDR is given).
+`ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100/24` (defaults to `/24` for IPv4 and `/64` for IPv6 if no CIDR is given).
 The IP is stored as the `Aux/ha_database_vip` controller property so `client_install` discovers it on subsequent runs.
 When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present.
 

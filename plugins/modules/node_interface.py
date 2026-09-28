@@ -83,11 +83,11 @@ EXAMPLES = r'''
   delegate_to: localhost
   run_once: true  # noqa: run-once[task]
 
-- name: Create an SSL network interface
+- name: Create an SSL network interface with an IPv6 address
   linbit.linstor.node_interface:
     node: node-1
     name: replication
-    ip: 192.168.100.11
+    ip: 2001:db8:100::11
     com_type: SSL
     port: 3367
   run_once: true  # noqa: run-once[task]

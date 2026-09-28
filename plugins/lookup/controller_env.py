@@ -84,5 +84,6 @@ class LookupModule(LookupBase):
         groups = variables.get('groups', {})
         hostvars = variables.get('hostvars', {})
         controllers = groups.get('linstor_controllers', [])
-        uris = ['{0}://{1}'.format(scheme, linstor_addr(hostvars.get(h, {}))) for h in controllers]
+        addrs = [linstor_addr(hostvars.get(h, {})) for h in controllers]
+        uris = ['{0}://{1}'.format(scheme, '[%s]' % a if ':' in a else a) for a in addrs]
         return [','.join(uris) if uris else '{0}://localhost'.format(scheme)]
