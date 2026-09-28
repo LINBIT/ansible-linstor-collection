@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    node, node_interface - compare IP addresses by value, so an IPv6 address
+    in any case or spelling matches the stored address
+    (https://github.com/LINBIT/ansible-linstor-collection/issues/3).

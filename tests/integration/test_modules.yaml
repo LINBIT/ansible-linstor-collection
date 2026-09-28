@@ -114,6 +114,48 @@
       failed_when: node_prop_del_idem.changed
 
     # =================================================================
+    # linstor_node_interface
+    # =================================================================
+    - name: "Netif: remove leftover IPv6 test interface"
+      linbit.linstor.node_interface:
+        node: proxmox-0
+        name: test-v6
+        state: absent
+
+    # The controller returns IPv6 in uppercase, so lowercase input exercises the value comparison
+    - name: "Netif: create interface with lowercase IPv6"
+      linbit.linstor.node_interface:
+        node: proxmox-0
+        name: test-v6
+        ip: fd00:222::130
+      register: netif_v6
+      failed_when: not netif_v6.changed
+
+    - name: "Netif: lowercase IPv6 idempotent"
+      linbit.linstor.node_interface:
+        node: proxmox-0
+        name: test-v6
+        ip: fd00:222::130
+      register: netif_v6_idem
+      failed_when: netif_v6_idem.changed
+
+    - name: "Netif: expanded IPv6 spelling idempotent"
+      linbit.linstor.node_interface:
+        node: proxmox-0
+        name: test-v6
+        ip: fd00:0222:0:0:0:0:0:0130
+      register: netif_v6_expanded
+      failed_when: netif_v6_expanded.changed
+
+    - name: "Netif: delete IPv6 test interface"
+      linbit.linstor.node_interface:
+        node: proxmox-0
+        name: test-v6
+        state: absent
+      register: netif_v6_del
+      failed_when: not netif_v6_del.changed
+
+    # =================================================================
     # linstor_storage_pool
     # =================================================================
     - name: "SP: idempotent on existing pool"

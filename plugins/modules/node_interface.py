@@ -153,6 +153,7 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     linstor_argument_spec,
     get_linstor_connection,
     check_api_response,
+    same_ip,
 )
 
 
@@ -243,7 +244,7 @@ def main():
         info = netif_to_dict(existing)
         needs_modify = False
 
-        if ip and ip != info.get('ip'):
+        if ip and not same_ip(ip, info.get('ip')):
             needs_modify = True
         if port is not None and port != info.get('port'):
             needs_modify = True

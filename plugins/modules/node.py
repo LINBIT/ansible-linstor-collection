@@ -300,6 +300,7 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     get_linstor_connection,
     check_api_response,
     compute_property_diff,
+    same_ip,
 )
 
 
@@ -534,7 +535,7 @@ def main():
                 "Node type cannot be changed after creation." % (
                     name, existing_type, node_type))
 
-        if existing_ip and ip and existing_ip != ip:
+        if existing_ip and ip and not same_ip(existing_ip, ip):
             module.warn(
                 "Node '%s' exists with IP '%s' but '%s' was requested. "
                 "IP address cannot be changed after creation." % (

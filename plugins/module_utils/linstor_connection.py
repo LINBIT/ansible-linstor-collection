@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+import ipaddress
 import os
 
 HAS_LINSTOR = True
@@ -185,6 +186,14 @@ def compute_property_diff(current_props, desired_props, delete_props=None):
                 props_to_delete.append(key)
 
     return props_to_set, props_to_delete
+
+
+def same_ip(a, b):
+    """Compare two IP addresses by value, so different spellings of the same IPv6 address match."""
+    try:
+        return ipaddress.ip_address(a) == ipaddress.ip_address(b)
+    except ValueError:
+        return a == b
 
 
 def parse_size(size_str):
