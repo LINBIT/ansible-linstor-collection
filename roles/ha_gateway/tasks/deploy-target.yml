@@ -15,21 +15,16 @@
 - name: "Validate service IP subnets exist on target nodes - {{ _protocol }}"
   ansible.builtin.assert:
     that: >-
-      ansible_facts.all_ipv4_addresses
-      | map('ansible.utils.ipaddr', _vip_network)
-      | select('string')
-      | list | length > 0
+      (ansible_facts.all_ipv4_addresses + ansible_facts.all_ipv6_addresses)
+      | linbit.common.in_network(_svc.1) | length > 0
     fail_msg: >-
-      No interface on {{ inventory_hostname }} has an address in
-      {{ _vip_network }} for service IP {{ _svc.1 }}
+      No interface on {{ inventory_hostname }} is in the subnet of service IP {{ _svc.1 }}
     quiet: true
-  vars:
-    _vip_network: "{{ _svc.1 | ansible.utils.ipaddr('network/prefix') }}"
+  when: inventory_hostname in _svc.0.nodes
   loop: "{{ _gw_resolved | subelements('service_ips') }}"
   loop_control:
     loop_var: _svc
     label: "{{ _svc.0.name }}:{{ _svc.1 }}"
-  when: inventory_hostname in _svc.0.nodes
 
 - name: "Check resource agents - {{ _protocol }}"
   ansible.builtin.include_tasks: check-resource-agents.yml

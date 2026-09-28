@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    The collection no longer depends on ``ansible.utils``, and ``ha_gateway``
+    no longer needs the ``netaddr`` Python library on the control node.
+    ``ha_gateway`` checks service IP subnets with the ``linbit.common.in_network``
+    filter, for IPv4 and IPv6 service IPs.

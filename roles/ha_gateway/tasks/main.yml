@@ -36,7 +36,7 @@
          | selectattr('state', 'eq', 'present') | list
          | map(attribute='service_ips', default=[])
          | flatten
-         | map('ansible.utils.ipaddr', 'address') | list }}
+         | map('regex_replace', '/.*$', '') | list }}
   run_once: true  # noqa: run-once[task]
 
 - name: Deploy iSCSI targets

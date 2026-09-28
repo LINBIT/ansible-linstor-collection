@@ -18,20 +18,6 @@ Setting `state: absent` on a target removes the promoter config (undeploying fro
 
 ## Requirements
 
-The `ansible.utils` collection and `netaddr` Python library are required on the Ansible control node for service IP subnet validation.
-Install `netaddr` with your package manager:
-
-```
-# APT (Ubuntu, Debian)
-apt install python3-netaddr
-
-# DNF (RHEL, AlmaLinux, Fedora)
-dnf install python3-netaddr
-
-# Zypper (openSUSE, SLES)
-zypper install python3-netaddr
-```
-
 Install `gateway_satellite` on all satellite nodes before using this role.
 It installs iSCSI and NFS resource agents, the portblock RA fix, and DRBD Reactor.
 
@@ -196,8 +182,6 @@ A `resource_group` implies autoplace and cannot be combined with `nodes`.
 No hard role dependencies.
 `linbit.linstor.gateway_satellite` must run on all satellite nodes before this role (see Requirements above).
 It installs DRBD Reactor (`linbit.drbd_reactor.reactor_install`) transitively.
-
-The `ansible.utils` collection and `netaddr` Python library are required on the Ansible control node (see Requirements above).
 
 ## Example playbook
 
