@@ -133,14 +133,14 @@
       - name: gw-iscsi-luks
         iqn: iqn.2026-06.com.linbit:gw-iscsi-luks
         service_ips:
-          - 192.168.222.242/24
+          - 192.168.222.242
         volumes:
           - size: 100M
         resource_group: rg-luks
     linstor_nfs_exports:
       - name: gw-nfs
         service_ips:
-          - 192.168.222.245/24
+          - 192.168.222.245
         exports:
           - path: /data
             size: 100M
@@ -156,7 +156,7 @@
       - name: gw-nvme-plain
         nqn: nqn.2026-06.io.linbit:nvme:gw-nvme-plain
         service_ips:
-          - 192.168.222.243/24
+          - 192.168.222.243
         volumes:
           - size: 100M
         nodes:
@@ -165,7 +165,7 @@
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-nvme-luks
         service_ips:
-          - 192.168.222.246/24
+          - 192.168.222.246
         volumes:
           - size: 100M
         resource_group: rg-luks
@@ -316,7 +316,7 @@
     linstor_nfs_exports:
       - name: gw-nfs-ganesha-a
         service_ips:
-          - 192.168.222.248/24
+          - 192.168.222.248
         implementation: ganesha
         exports:
           - {path: /data, size: 100M}
@@ -326,7 +326,7 @@
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-nfs-ganesha-b
         service_ips:
-          - 192.168.222.250/24
+          - 192.168.222.250
         implementation: ganesha
         exports:
           - {path: /one, size: 100M}
@@ -536,7 +536,7 @@
             linstor_iscsi_targets:
               - name: gw-bad
                 service_ips:
-                  - 192.168.222.249/24
+                  - 192.168.222.249
                 volumes:
                   - size: 100M
                 nodes:

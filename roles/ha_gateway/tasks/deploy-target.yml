@@ -14,9 +14,7 @@
 
 - name: "Validate service IP subnets exist on target nodes - {{ _protocol }}"
   ansible.builtin.assert:
-    that: >-
-      (ansible_facts.all_ipv4_addresses + ansible_facts.all_ipv6_addresses)
-      | linbit.common.in_network(_svc.1) | length > 0
+    that: _svc.1.split('/')[0] in _gw_service_ip_prefixes
     fail_msg: >-
       No interface on {{ inventory_hostname }} is in the subnet of service IP {{ _svc.1 }}
     quiet: true

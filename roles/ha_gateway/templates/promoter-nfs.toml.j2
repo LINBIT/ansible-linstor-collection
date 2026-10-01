@@ -1,8 +1,8 @@
 {# SPDX-License-Identifier: MIT #}
 # {{ ansible_managed }}
 {% set _resource = _target._rd_name %}
-{% set _ips = _target.service_ips %}
-{% set _primary_ip = _ips[0].split('/')[0] %}
+{% set _ips = _target.service_ips | map('regex_replace', '/.*$', '') | list %}
+{% set _primary_ip = _ips[0] %}
 {% set _port = _target.port | default(ha_gateway_nfs_port) | string %}
 {% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
 {% set _exports = _target.exports | default([]) %}
@@ -21,8 +21,7 @@
       stop-services-on-exit = true
       target-as = "BindsTo"
       start = [
-{% for ip_cidr in _ips %}
-{% set _ip = ip_cidr.split('/')[0] %}
+{% for _ip in _ips %}
         "ocf:heartbeat:portblock pblock{{ loop.index0 }} action=block ip={{ _ip }} portno={{ _port }} protocol=tcp",
 {% endfor %}
         "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _resource }}/0 directory=/srv/ha/internal/{{ _resource }} fstype={{ _fstype }} run_fsck=no",
@@ -31,10 +30,8 @@
 {% set _path = export.path | default('/') %}
         "ocf:heartbeat:Filesystem fs_{{ _vol }} device=/dev/drbd/by-res/{{ _resource }}/{{ _vol }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fstype={{ export.fstype | default(_fstype) }} run_fsck=no",
 {% endfor %}
-{% for ip_cidr in _ips %}
-{% set _ip = ip_cidr.split('/')[0] %}
-{% set _mask = ip_cidr.split('/')[1] %}
-        "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _mask }} ip={{ _ip }}",
+{% for _ip in _ips %}
+        "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _gw_service_ip_prefixes[_ip] }} ip={{ _ip }}",
 {% endfor %}
         "ocf:heartbeat:nfsserver nfsserver nfs_ip={{ _primary_ip }} nfs_server_scope={{ _primary_ip }} nfs_shared_infodir=/srv/ha/internal/{{ _resource }}/nfs nfs_root_export=/srv/gateway-exports{% if _target.nfsv4_only | default(ha_gateway_nfsv4_only) | bool %} nfsv4_only=true{% endif %}",
 {% for export in _exports %}
@@ -56,8 +53,7 @@
         "ocf:heartbeat:exportfs export_{{ _vol }}_{{ loop.index0 }} clientspec={{ _spec }} directory=/srv/gateway-exports/{{ _resource }}{{ _path }} fsid={{ _fsid }} options='{{ _options }}'",
 {% endfor %}
 {% endfor %}
-{% for ip_cidr in _ips %}
-{% set _ip = ip_cidr.split('/')[0] %}
+{% for _ip in _ips %}
         "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _resource }}",
 {% endfor %}
       ]

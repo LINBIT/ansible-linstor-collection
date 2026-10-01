@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    ha_gateway - ``service_ips`` no longer need a prefix. Without one, the role
+    reads the subnet mask from each node's facts, so the VIPs fit any subnet.
+    LINSTOR Gateway still gets ``cidr_netmask`` either way.

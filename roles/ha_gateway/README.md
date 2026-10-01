@@ -86,7 +86,7 @@ Each entry in `linstor_iscsi_targets`:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `name` | yes | | Target name (WWN portion of IQN; see Resource Naming) |
-| `service_ips` | yes | | List of VIPs in CIDR notation (iSCSI portals) |
+| `service_ips` | yes | | List of VIPs, with or without a prefix (iSCSI portals) |
 | `volumes` | yes | | List of volume definitions (`size` key) |
 | `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
 | `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
@@ -109,7 +109,7 @@ Each entry in `linstor_nfs_exports`:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `name` | yes | | Export name (becomes the LINSTOR resource name; see Resource Naming) |
-| `service_ips` | yes | | List of VIPs in CIDR notation |
+| `service_ips` | yes | | List of VIPs, with or without a prefix |
 | `exports` | yes | | List of export definitions (see below) |
 | `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
 | `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
@@ -153,7 +153,7 @@ Each entry in `linstor_nvmeof_targets`:
 |---|---|---|---|
 | `name` | yes | | Target name (NQN subsystem; see Resource Naming) |
 | `nqn` | no | `{{ nqn_base }}:{{ name }}` | NVMe Qualified Name; auto-generated from `ha_gateway_nvmeof_nqn_base` and target name if omitted |
-| `service_ips` | yes | | List of VIPs in CIDR notation |
+| `service_ips` | yes | | List of VIPs, with or without a prefix |
 | `volumes` | yes | | List of volume definitions (`size` key) |
 | `nodes` | no | (autoplace) | Inventory hostnames for manual placement (at least `place_count`, max 3); omit for autoplace; mutually exclusive with `resource_group` |
 | `resource_group` | no | | Pre-existing LINSTOR resource group for autoplace (must already exist); mutually exclusive with `nodes` |
@@ -225,7 +225,7 @@ linstor_iscsi_targets:
 linstor_nfs_exports:
   - name: shared
     service_ips:
-      - 192.168.222.241/24
+      - 192.168.222.241
     exports:
       - path: /data
         size: 50G
@@ -240,7 +240,7 @@ linstor_nfs_exports:
 linstor_nvmeof_targets:
   - name: fast
     service_ips:
-      - 192.168.222.242/24
+      - 192.168.222.242
     volumes:
       - size: 20G
     nodes:
@@ -256,7 +256,7 @@ Autoplace targets (omit `nodes` to let LINSTOR select nodes automatically):
 linstor_iscsi_targets:
   - name: auto
     service_ips:
-      - 192.168.222.246/24
+      - 192.168.222.246
     volumes:
       - size: 10G
     storage_pool: sp0
@@ -264,7 +264,7 @@ linstor_iscsi_targets:
 linstor_nfs_exports:
   - name: auto
     service_ips:
-      - 192.168.222.247/24
+      - 192.168.222.247
     exports:
       - path: /data
         size: 50G
@@ -278,7 +278,7 @@ linstor_nvmeof_targets:
   - name: critical
     nqn: nqn.2026-06.io.linbit:nvme:critical
     service_ips:
-      - 192.168.222.243/24
+      - 192.168.222.243
     volumes:
       - size: 100G
     place_count: 3
@@ -295,7 +295,7 @@ Explicit TieBreaker placement (2 diskful + 1 diskless on a specific node):
 linstor_iscsi_targets:
   - name: pinned
     service_ips:
-      - 192.168.222.250/24
+      - 192.168.222.250
     volumes:
       - size: 10G
     # place_count defaults to 2: node-1 and node-2 are diskful,
@@ -314,7 +314,7 @@ Multiple NFS services on non-overlapping nodes:
 linstor_nfs_exports:
   - name: engineering
     service_ips:
-      - 192.168.222.243/24
+      - 192.168.222.243
     exports:
       - path: /builds
         size: 100G
@@ -323,8 +323,8 @@ linstor_nfs_exports:
       - node-2
   - name: marketing
     service_ips:
-      - 192.168.222.244/24
-      - 10.0.0.244/24
+      - 192.168.222.244
+      - 10.0.0.244
     exports:
       - path: /assets
         size: 200G
@@ -341,7 +341,7 @@ Ganesha (userspace NFS) exports, including two services colocated on the same no
 linstor_nfs_exports:
   - name: research
     service_ips:
-      - 192.168.222.245/24
+      - 192.168.222.245
     implementation: ganesha
     exports:
       - path: /datasets
@@ -353,7 +353,7 @@ linstor_nfs_exports:
       - node-2
   - name: scratch
     service_ips:
-      - 192.168.222.246/24
+      - 192.168.222.246
     implementation: ganesha
     exports:
       - path: /tmp1
@@ -373,7 +373,7 @@ A `resource_group` drives LINSTOR autoplace, so do not set `nodes` on these targ
 linstor_iscsi_targets:
   - name: database
     service_ips:
-      - 192.168.222.248/24
+      - 192.168.222.248
     volumes:
       - size: 100G
     resource_group: rg-ssd-fast
@@ -381,7 +381,7 @@ linstor_iscsi_targets:
 linstor_nfs_exports:
   - name: archive
     service_ips:
-      - 192.168.222.249/24
+      - 192.168.222.249
     exports:
       - path: /archive
         size: 500G
@@ -396,7 +396,7 @@ linstor_iscsi_targets:
   - name: secure
     iqn: iqn.2026-06.com.linbit:secure
     service_ips:
-      - 192.168.222.245/24
+      - 192.168.222.245
     # multi-LUN
     volumes:
       - size: 50G

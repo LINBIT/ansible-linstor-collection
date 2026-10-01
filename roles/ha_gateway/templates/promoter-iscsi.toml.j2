@@ -1,7 +1,7 @@
 {# SPDX-License-Identifier: MIT #}
 # {{ ansible_managed }}
 {% set _resource = _target._rd_name %}
-{% set _ips = _target.service_ips %}
+{% set _ips = _target.service_ips | map('regex_replace', '/.*$', '') | list %}
 {% set _port = _target.target_port | default(ha_gateway_iscsi_port) | string %}
 {% set _iqn = _target.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ _target.name) %}
 {% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
@@ -11,8 +11,7 @@
 {% set _password = _target.password | default('') %}
 {% set _volumes = _target.volumes %}
 {% set _portal_list = [] %}
-{% for ip_cidr in _ips %}
-{% set _a = ip_cidr.split('/')[0] %}
+{% for _a in _ips %}
 {% set _ = _portal_list.append(('[' ~ _a ~ ']' if ':' in _a else _a) ~ ':' ~ _port) %}
 {% endfor %}
 {% set _portals = _portal_list | join(' ') %}
@@ -32,11 +31,9 @@
       target-as = "Requires"
       start = [
         "ocf:heartbeat:Filesystem fs_cluster_private device=/dev/drbd/by-res/{{ _resource }}/0 directory=/srv/ha/internal/{{ _resource }} fstype={{ _fstype }} run_fsck=no",
-{% for ip_cidr in _ips %}
-{% set _ip = ip_cidr.split('/')[0] %}
-{% set _mask = ip_cidr.split('/')[1] %}
+{% for _ip in _ips %}
         "ocf:heartbeat:portblock pblock{{ loop.index0 }} action=block ip={{ _ip }} portno={{ _port }} protocol=tcp",
-        "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _mask }} ip={{ _ip }}",
+        "ocf:heartbeat:IPaddr2 service_ip{{ loop.index0 }} cidr_netmask={{ _gw_service_ip_prefixes[_ip] }} ip={{ _ip }}",
 {% endfor %}
         "ocf:heartbeat:iSCSITarget target allowed_initiators='{{ _allowed_initiators }}' incoming_password={{ _password }} incoming_username={{ _username }} iqn={{ _iqn }} portals='{{ _portals }}'{{ ' implementation=' ~ _implementation if _implementation }}",
 {% for vol in _volumes %}
@@ -44,8 +41,7 @@
 {% set _serial = (_iqn ~ '-' ~ _lun | string) | hash('md5') %}
         "ocf:heartbeat:iSCSILogicalUnit lu{{ _lun }} lun={{ _lun }} path=/dev/drbd/by-res/{{ _resource }}/{{ _lun }} product_id={{ _serial[:8] }} scsi_sn={{ _serial[:8] }} target_iqn={{ _iqn }}{{ ' implementation=' ~ _implementation if _implementation }}",
 {% endfor %}
-{% for ip_cidr in _ips %}
-{% set _ip = ip_cidr.split('/')[0] %}
+{% for _ip in _ips %}
         "ocf:heartbeat:portblock punblock{{ loop.index0 }} action=unblock ip={{ _ip }} portno={{ _port }} protocol=tcp tickle_dir=/srv/ha/internal/{{ _resource }}",
 {% endfor %}
       ]

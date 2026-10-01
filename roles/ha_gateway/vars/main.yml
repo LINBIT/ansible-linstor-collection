@@ -34,3 +34,23 @@ _ha_gw_mkfs_opts: >-
   {%- elif ha_gateway_fstype == 'xfs' -%}
     -b size={{ ha_gateway_filesystem_blocksize }}
   {%- endif -%}
+
+# Each address on the node in address/prefix form, from its interface facts
+_gw_host_cidrs: >-
+  {%- set ifaces = ansible_facts.values() | select('mapping') | list -%}
+  {%- set addrs = ifaces | selectattr('ipv4.address', 'defined') | map(attribute='ipv4') | list
+      + ifaces | selectattr('ipv6', 'defined') | map(attribute='ipv6') | flatten | select('mapping') | list -%}
+  {{ addrs | map(attribute='address') | zip(addrs | map(attribute='prefix')) | map('join', '/') | list }}
+
+# Prefix of each service IP: the one it is written with, else that of the node subnet holding it
+_gw_service_ip_prefixes: >-
+  {%- set result = {} -%}
+  {%- set targets = (linstor_iscsi_targets | default([])) + (linstor_nfs_exports | default([]))
+      + (linstor_nvmeof_targets | default([])) -%}
+  {%- for entry in targets | map(attribute='service_ips', default=[]) | flatten -%}
+    {%- set ip, _, length = entry.partition('/') -%}
+    {%- for cidr in _gw_host_cidrs if [ip] | linbit.common.in_network(cidr) -%}
+      {%- if loop.first -%}{%- set _ = result.update({ip: length or cidr.split('/')[1]}) -%}{%- endif -%}
+    {%- endfor -%}
+  {%- endfor -%}
+  {{ result }}
