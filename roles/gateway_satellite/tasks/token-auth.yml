@@ -38,20 +38,13 @@
         state: directory
         mode: '0755'
 
-    - name: Check for the satellite token the controller distributes
-      ansible.builtin.stat:
-        path: /var/lib/linstor.d/auth.json
-      register: _gw_auth_json
-
     - name: Check for an existing gateway token file
       ansible.builtin.stat:
         path: "{{ gateway_satellite_config_dir }}/auth-token"
       register: _gw_token_stat
 
     - name: Create a dedicated gateway token
-      when:
-        - not _gw_auth_json.stat.exists
-        - not _gw_token_stat.stat.exists or gateway_satellite_token_force | bool
+      when: not _gw_token_stat.stat.exists or gateway_satellite_token_force | bool
       block:
         - name: List existing auth tokens
           linbit.linstor.auth_token_info:

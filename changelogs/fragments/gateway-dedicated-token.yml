@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    gateway_install, gateway_satellite - the LINSTOR Gateway daemon uses its own
+    API token instead of the satellite token in ``/var/lib/linstor.d/auth.json``,
+    which the controller replaces every time it starts. Every LINSTOR Gateway
+    operation failed with ``Unauthorized`` after a controller restart or
+    failover, including the first HA database conversion. A deployed cluster
+    picks up the fix on a rerun with ``gateway_install_force_reconfigure=true``.

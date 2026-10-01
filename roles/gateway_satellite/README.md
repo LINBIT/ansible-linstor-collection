@@ -32,8 +32,8 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_ca_cert` | `""` | CA PEM content to trust when the `ssl_init` CA is not present |
 
 When the controller has token authentication enabled (LINSTOR 1.34 and later, through the `auth_init` role), the `linstor-gateway` daemon becomes a token-authenticated REST client over HTTPS.
-Nodes that the controller has already handed a satellite token at `/var/lib/linstor.d/auth.json` use that token, and the role creates a dedicated per-node token with `linbit.linstor.auth_token` at `{{ gateway_satellite_config_dir }}/auth-token` only for the nodes that have none.
-[`gateway_install`](../gateway_install/README.md) points the daemon at whichever of the two applies through the `token_file` key in `linstor-gateway.toml`, which needs `linstor-gateway` 2.3.0 or later.
+The role creates a dedicated per-node token with `linbit.linstor.auth_token` at `{{ gateway_satellite_config_dir }}/auth-token`, and [`gateway_install`](../gateway_install/README.md) points the daemon at it through the `token_file` key in `linstor-gateway.toml`, which needs `linstor-gateway` 2.3.0 or later.
+The satellite token in `/var/lib/linstor.d/auth.json` does not work for the daemon, because the controller replaces it every time it starts and the daemon reads its token only once.
 
 The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, the `ssl_init` CA file when present, otherwise the controller's auto-generated HTTPS certificate, which the role fetches from the controller.
 The resolved certificate is written to `gateway_satellite_config_dir` and installed into the operating system trust store, reusing the [`ssl_init`](../ssl_init/README.md) role's `install-ca-cert` task.

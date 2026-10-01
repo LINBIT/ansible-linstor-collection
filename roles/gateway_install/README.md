@@ -46,8 +46,8 @@ The controller answers port 3370 with a redirect to the HTTPS endpoint, and the 
 ## Token authentication
 
 On a token-authenticated cluster the role adds a `token_file` key to the `[linstor]` section, which `linstor-gateway` 2.3.0 and later read natively.
-It points at `/var/lib/linstor.d/auth.json` when the controller has already distributed a satellite token to the node, and otherwise at the dedicated gateway token that [`gateway_satellite`](../gateway_satellite/README.md) creates at `/etc/linstor-gateway/auth-token`.
-Either file works, because `linstor-gateway` accepts a token file containing the bare token or the JSON that `auth.json` stores it in.
+It points at the dedicated gateway token that [`gateway_satellite`](../gateway_satellite/README.md) creates at `/etc/linstor-gateway/auth-token`.
+The daemon reads the token once at startup, so it cannot use the satellite token in `/var/lib/linstor.d/auth.json`, which the controller replaces every time it starts.
 The role never writes the `token` key, so the two can never be set at the same time, which `linstor-gateway` rejects.
 
 The key is left out entirely on a node that gets neither file, which is the standalone controller case, because `linstor-gateway server` exits when `token_file` names a file it cannot read.
