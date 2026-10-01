@@ -34,7 +34,7 @@
 - name: Validate ha_database_vip format
   ansible.builtin.assert:
     that:
-      - _ha_db_vip_address is regex('^([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F]{0,4}(:[0-9a-fA-F]{0,4}){2,7})$')
+      - ha_database_vip is regex('^([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F]{0,4}(:[0-9a-fA-F]{0,4}){2,7})$')
     fail_msg: "ha_database_vip must be a valid IP address: {{ ha_database_vip }}"
     quiet: true
   run_once: true # noqa: run-once[task]

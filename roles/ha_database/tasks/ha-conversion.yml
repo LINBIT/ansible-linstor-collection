@@ -251,7 +251,7 @@
   linbit.linstor.controller:
     aux_properties: >-
       {%- if ha_database_vip | default('') != '' -%}
-        {{ {'ClusterIsHA': 'True', 'ha_database_vip': _ha_db_vip_address} }}
+        {{ {'ClusterIsHA': 'True', 'ha_database_vip': ha_database_vip} }}
       {%- else -%}
         {{ {'ClusterIsHA': 'True'} }}
       {%- endif -%}
@@ -266,7 +266,7 @@
   ansible.builtin.copy:
     content: |
       [global]
-      controllers={{ '[' ~ _ha_db_vip_address ~ ']' if ':' in _ha_db_vip_address else _ha_db_vip_address }}
+      controllers={{ '[' ~ ha_database_vip ~ ']' if ':' in ha_database_vip else ha_database_vip }}
     dest: /etc/linstor/linstor-client.conf
     owner: root
     group: root

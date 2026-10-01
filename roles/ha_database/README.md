@@ -33,14 +33,14 @@ See `defaults/main.yml`.
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_allow_2_replica` | `false` | Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist; the role otherwise fails and asks for a third combined node (ignored with only 2 diskful satellites) |
-| `ha_database_vip` | `""` | Virtual IP for the HA controller, for example `10.0.0.100/24` (see [HA controller VIP](#ha-controller-vip)) |
+| `ha_database_vip` | `""` | Virtual IP for the HA controller, for example `10.0.0.100` (see [HA controller VIP](#ha-controller-vip)) |
 | `ha_database_haproxy` | `false` | Deploy the `ha_controller_proxy` role on the controllers after conversion, an HAProxy alternative to `ha_database_vip` (see [HA controller proxy](#ha-controller-proxy)) |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 ## HA controller VIP
 
-`ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100/24` (defaults to `/24` for IPv4 and `/64` for IPv6 if no CIDR is given).
+`ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100`.
 The IP is stored as the `Aux/ha_database_vip` controller property so `client_install` discovers it on subsequent runs.
 When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present.
 
@@ -85,7 +85,7 @@ With a floating VIP for the controller:
         name: linbit.linstor.ha_database
       vars:
         ha_database_pool: my-pool
-        ha_database_vip: "10.0.0.100/24"
+        ha_database_vip: "10.0.0.100"
 ```
 
 ## License

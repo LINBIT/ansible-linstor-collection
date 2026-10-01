@@ -8,8 +8,7 @@ minor_changes:
     listens on IPv6 and IPv4 when a controller address is IPv6, and ``ssl_init``
     adds an IPv6 ``ansible_host`` to the certificate SANs.
   - >-
-    ha_database - ``ha_database_vip`` accepts an IPv6 address and defaults to
-    a ``/64`` prefix for it.
+    ha_database - ``ha_database_vip`` accepts an IPv6 address.
   - >-
     ha_gateway - IPv6 service IPs wrap iSCSI portals and NFS client specs in
     brackets, and pass ``addr_fam=ipv6`` to the NVMe-oF ``nvmet-port`` agent.

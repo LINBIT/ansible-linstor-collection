@@ -3,10 +3,6 @@
 # HA DB resource name shared with the LINSTOR UG and the linstor-controller-ha-setup script
 _ha_db_res: linstor_db
 
-# Parsed from the public ha_database_vip ("a.b.c.d/24" form).
-_ha_db_vip_address: "{{ ha_database_vip.split('/')[0] }}"
-_ha_db_vip_cidr: "{{ ha_database_vip.split('/')[1] if '/' in ha_database_vip else ('64' if ':' in ha_database_vip else '24') }}"
-
 # Primary controller node: first controller in inventory, hosts the populated database.
 _ha_db_primary_node: "{{ groups['linstor_controllers'][0] }}"
 
