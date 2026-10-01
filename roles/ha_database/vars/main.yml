@@ -65,3 +65,18 @@ _ha_db_pool_nodes: >-
 _ha_db_pool: >-
   {{ ha_database_pool if ha_database_pool | length > 0
      else _ha_db_pool_names | first }}
+
+# Each address on the node in address/prefix form, from its interface facts
+_ha_db_host_cidrs: >-
+  {%- set ifaces = ansible_facts.values() | select('mapping') | list -%}
+  {%- set addrs = ifaces | selectattr('ipv4.address', 'defined') | map(attribute='ipv4') | list
+      + ifaces | selectattr('ipv6', 'defined') | map(attribute='ipv6') | flatten | select('mapping') | list -%}
+  {{ addrs | map(attribute='address') | zip(addrs | map(attribute='prefix')) | map('join', '/') | list }}
+
+# The node's subnets that contain ha_database_vip
+_ha_db_vip_subnets: >-
+  {%- set result = [] -%}
+  {%- for cidr in _ha_db_host_cidrs if [ha_database_vip] | linbit.common.in_network(cidr) -%}
+    {%- set _ = result.append(cidr) -%}
+  {%- endfor -%}
+  {{ result }}

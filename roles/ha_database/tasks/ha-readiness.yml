@@ -39,3 +39,13 @@
     quiet: true
   run_once: true # noqa: run-once[task]
   when: ha_database_vip | default('') != ''
+
+- name: Validate ha_database_vip is in a subnet of each combined node
+  ansible.builtin.assert:
+    that: _ha_db_vip_subnets | length > 0
+    fail_msg: >-
+      No interface on {{ inventory_hostname }} is in the subnet of ha_database_vip {{ ha_database_vip }}
+    quiet: true
+  when:
+    - ha_database_vip | default('') != ''
+    - inventory_hostname in _ha_db_combined_nodes
