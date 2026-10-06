@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    storage_pool - refuses to run ``wipefs`` on an LVM or ZFS backing disk that
+    has a mounted filesystem, on the disk, a partition, or a device stacked on
+    them such as an LVM volume, so devices not intended to be wiped stop the
+    play.

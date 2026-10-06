@@ -33,6 +33,23 @@
       {% endfor -%}
       {{ ns.items }}
 
+- name: List mount points on ZFS pool backing disks
+  ansible.builtin.command: lsblk --noheadings --raw --output MOUNTPOINT {{ item.disk }}
+  register: _zfs_wipe_mounts
+  changed_when: false
+  when: not (_zpool_exists[item.zpool] | default(false))
+  loop: "{{ _zfs_wipe_targets }}"
+  loop_control:
+    label: "{{ item.zpool }} - {{ item.disk }}"
+
+- name: Refuse to wipe a disk with a mounted filesystem
+  ansible.builtin.fail:
+    msg: "Refusing to run wipefs on {{ item.item.disk }}: mounted at {{ item.stdout_lines | select | join(', ') }}. Unmount it first, or pick another disk."
+  loop: "{{ _zfs_wipe_mounts.results | selectattr('stdout_lines', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item.disk }}"
+  when: item.stdout_lines | select | list | length > 0
+
 - name: Run wipefs on ZFS pool backing disks
   ansible.builtin.command: wipefs -afq {{ item.disk }}
   when: not (_zpool_exists[item.zpool] | default(false))

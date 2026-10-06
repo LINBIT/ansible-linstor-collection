@@ -6,6 +6,29 @@
       - '!all'
       - hardware
 
+- name: List mount points on storage pool backing disks
+  ansible.builtin.command: lsblk --noheadings --raw --output MOUNTPOINT {{ item.1 }}
+  register: _lvm_wipe_mounts
+  changed_when: false
+  loop: >-
+    {{ _pools_to_create
+       | selectattr('_type', 'in', ['lvm', 'lvmthin'])
+       | list
+       | subelements('physical_devices') }}
+  loop_control:
+    label: "{{ item.0.name }} - {{ item.1 }}"
+  when:
+    (item.0.vg not in ansible_facts['lvm']['vgs']) or
+    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
+
+- name: Refuse to wipe a disk with a mounted filesystem
+  ansible.builtin.fail:
+    msg: "Refusing to run wipefs on {{ item.item.1 }}: mounted at {{ item.stdout_lines | select | join(', ') }}. Unmount it first, or pick another disk."
+  loop: "{{ _lvm_wipe_mounts.results | selectattr('stdout_lines', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item.1 }}"
+  when: item.stdout_lines | select | list | length > 0
+
 # Don't wipe out physical volumes if the volume group is already enumerated
 - name: Run wipefs on storage pool backing disks
   ansible.builtin.command: wipefs -afq {{ item.1 }}
