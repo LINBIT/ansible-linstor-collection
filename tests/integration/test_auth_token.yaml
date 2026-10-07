@@ -14,12 +14,17 @@
 #   4. LINSTOR controller module reaches the API with the saved token
 #   5. Token authentication is enabled in the controller properties
 #   6. A user token exists in the token list
-#   7. LINSTOR Gateway daemon, where deployed, authenticates under token auth
+#   7. Every node running the LINSTOR Gateway daemon, controller-only nodes
+#      included, has its own 0600 token set as token_file and reaches the controller
+#   8. The daemon still authenticates after a controller restart, which
+#      replaces the satellite tokens
+#   9. gateway_satellite stops on token authentication over HTTPS without a CA
 #
 # The satellite token file mode is a controller-side concern, verified
 # separately, not asserted here.
-# Test 7 is conditional: it skips satellites that do not run the
-# linstor-gateway daemon, so it is a no-op on clusters without LINSTOR Gateway.
+# Tests 7 to 9 skip nodes that do not run the linstor-gateway daemon, so they
+# are no-ops on clusters without LINSTOR Gateway. Test 8 restarts only a
+# standalone controller.
 
 - name: Verify satellite token file permissions
   hosts: linstor_satellites
@@ -83,7 +88,7 @@
     # =================================================================
     - name: Read linstor-client.conf on control node
       ansible.builtin.slurp:
-        src: "~/.config/linstor/linstor-client.conf"
+        src: "{{ linstor_client_config_file | default('~/.config/linstor/linstor-client.conf') }}"
       register: _client_conf
 
     - name: Assert linstor-client.conf carries an auth-token
@@ -91,7 +96,7 @@
         that:
           - "'auth-token' in (_client_conf.content | b64decode)"
         fail_msg: >-
-          ~/.config/linstor/linstor-client.conf has no auth-token entry.
+          {{ linstor_client_config_file | default('~/.config/linstor/linstor-client.conf') }} has no auth-token entry.
           auth_init may not have saved the token to the control node config.
         quiet: true
 
@@ -131,24 +136,19 @@
           the initial user token.
         quiet: true
 
-- name: Verify LINSTOR Gateway authenticates under token authentication
-  hosts: linstor_satellites
+- name: Verify the LINSTOR Gateway daemon authenticates under token authentication
+  hosts: linstor_cluster
   any_errors_fatal: true
   become: true
   gather_facts: false
 
   tasks:
-    # =================================================================
-    # LINSTOR Gateway daemon reaches the controller under token auth.
-    # Conditional: skips satellites that do not run the daemon, so this
-    # play is a no-op on clusters without LINSTOR Gateway.
-    # =================================================================
     - name: Gather service facts
       ansible.builtin.service_facts:
 
-    - name: Verify the gateway daemon authenticates to the controller
+    - name: Verify the gateway daemon has its own token and reaches the controller
       when:
-        - "'linstor-gateway.service' in ansible_facts.services"
+        - ansible_facts.services['linstor-gateway.service'] is defined
         - ansible_facts.services['linstor-gateway.service'].state == 'running'
       block:
         - name: Stat the gateway auth-token file
@@ -156,21 +156,107 @@
             path: /etc/linstor-gateway/auth-token
           register: _gw_token_stat
 
-        - name: Assert the gateway auth-token file exists
+        - name: Read linstor-gateway.toml
+          ansible.builtin.slurp:
+            src: /etc/linstor-gateway/linstor-gateway.toml
+          register: _gw_toml
+
+        - name: Assert the daemon has a private token file and uses it
           ansible.builtin.assert:
             that:
               - _gw_token_stat.stat.exists
+              - _gw_token_stat.stat.mode == '0600'
+              - "'token_file = \"/etc/linstor-gateway/auth-token\"' in (_gw_toml.content | b64decode)"
             fail_msg: >-
-              /etc/linstor-gateway/auth-token is missing on {{ inventory_hostname }}.
-              gateway_satellite should have created a daemon token on a
-              token-authenticated cluster.
+              The linstor-gateway daemon on {{ inventory_hostname }} has no private token.
+              gateway_install should create /etc/linstor-gateway/auth-token (mode 0600)
+              and set token_file on every node that runs the daemon.
             quiet: true
 
         # A zero exit proves the daemon authenticated to the controller: the CLI
-        # proxies to the local daemon, which makes the token-authenticated REST
+        # proxies to the local daemon, which makes the token auth REST
         # call. linstor-gateway exits 1 when that call fails.
         - name: List iSCSI targets through the gateway daemon
           ansible.builtin.command: linstor-gateway iscsi list
           register: _gw_list
           changed_when: false
           failed_when: _gw_list.rc != 0
+
+- name: Restart the controller, which replaces the satellite tokens
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    # An HA controller runs under DRBD Reactor, where a plain restart fails over instead
+    - name: Restart the standalone controller
+      ansible.builtin.systemd_service:
+        name: linstor-controller.service
+        state: restarted
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].status == 'enabled'
+
+    - name: Wait for the controller API after the restart
+      ansible.builtin.command: linstor --no-color node list
+      register: _ctrl_up
+      changed_when: false
+      until: _ctrl_up.rc == 0
+      retries: 24
+      delay: 5
+
+- name: Verify the gateway daemon still authenticates after the controller restart
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: List iSCSI targets through the gateway daemon after the restart
+      ansible.builtin.command: linstor-gateway iscsi list
+      when:
+        - ansible_facts.services['linstor-gateway.service'] is defined
+        - ansible_facts.services['linstor-gateway.service'].state == 'running'
+      register: _gw_list_after
+      changed_when: false
+      until: _gw_list_after.rc == 0
+      retries: 6
+      delay: 5
+
+- name: Verify gateway_satellite refuses token authentication over HTTPS without a CA
+  hosts: linstor_satellites[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Run the gateway CA trust step with no CA available
+      when: ansible_facts.services['linstor-gateway.service'] is defined
+      block:
+        - name: Include the gateway_satellite CA trust tasks with a missing CA
+          ansible.builtin.include_role:
+            name: linbit.linstor.gateway_satellite
+            tasks_from: ca-trust
+          vars:
+            gateway_satellite_ca_cert: ""
+            gateway_satellite_ca_cert_file: /nonexistent/linstor-ca.crt
+
+        - name: Fail because the role accepted token authentication without a CA
+          ansible.builtin.fail:
+            msg: gateway_satellite did not stop on token authentication over HTTPS without a CA
+      rescue:
+        - name: Confirm the failure was the missing CA guard
+          ansible.builtin.assert:
+            that: "'cannot verify' in (ansible_failed_result.msg | default(''))"
+            fail_msg: "Unexpected failure: {{ ansible_failed_result.msg | default(ansible_failed_result) }}"
+            quiet: true

@@ -136,7 +136,7 @@
     # =================================================================
     - name: Read linstor-client.conf on control node
       ansible.builtin.slurp:
-        src: "~/.config/linstor/linstor-client.conf"
+        src: "{{ linstor_client_config_file | default('~/.config/linstor/linstor-client.conf') }}"
       register: _client_conf
 
     - name: Assert linstor-client.conf uses linstor+ssl:// scheme
@@ -144,7 +144,7 @@
         that:
           - "'linstor+ssl://' in (_client_conf.content | b64decode)"
         fail_msg: >-
-          ~/.config/linstor/linstor-client.conf does not contain linstor+ssl://.
+          {{ linstor_client_config_file | default('~/.config/linstor/linstor-client.conf') }} does not contain linstor+ssl://.
           ssl_init may not have written the control node client config.
         quiet: true
 
