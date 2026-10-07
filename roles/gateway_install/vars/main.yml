@@ -3,3 +3,5 @@
 # LINSTOR's defaults - the collection never writes a REST port, so these are the ones in use
 _gateway_install_rest_port_https: 3371
 _gateway_install_rest_port_plain: 3370
+
+_gateway_install_config_dir: /etc/linstor-gateway

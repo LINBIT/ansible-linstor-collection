@@ -5,7 +5,7 @@ Install the `linstor-gateway` binary and service.
 The role installs the `linstor-gateway` daemon (via package manager or GitHub release), deploys its configuration, opens firewall port `8337/tcp`, and starts the service.
 
 On satellite nodes, the role also installs satellite-side components via `linbit.linstor.gateway_satellite` (NFS/iSCSI resource agents, DRBD Reactor, supplemental packages).
-Standalone controllers receive the `linstor-gateway` binary only.
+Standalone controllers get the daemon and its token but no satellite components, since the LINSTOR GUI's Gateway mode talks to the daemon on the controller.
 
 By default, satellite related components are installed on all `linstor_satellites`.
 In larger clusters, where LINSTOR Gateway resources might be restricted to a small subset of nodes, define hosts as members of the `linstor_gateway_satellites` group to restrict installation to those nodes only.
@@ -16,7 +16,7 @@ The following inventory groups must be defined:
 
 | Group | Description |
 |---|---|
-| `linstor_controllers` | Controller nodes (`linstor-gateway` binary only) |
+| `linstor_controllers` | Controller nodes (`linstor-gateway` daemon only) |
 | `linstor_satellites` | All satellite nodes |
 | `linstor_gateway_satellites` | (optional) Satellites to install LINSTOR Gateway components on; falls back to all `linstor_satellites` if not defined |
 
@@ -46,12 +46,13 @@ The controller answers port 3370 with a redirect to the HTTPS endpoint, and the 
 ## Token authentication
 
 On a token-authenticated cluster the role adds a `token_file` key to the `[linstor]` section, which `linstor-gateway` 2.3.0 and later read natively.
-It points at the dedicated gateway token that [`gateway_satellite`](../gateway_satellite/README.md) creates at `/etc/linstor-gateway/auth-token`.
+It points at a dedicated per-node token that the role creates with `linbit.linstor.auth_token` at `/etc/linstor-gateway/auth-token` on every node that runs the daemon, controller-only nodes included.
+Set `gateway_satellite_token_force: true` to replace the token on the next run, for rotation or after the token was revoked.
 The daemon reads the token once at startup, so it cannot use the satellite token in `/var/lib/linstor.d/auth.json`, which the controller replaces every time it starts.
 The role never writes the `token` key, so the two can never be set at the same time, which `linstor-gateway` rejects.
 
-The key is left out entirely on a node that gets neither file, which is the standalone controller case, because `linstor-gateway server` exits when `token_file` names a file it cannot read.
-Give such a node a token by adding it to `linstor_gateway_satellites`, or point `token_file` at a token of your own.
+Creating the token needs the controller API, so the role leaves `token_file` out when the inventory has no `linstor_controllers` group.
+`linstor-gateway server` exits when `token_file` names a file it cannot read.
 
 Earlier `linstor-gateway` releases ignore `token_file` and fail against a token-authenticated controller.
 

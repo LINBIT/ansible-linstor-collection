@@ -28,12 +28,11 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_ganesha` | `false` | Kernel NFS alternative; install the [NFS-Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) userspace NFS server |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 | `gateway_satellite_token_auth` | auto-detect | Whether the daemon authenticates with a bearer token; empty auto-detects from the controller, or force with `true` or `false` |
-| `gateway_satellite_token_force` | `false` | Create the token only when missing; set `true` to force a fresh token every run (rotation, or recovery from a revoked token) |
+| `gateway_satellite_token_force` | `false` | Read by [`gateway_install`](../gateway_install/README.md), which creates the daemon's token: create it only when missing, or set `true` to force a fresh token every run (rotation, or recovery from a revoked token) |
 | `gateway_satellite_ca_cert` | `""` | CA PEM content to trust when the `ssl_init` CA is not present |
 
 When the controller has token authentication enabled (LINSTOR 1.34 and later, through the `auth_init` role), the `linstor-gateway` daemon becomes a token-authenticated REST client over HTTPS.
-The role creates a dedicated per-node token with `linbit.linstor.auth_token` at `{{ gateway_satellite_config_dir }}/auth-token`, and [`gateway_install`](../gateway_install/README.md) points the daemon at it through the `token_file` key in `linstor-gateway.toml`, which needs `linstor-gateway` 2.3.0 or later.
-The satellite token in `/var/lib/linstor.d/auth.json` does not work for the daemon, because the controller replaces it every time it starts and the daemon reads its token only once.
+[`gateway_install`](../gateway_install/README.md) creates the daemon's token on every node that runs it, and this role makes the daemon trust the controller's certificate.
 
 The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, otherwise the `ssl_init` CA file.
 The resolved certificate is installed into the operating system trust store, reusing the [`ssl_init`](../ssl_init/README.md) role's `install-ca-cert` task.
@@ -42,7 +41,7 @@ The resolved certificate is installed into the operating system trust store, reu
 With token authentication over HTTPS, the role fails when neither CA is available.
 `linstor-gateway` cannot verify the certificate that token authentication generates for the controller on its own, so deploy LINSTOR Gateway with [`ssl_init`](../ssl_init/README.md), set `gateway_satellite_ca_cert`, or disable token authentication.
 
-This runs only when `linstor_controllers` is present in the inventory, since creating the token needs controller API access.
+This runs only when `linstor_controllers` is present in the inventory, since detecting token authentication needs controller API access.
 Daemon configuration applies only on nodes where the `linstor-gateway.service` unit file exists.
 Satellites without the daemon skip it, so both [server placements](https://linbit.com/drbd-user-guide/linstorgateway-guide-1_0-en/#_general_guidelines_for_deploying_a_linstor_gateway_server) work: alongside potential controller nodes, or on every cluster node as `cluster_init` deploys through `gateway_install`.
 

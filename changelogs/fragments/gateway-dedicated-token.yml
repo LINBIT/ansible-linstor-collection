@@ -2,9 +2,12 @@
 ---
 bugfixes:
   - >-
-    gateway_install, gateway_satellite - the LINSTOR Gateway daemon uses its own
-    API token instead of the satellite token in ``/var/lib/linstor.d/auth.json``,
-    which the controller replaces every time it starts. Every LINSTOR Gateway
-    operation failed with ``Unauthorized`` after a controller restart or
-    failover, including the first HA database conversion. A deployed cluster
-    picks up the fix on a rerun with ``gateway_install_force_reconfigure=true``.
+    gateway_install - the LINSTOR Gateway daemon uses its own API token instead
+    of the satellite token in ``/var/lib/linstor.d/auth.json``, which the
+    controller replaces every time it starts. Every LINSTOR Gateway operation
+    failed with ``Unauthorized`` after a controller restart or failover,
+    including the first HA database conversion. The role now creates the token
+    on every node that runs the daemon, controller-only nodes included, so the
+    LINSTOR GUI's Gateway mode works on token-authenticated clusters. A deployed
+    cluster picks up the fix on a rerun with
+    ``gateway_install_force_reconfigure=true``.

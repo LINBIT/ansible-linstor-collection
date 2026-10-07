@@ -105,6 +105,8 @@ argument_specs:
         type: bool
         default: false
         description:
+          - Read by C(linbit.linstor.gateway_install), which creates the daemon
+            token on every node that runs the daemon.
           - Create the daemon token only when it is missing.
           - Set C(true) to force a fresh token on every run, replacing the
             existing one, for rotation or to recover from a revoked token.

@@ -8,13 +8,13 @@
     mode: '0644'
   when: _gateway_installed_from_github is changed
 
-- name: Create /etc/linstor-gateway if it does not exist
+- name: Create the linstor-gateway config directory
   ansible.builtin.file:
-    path: /etc/linstor-gateway
+    path: "{{ _gateway_install_config_dir }}"
     state: directory
     mode: '0755'
 
-- name: Detect controller token-authentication state
+- name: Detect controller token auth state
   linbit.linstor.controller_info:
   when:
     - gateway_satellite_token_auth | default('') == ''
@@ -24,7 +24,7 @@
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   register: _gw_ctrl_info
 
-- name: Resolve effective token-authentication flag
+- name: Resolve effective token auth flag
   ansible.builtin.set_fact:
     _gw_token_auth: >-
       {{ (gateway_satellite_token_auth | bool)
@@ -39,15 +39,20 @@
       {{ (linstor_ssl | default(false) | bool)
          or (_gw_token_auth | bool and not (auth_init_no_https | default(false) | bool)) }}
     _gateway_install_token_file: >-
-      {{ (gateway_satellite_config_dir | default('/etc/linstor-gateway')) ~ '/auth-token'
-         if inventory_hostname in (groups.get('linstor_gateway_satellites', [])
-                                   or groups.get('linstor_satellites', []))
+      {{ _gateway_install_config_dir ~ '/auth-token'
+         if groups.get('linstor_controllers', []) | length > 0
          else '' }}
+
+- name: Create the daemon's LINSTOR API token
+  ansible.builtin.include_tasks: token-auth.yml
+  when:
+    - _gw_token_auth | bool
+    - _gateway_install_token_file != ''
 
 - name: Setup linstor-gateway.toml
   ansible.builtin.template:
     src: linstor-gateway.j2
-    dest: /etc/linstor-gateway/linstor-gateway.toml
+    dest: "{{ _gateway_install_config_dir }}/linstor-gateway.toml"
     mode: '0644'
   notify: restart_linstor_gateway
 

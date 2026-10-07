@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+---
+# The controller replaces auth.json on every start, and controller-only nodes have none
+- name: Check for an existing gateway token file
+  ansible.builtin.stat:
+    path: "{{ _gateway_install_config_dir }}/auth-token"
+  register: _gw_token_stat
+
+- name: Create a dedicated gateway token
+  when: not _gw_token_stat.stat.exists or gateway_satellite_token_force | default(false) | bool
+  block:
+    - name: List existing auth tokens
+      linbit.linstor.auth_token_info:
+      delegate_to: "{{ linstor_api_delegate }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _gw_tokens
+
+    - name: Remove stale gateway tokens for this node
+      linbit.linstor.auth_token:
+        state: absent
+        tokenid: "{{ item.id }}"
+      loop: "{{ _gw_tokens.tokens | selectattr('description', 'equalto', 'linstor-gateway-' ~ inventory_hostname) | list }}"
+      loop_control:
+        label: "{{ item.id }}"
+      delegate_to: "{{ linstor_api_delegate }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Create the gateway token
+      linbit.linstor.auth_token:
+        state: present
+        description: "linstor-gateway-{{ inventory_hostname }}"
+      delegate_to: "{{ linstor_api_delegate }}"
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _gw_new_token
+      no_log: true
+
+    - name: Write the gateway token file
+      ansible.builtin.copy:
+        content: "{{ _gw_new_token.token }}"
+        dest: "{{ _gateway_install_config_dir }}/auth-token"
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+      notify: restart_linstor_gateway
