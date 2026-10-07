@@ -16,6 +16,9 @@
 #     by the role's state=absent
 #   - negative: a target setting both nodes and resource_group must be rejected
 #
+# The linstor-gateway CLI checks run on the first gateway satellite and fail
+# when its daemon cannot reach the controller.
+#
 # The kernel NFS server allows only one export instance per node, so a single
 # NFS export is used here (two HA NFS exports cannot fit non-overlapping on a
 # 3-node cluster). iSCSI and NVMe-oF, which have no such limit, carry the
@@ -179,6 +182,8 @@
   any_errors_fatal: true
   become: true
   gather_facts: false
+  vars:
+    _gw_cli_host: "{{ (groups.get('linstor_gateway_satellites', []) or groups['linstor_satellites']) | first }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   tasks:
@@ -276,7 +281,7 @@
         success_msg: "All five targets deployed; the three LUKS targets carry a LUKS layer"
         quiet: true
 
-    - name: List each protocol via linstor-gateway (best-effort interop signal)
+    - name: List each protocol via linstor-gateway
       ansible.builtin.command: "linstor-gateway {{ item }} list"
       loop:
         - iscsi
@@ -284,9 +289,9 @@
         - nvme
       register: _gw_lists
       changed_when: false
-      failed_when: false
+      delegate_to: "{{ _gw_cli_host }}"
 
-    - name: Confirm every target appears in linstor-gateway when the CLI is reachable
+    - name: Confirm every target appears in linstor-gateway
       ansible.builtin.assert:
         that:
           - "'gw-iscsi-plain' in _gw_lists.results[0].stdout"
@@ -297,14 +302,6 @@
         fail_msg: "linstor-gateway lists reachable but missing targets"
         success_msg: "All five targets visible across linstor-gateway iscsi, nfs, and nvme list"
         quiet: true
-      when: _gw_lists.results | selectattr('rc', 'eq', 0) | list | length == 3
-
-    - name: Note when the linstor-gateway CLI cannot reach the controller
-      ansible.builtin.debug:
-        msg: >-
-          linstor-gateway CLI list interop skipped: the CLI could not reach the
-          controller. Promoter external files were verified through the API.
-      when: _gw_lists.results | selectattr('rc', 'eq', 0) | list | length != 3
 
 - name: Ganesha - two userspace NFS exports on the same nodes
   hosts: linstor_cluster
@@ -409,18 +406,13 @@
   any_errors_fatal: true
   become: true
   gather_facts: false
+  vars:
+    _gw_cli_host: "{{ (groups.get('linstor_gateway_satellites', []) or groups['linstor_satellites']) | first }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   tasks:
-    - name: Check the linstor-gateway CLI can reach the controller
-      ansible.builtin.command: linstor-gateway iscsi list
-      register: _cli_reach
-      changed_when: false
-      failed_when: false
-
     - name: Delete one target per protocol with the linstor-gateway CLI
       ansible.builtin.command: "linstor-gateway {{ item.proto }} delete {{ item.id }} -f"
-      when: _cli_reach.rc == 0
       loop:
         - {proto: iscsi, id: "iqn.2026-06.com.linbit:gw-iscsi-luks"}
         - {proto: nvme, id: "nqn.2026-06.io.linbit:nvme:gw-nvme-plain"}
@@ -428,9 +420,9 @@
         label: "{{ item.proto }} delete {{ item.id }}"
       register: _cli_delete
       changed_when: "'Deleted' in _cli_delete.stdout"
+      delegate_to: "{{ _gw_cli_host }}"
 
     - name: Confirm the CLI deletes removed the targets
-      when: _cli_reach.rc == 0
       block:
         - name: Re-list resources after the CLI deletes
           ansible.builtin.command: linstor resource list
@@ -446,40 +438,25 @@
             success_msg: "linstor-gateway CLI removed the iSCSI (LUKS) and NVMe-oF targets"
             quiet: true
 
-    - name: Note when CLI delete interop was skipped
-      ansible.builtin.debug:
-        msg: >-
-          linstor-gateway CLI delete interop skipped: the CLI could not reach
-          the controller. The role teardown removes those targets instead.
-      when: _cli_reach.rc != 0
-
 - name: Interop - role removes a linstor-gateway CLI-created target
   hosts: linstor_cluster
   any_errors_fatal: true
   become: true
   vars:
+    _gw_cli_host: "{{ (groups.get('linstor_gateway_satellites', []) or groups['linstor_satellites']) | first }}"
     linstor_iscsi_targets:
       - name: gw-clicreate
         state: absent
     linstor_nfs_exports: []
     linstor_nvmeof_targets: []
   tasks:
-    - name: Check the linstor-gateway CLI can reach the controller
-      ansible.builtin.command: linstor-gateway iscsi list
-      register: _cli_reach2
-      changed_when: false
-      failed_when: false
-      delegate_to: "{{ groups['linstor_controllers'][0] }}"
-      run_once: true  # noqa: run-once[task]
-
     - name: Create an iSCSI target with the linstor-gateway CLI (autoplace via RG)
       ansible.builtin.command: >-
         linstor-gateway iscsi create iqn.2026-06.com.linbit:gw-clicreate
         192.168.222.247/24 100M --resource-group rg-gw-test
-      when: _cli_reach2.rc == 0
       register: _cli_create
       changed_when: "'Created' in _cli_create.stdout"
-      delegate_to: "{{ groups['linstor_controllers'][0] }}"
+      delegate_to: "{{ _gw_cli_host }}"
       run_once: true  # noqa: run-once[task]
 
     - name: Assert the linstor-gateway CLI created the target
@@ -488,17 +465,14 @@
         fail_msg: "linstor-gateway CLI failed to create gw-clicreate"
         success_msg: "linstor-gateway CLI created gw-clicreate via resource group autoplace"
         quiet: true
-      when: _cli_reach2.rc == 0
       run_once: true  # noqa: run-once[task]
 
     - name: Remove the CLI-created target via the ha_gateway role
       ansible.builtin.import_role:
         name: linbit.linstor.ha_gateway
-      when: _cli_reach2.rc == 0
 
     - name: Re-list resources after the role teardown
       ansible.builtin.command: linstor resource list
-      when: _cli_reach2.rc == 0
       register: _rl_rev
       changed_when: false
       delegate_to: "{{ groups['linstor_controllers'][0] }}"
@@ -510,15 +484,6 @@
         fail_msg: "Role state=absent did not remove the CLI-created gw-clicreate:\n{{ _rl_rev.stdout }}"
         success_msg: "Role state=absent cleanly removed the CLI-created gw-clicreate"
         quiet: true
-      when: _cli_reach2.rc == 0
-      run_once: true  # noqa: run-once[task]
-
-    - name: Note when reverse interop was skipped
-      ansible.builtin.debug:
-        msg: >-
-          Reverse interop skipped: the linstor-gateway CLI could not reach the
-          controller, so no CLI-created target was available to remove.
-      when: _cli_reach2.rc != 0
       run_once: true  # noqa: run-once[task]
 
 - name: Negative test - reject nodes combined with resource_group
