@@ -35,9 +35,12 @@ When the controller has token authentication enabled (LINSTOR 1.34 and later, th
 The role creates a dedicated per-node token with `linbit.linstor.auth_token` at `{{ gateway_satellite_config_dir }}/auth-token`, and [`gateway_install`](../gateway_install/README.md) points the daemon at it through the `token_file` key in `linstor-gateway.toml`, which needs `linstor-gateway` 2.3.0 or later.
 The satellite token in `/var/lib/linstor.d/auth.json` does not work for the daemon, because the controller replaces it every time it starts and the daemon reads its token only once.
 
-The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, the `ssl_init` CA file when present, otherwise the controller's auto-generated HTTPS certificate, which the role fetches from the controller.
-The resolved certificate is written to `gateway_satellite_config_dir` and installed into the operating system trust store, reusing the [`ssl_init`](../ssl_init/README.md) role's `install-ca-cert` task.
+The trusted CA resolves in order: `gateway_satellite_ca_cert` content when provided, otherwise the `ssl_init` CA file.
+The resolved certificate is installed into the operating system trust store, reusing the [`ssl_init`](../ssl_init/README.md) role's `install-ca-cert` task.
 `linstor-gateway` has no CA configuration of its own, and its Go client falls back to the system certificate pool, so the trust store is what makes the controller verifiable.
+
+With token authentication over HTTPS, the role fails when neither CA is available.
+`linstor-gateway` cannot verify the certificate that token authentication generates for the controller on its own, so deploy LINSTOR Gateway with [`ssl_init`](../ssl_init/README.md), set `gateway_satellite_ca_cert`, or disable token authentication.
 
 This runs only when `linstor_controllers` is present in the inventory, since creating the token needs controller API access.
 Daemon configuration applies only on nodes where the `linstor-gateway.service` unit file exists.

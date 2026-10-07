@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+breaking_changes:
+  - >-
+    gateway_satellite - the role no longer fetches the controller's
+    auto-generated HTTPS certificate and adds it to the operating system trust
+    store. With token authentication over HTTPS, the role now fails unless the
+    cluster uses ``ssl_init`` or ``gateway_satellite_ca_cert`` is set. The trust
+    store is not meant for internal certificates, and the certificate only made
+    LINSTOR Gateway work on Debian and Ubuntu. Deploy LINSTOR Gateway with
+    ``ssl_init``, or disable token authentication.

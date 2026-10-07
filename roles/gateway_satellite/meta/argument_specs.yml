@@ -116,6 +116,9 @@ argument_specs:
             endpoint.
           - When set, it is used instead of the C(ssl_init) CA file at
             C(gateway_satellite_ca_cert_file).
+          - With token authentication over HTTPS, one of the two is required,
+            because C(linstor-gateway) cannot verify the certificate that token
+            authentication generates for the controller.
           - The resolved certificate is written into
             C(gateway_satellite_config_dir) and installed into the operating
             system trust store, which is where the daemon's Go client looks.
