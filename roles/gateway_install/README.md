@@ -43,6 +43,12 @@ Token authentication is auto-detected from the controller, and `gateway_satellit
 Plain HTTP against a token-authenticated controller does not work.
 The controller answers port 3370 with a redirect to the HTTPS endpoint, and the daemon's Go client drops the `Authorization` header across the scheme and port change, so every LINSTOR Gateway operation fails with a misleading `404 Not Found`.
 
+## LINSTOR GUI access
+
+The LINSTOR GUI's Gateway mode calls the daemon from the browser, so the daemon has to allow the GUI's origin.
+`linstor-gateway` derives its own allowed origins only from bare controller addresses on port 3370, which the URLs in `controllers` do not match.
+The role therefore writes `cors_allowed_origins` in the `[server]` section: the GUI on every controller address and on `linstor_ha_vip`, with the same scheme and port as `controllers`.
+
 ## Token authentication
 
 On a token-authenticated cluster the role adds a `token_file` key to the `[linstor]` section, which `linstor-gateway` 2.3.0 and later read natively.

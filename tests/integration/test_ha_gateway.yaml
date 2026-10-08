@@ -15,6 +15,7 @@
 #   - reverse interop: a target created by the linstor-gateway CLI is removed
 #     by the role's state=absent
 #   - negative: a target setting both nodes and resource_group must be rejected
+#   - LINSTOR GUI access: the daemon allows the GUI's browser origin and no other
 #
 # The linstor-gateway CLI checks run on the first gateway satellite and fail
 # when its daemon cannot reach the controller.
@@ -101,6 +102,57 @@
         name: linbit.linstor.gateway_install
       vars:
         gateway_satellite_ganesha: "{{ test_ganesha | default(false) | bool }}"
+
+- name: Verify the LINSTOR GUI can call LINSTOR Gateway from the browser
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+  vars:
+    _gw_ctrl_addr: "{{ hostvars[inventory_hostname] | linbit.linstor.linstor_addr }}"
+  tasks:
+    - name: Read linstor-gateway.toml
+      ansible.builtin.slurp:
+        src: /etc/linstor-gateway/linstor-gateway.toml
+      register: _gw_toml
+
+    # The GUI is served from the controller on the scheme and port the daemon's controllers use
+    - name: Resolve the LINSTOR GUI origin on this controller
+      ansible.builtin.set_fact:
+        _gw_gui_origin: >-
+          {{ ('https://' if _gw_https else 'http://')
+             ~ ('[' ~ _gw_ctrl_addr ~ ']' if ':' in _gw_ctrl_addr else _gw_ctrl_addr)
+             ~ (':3371' if _gw_https else ':3370') }}
+      vars:
+        _gw_https: "{{ 'https://' in (_gw_toml.content | b64decode) }}"
+
+    - name: Send the browser's CORS preflight from the GUI origin and from an unknown origin
+      ansible.builtin.uri:
+        url: http://localhost:8337/api/v2/iscsi
+        method: OPTIONS
+        headers:
+          Origin: "{{ item }}"
+          Access-Control-Request-Method: GET
+        status_code:
+          - 200
+          - 204
+      loop:
+        - "{{ _gw_gui_origin }}"
+        - http://cors-test.invalid
+      register: _gw_preflight
+
+    - name: Assert the daemon allows the GUI origin and no other
+      ansible.builtin.assert:
+        that:
+          - _gw_preflight.results[0].access_control_allow_origin | default('') == _gw_gui_origin
+          - _gw_preflight.results[1].access_control_allow_origin is not defined
+        fail_msg: >-
+          linstor-gateway allowed origin
+          '{{ _gw_preflight.results[0].access_control_allow_origin | default('none') }}'
+          for the GUI at {{ _gw_gui_origin }}, and
+          '{{ _gw_preflight.results[1].access_control_allow_origin | default('none') }}'
+          for an unknown origin
+        quiet: true
 
 - name: Pre-cleanup leftover test targets from prior runs
   hosts: linstor_cluster

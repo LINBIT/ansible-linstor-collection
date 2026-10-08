@@ -2,8 +2,17 @@
 {% set addrs = query('linbit.linstor.group_addresses', 'linstor_controllers') -%}
 {% set scheme = 'https' if _gateway_install_https | bool else 'http' -%}
 {% set port = _gateway_install_rest_port_https if _gateway_install_https | bool else _gateway_install_rest_port_plain -%}
+{% set gui_addrs = addrs + ([linstor_ha_vip] if linstor_ha_vip | default('') != '' else []) -%}
+{% set origins = [] -%}
+{% for a in gui_addrs -%}
+{% set _ = origins.append(scheme ~ '://' ~ ('[' ~ a ~ ']' if ':' in a else a) ~ ':' ~ port) -%}
+{% endfor -%}
 [linstor]
 controllers = [ {% for a in addrs %}"{{ scheme }}://{{ '[' ~ a ~ ']' if ':' in a else a }}:{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %} ]
 {% if _gw_token_auth | bool and _gateway_install_token_file %}
 token_file = "{{ _gateway_install_token_file }}"
 {% endif %}
+
+{# linstor-gateway derives its own origins only from bare controller addresses, so the GUI's origins are listed here #}
+[server]
+cors_allowed_origins = [ {% for o in origins %}"{{ o }}"{% if not loop.last %}, {% endif %}{% endfor %} ]

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    gateway_install - the LINSTOR GUI's Gateway mode is no longer blocked by
+    the browser. ``linstor-gateway`` derives its allowed CORS origins only
+    from bare controller addresses on port 3370, which the URLs the role
+    writes in ``controllers`` do not match, so it allowed no origin at all.
+    The role now writes ``cors_allowed_origins`` for the GUI on every
+    controller address and on ``linstor_ha_vip``.
