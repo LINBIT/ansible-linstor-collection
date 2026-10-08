@@ -1,10 +1,39 @@
 # SPDX-License-Identifier: MIT
 ---
+# Test the core LINSTOR Ansible modules against any deployed cluster.
+# Uses the first two hosts in linstor_satellites and runs every module on the
+# Ansible control node, like the roles do. Override the storage pool with
+# -e test_storage_pool=<name> (default sp0):
+#   ansible-playbook ./test_modules.yaml
+#   ansible-playbook ./test_modules.yaml -e linstor_ssl=true
+
 - name: Test LINSTOR Ansible modules
-  hosts: proxmox-0.testdomain.local
-  become: true
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
   gather_facts: false
+  connection: local
+  module_defaults:
+    group/linbit.linstor.linstor:
+      controllers: "{{ lookup('linbit.linstor.controller_env') }}"
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    _test_node: "{{ groups['linstor_satellites'][0] }}"
+    _test_node2: "{{ groups['linstor_satellites'][1] }}"
+    _test_node_ip: "{{ hostvars[_test_node] | linbit.linstor.linstor_addr }}"
+    _test_node_type: "{{ 'Combined' if _test_node in groups['linstor_controllers'] else 'Satellite' }}"
+    _test_storage_pool: "{{ test_storage_pool | default('sp0') }}"
   tasks:
+    - name: Read the test storage pool on the test node
+      linbit.linstor.storage_pool_info:
+        name: "{{ _test_storage_pool }}"
+        node: "{{ _test_node }}"
+      register: _test_sp
+
+    - name: Resolve the test storage pool driver
+      ansible.builtin.set_fact:
+        _test_sp_driver: "{{ _test_sp.storage_pools[0].provider_kind | lower | replace('_', '') }}"
+        _test_sp_driver_pool: "{{ _test_sp.storage_pools[0].driver_pool }}"
+
     # =================================================================
     # Pre-cleanup: ensure no leftover test resources from prior runs
     # =================================================================
@@ -35,6 +64,7 @@
         state: absent
       loop:
         - test-mod-rg
+        - test-rg-existing
         - test-rg-simple
         - test-rg
         - test-rg-drbd
@@ -45,17 +75,17 @@
     # =================================================================
     - name: "Node: idempotent on existing node"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
       register: node_idem
       failed_when: node_idem.changed
 
     - name: "Node: set aux property"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         aux_properties:
           test_key: test_value
       register: node_prop
@@ -63,9 +93,9 @@
 
     - name: "Node: aux property idempotent"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         aux_properties:
           test_key: test_value
       register: node_prop_idem
@@ -73,9 +103,9 @@
 
     - name: "Node: check_mode reports change for new property"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         aux_properties:
           test_key: test_value
           check_key: check_value
@@ -85,9 +115,9 @@
 
     - name: "Node: check_mode did not actually apply"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         aux_properties:
           test_key: test_value
       register: node_after_check
@@ -95,9 +125,9 @@
 
     - name: "Node: delete aux property"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         delete_properties:
           - Aux/test_key
       register: node_prop_del
@@ -105,9 +135,9 @@
 
     - name: "Node: delete property idempotent"
       linbit.linstor.node:
-        name: proxmox-0
-        ip: 192.168.222.130
-        node_type: Combined
+        name: "{{ _test_node }}"
+        ip: "{{ _test_node_ip }}"
+        node_type: "{{ _test_node_type }}"
         delete_properties:
           - Aux/test_key
       register: node_prop_del_idem
@@ -118,14 +148,14 @@
     # =================================================================
     - name: "Netif: remove leftover IPv6 test interface"
       linbit.linstor.node_interface:
-        node: proxmox-0
+        node: "{{ _test_node }}"
         name: test-v6
         state: absent
 
     # The controller returns IPv6 in uppercase, so lowercase input exercises the value comparison
     - name: "Netif: create interface with lowercase IPv6"
       linbit.linstor.node_interface:
-        node: proxmox-0
+        node: "{{ _test_node }}"
         name: test-v6
         ip: fd00:222::130
       register: netif_v6
@@ -133,7 +163,7 @@
 
     - name: "Netif: lowercase IPv6 idempotent"
       linbit.linstor.node_interface:
-        node: proxmox-0
+        node: "{{ _test_node }}"
         name: test-v6
         ip: fd00:222::130
       register: netif_v6_idem
@@ -141,7 +171,7 @@
 
     - name: "Netif: expanded IPv6 spelling idempotent"
       linbit.linstor.node_interface:
-        node: proxmox-0
+        node: "{{ _test_node }}"
         name: test-v6
         ip: fd00:0222:0:0:0:0:0:0130
       register: netif_v6_expanded
@@ -149,7 +179,7 @@
 
     - name: "Netif: delete IPv6 test interface"
       linbit.linstor.node_interface:
-        node: proxmox-0
+        node: "{{ _test_node }}"
         name: test-v6
         state: absent
       register: netif_v6_del
@@ -160,19 +190,19 @@
     # =================================================================
     - name: "SP: idempotent on existing pool"
       linbit.linstor.storage_pool:
-        name: pve-storage
-        node: proxmox-0
-        driver: lvmthin
-        driver_pool: drbdpool/thinpool
+        name: "{{ _test_storage_pool }}"
+        node: "{{ _test_node }}"
+        driver: "{{ _test_sp_driver }}"
+        driver_pool: "{{ _test_sp_driver_pool }}"
       register: sp_idem
       failed_when: sp_idem.changed
 
     - name: "SP: check_mode on existing pool"
       linbit.linstor.storage_pool:
-        name: pve-storage
-        node: proxmox-0
-        driver: lvmthin
-        driver_pool: drbdpool/thinpool
+        name: "{{ _test_storage_pool }}"
+        node: "{{ _test_node }}"
+        driver: "{{ _test_sp_driver }}"
+        driver_pool: "{{ _test_sp_driver_pool }}"
       check_mode: true
       register: sp_check_idem
       failed_when: sp_check_idem.changed
@@ -180,7 +210,7 @@
     - name: "SP: absent on non-existent pool"
       linbit.linstor.storage_pool:
         name: test-nonexistent-pool
-        node: proxmox-0
+        node: "{{ _test_node }}"
         state: absent
       register: sp_absent_noop
       failed_when: sp_absent_noop.changed
@@ -188,9 +218,9 @@
     - name: "SP: check_mode for create"
       linbit.linstor.storage_pool:
         name: test-check-pool
-        node: proxmox-0
-        driver: lvmthin
-        driver_pool: drbdpool/thinpool
+        node: "{{ _test_node }}"
+        driver: "{{ _test_sp_driver }}"
+        driver_pool: "{{ _test_sp_driver_pool }}"
       check_mode: true
       register: sp_check_create
       failed_when: not sp_check_create.changed
@@ -198,7 +228,7 @@
     - name: "SP: check_mode did not create"
       linbit.linstor.storage_pool:
         name: test-check-pool
-        node: proxmox-0
+        node: "{{ _test_node }}"
         state: absent
       register: sp_check_verify
       failed_when: sp_check_verify.changed
@@ -206,18 +236,29 @@
     # =================================================================
     # linstor_resource_group
     # =================================================================
+    - name: "RG: create the group for the idempotency check"
+      linbit.linstor.resource_group:
+        name: test-rg-existing
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+
     - name: "RG: idempotent on existing group"
       linbit.linstor.resource_group:
-        name: pve-rg
-        storage_pool: pve-storage
+        name: test-rg-existing
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
       register: rg_idem
       failed_when: rg_idem.changed
 
+    - name: "Cleanup: delete test-rg-existing"
+      linbit.linstor.resource_group:
+        name: test-rg-existing
+        state: absent
+
     - name: "RG: create simple"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
       register: rg_simple
       failed_when: not rg_simple.changed
@@ -225,7 +266,7 @@
     - name: "RG: simple idempotent"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
       register: rg_simple_idem
       failed_when: rg_simple_idem.changed
@@ -233,7 +274,7 @@
     - name: "RG: set property on existing"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         properties:
           Aux/test_prop: hello
@@ -243,7 +284,7 @@
     - name: "RG: property idempotent"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         properties:
           Aux/test_prop: hello
@@ -253,7 +294,7 @@
     - name: "RG: delete property"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         delete_properties:
           - Aux/test_prop
@@ -263,7 +304,7 @@
     - name: "RG: delete property idempotent"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         delete_properties:
           - Aux/test_prop
@@ -281,7 +322,7 @@
     - name: "RG: check_mode did not delete"
       linbit.linstor.resource_group:
         name: test-rg-simple
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
       register: rg_still_exists
       failed_when: rg_still_exists.changed
@@ -294,7 +335,7 @@
     - name: "RG: create with DRBD options"
       linbit.linstor.resource_group:
         name: test-mod-rg
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         drbd_options:
           resource:
@@ -307,7 +348,7 @@
     - name: "RG: DRBD options idempotent"
       linbit.linstor.resource_group:
         name: test-mod-rg
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         drbd_options:
           resource:
@@ -320,7 +361,7 @@
     - name: "RG: check_mode on existing with DRBD options"
       linbit.linstor.resource_group:
         name: test-mod-rg
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         drbd_options:
           resource:
@@ -503,6 +544,7 @@
       ansible.builtin.assert:
         that: res_defonly.nodes | length == 0
         fail_msg: "definitions_only should produce no deployed nodes"
+        quiet: true
 
     - name: "Resource: definitions_only idempotent"
       linbit.linstor.resource:
@@ -535,6 +577,7 @@
       ansible.builtin.assert:
         that: res_auto.nodes | length >= 2
         fail_msg: "Expected >= 2 nodes, got {{ res_auto.nodes | length }}"
+        quiet: true
 
     - name: "Info: query autoplaced resource"
       linbit.linstor.resource_info:
@@ -548,6 +591,7 @@
           - res_auto_info.resources[0].nodes | length >= 2
           - not res_auto_info.changed
         fail_msg: "resource_info should return test-autoplace-res with >= 2 nodes"
+        quiet: true
 
     - name: "Resource: autoplace idempotent"
       linbit.linstor.resource:
@@ -622,6 +666,7 @@
       ansible.builtin.assert:
         that: rd_vols.volume_definitions | length == 2
         fail_msg: "Expected 2 volume definitions, got {{ rd_vols.volume_definitions | length }}"
+        quiet: true
 
     - name: "Info: query resource definition with volume defs"
       linbit.linstor.resource_definition_info:
@@ -635,6 +680,7 @@
           - rd_vols_info.resource_definitions[0].volume_definitions | length == 2
           - not rd_vols_info.changed
         fail_msg: "resource_definition_info should return test-rd-vols with 2 volume definitions"
+        quiet: true
 
     - name: "RD: inline volume defs idempotent"
       linbit.linstor.resource_definition:
@@ -713,8 +759,8 @@
       linbit.linstor.resource:
         name: test-manual-res
         mode: manual
-        node: proxmox-0
-        storage_pool: pve-storage
+        node: "{{ _test_node }}"
+        storage_pool: "{{ _test_storage_pool }}"
       register: res_manual
       failed_when: not res_manual.changed
 
@@ -722,8 +768,8 @@
       linbit.linstor.resource:
         name: test-manual-res
         mode: manual
-        node: proxmox-0
-        storage_pool: pve-storage
+        node: "{{ _test_node }}"
+        storage_pool: "{{ _test_storage_pool }}"
       register: res_manual_idem
       failed_when: res_manual_idem.changed
 
@@ -731,7 +777,7 @@
       linbit.linstor.resource:
         name: test-manual-res
         mode: manual
-        node: proxmox-1
+        node: "{{ _test_node2 }}"
         diskless: true
       register: res_diskless
       failed_when: not res_diskless.changed
@@ -740,7 +786,7 @@
       linbit.linstor.resource:
         name: test-manual-res
         mode: manual
-        node: proxmox-1
+        node: "{{ _test_node2 }}"
         diskless: true
       register: res_diskless_idem
       failed_when: res_diskless_idem.changed
@@ -748,9 +794,10 @@
     - name: "Resource: verify nodes"
       ansible.builtin.assert:
         that:
-          - "'proxmox-0' in res_diskless.nodes"
-          - "'proxmox-1' in res_diskless.nodes"
-        fail_msg: "Expected both proxmox-0 and proxmox-1 in nodes"
+          - _test_node in res_diskless.nodes
+          - _test_node2 in res_diskless.nodes
+        fail_msg: "Expected both {{ _test_node }} and {{ _test_node2 }} in nodes"
+        quiet: true
 
     - name: "Cleanup: delete manual resource"
       linbit.linstor.resource:
@@ -765,14 +812,14 @@
     - name: "Controllers: explicit multi-controller URI"
       linbit.linstor.resource_group:
         name: test-mod-rg
-        storage_pool: pve-storage
+        storage_pool: "{{ _test_storage_pool }}"
         place_count: 2
         drbd_options:
           resource:
             auto-promote: "no"
             quorum: majority
             on-no-quorum: io-error
-        controllers: "linstor://192.168.222.130,linstor://192.168.222.131,linstor://192.168.222.132"
+        controllers: "{{ lookup('linbit.linstor.controller_env') }}"
       register: ctrl_explicit
       failed_when: ctrl_explicit.changed
 
@@ -789,10 +836,11 @@
           - ctrl_info.properties is mapping
           - not ctrl_info.changed
         fail_msg: "controller_info should return a properties dict"
+        quiet: true
 
     - name: "Info: node_info for a single node"
       linbit.linstor.node_info:
-        name: proxmox-0
+        name: "{{ _test_node }}"
       register: node_info_one
 
     - name: "Info: node_info returns the node with a connection status"
@@ -800,7 +848,8 @@
         that:
           - node_info_one.nodes | length == 1
           - node_info_one.nodes[0].connection_status is defined
-        fail_msg: "node_info should return proxmox-0"
+        fail_msg: "node_info should return {{ _test_node }}"
+        quiet: true
 
     - name: "Info: node_info returns all nodes when unfiltered"
       linbit.linstor.node_info:
@@ -810,26 +859,29 @@
       ansible.builtin.assert:
         that: node_info_all.nodes | length >= 1
         fail_msg: "node_info without a filter should list all nodes"
+        quiet: true
 
     - name: "Info: node_interface_info for a node"
       linbit.linstor.node_interface_info:
-        node: proxmox-0
+        node: "{{ _test_node }}"
       register: netif_info
 
     - name: "Info: node_interface_info lists at least one interface"
       ansible.builtin.assert:
         that: netif_info.net_interfaces | length >= 1
-        fail_msg: "node_interface_info should list proxmox-0 interfaces"
+        fail_msg: "node_interface_info should list {{ _test_node }} interfaces"
+        quiet: true
 
     - name: "Info: storage_pool_info for a pool"
       linbit.linstor.storage_pool_info:
-        name: pve-storage
+        name: "{{ _test_storage_pool }}"
       register: sp_info
 
     - name: "Info: storage_pool_info finds the pool"
       ansible.builtin.assert:
         that: sp_info.storage_pools | length >= 1
-        fail_msg: "storage_pool_info should find pve-storage"
+        fail_msg: "storage_pool_info should find {{ _test_storage_pool }}"
+        quiet: true
 
     - name: "Info: resource_group_info for a group"
       linbit.linstor.resource_group_info:
@@ -842,6 +894,7 @@
           - rg_info.resource_groups | length == 1
           - rg_info.resource_groups[0].place_count == 2
         fail_msg: "resource_group_info should return test-mod-rg with place_count 2"
+        quiet: true
 
     - name: "Info: volume_group_info for a resource group"
       linbit.linstor.volume_group_info:
@@ -852,6 +905,7 @@
       ansible.builtin.assert:
         that: vg_info.volume_groups | length >= 1
         fail_msg: "volume_group_info should list test-mod-rg volume groups"
+        quiet: true
 
     - name: "Info: encryption_info returns a status"
       linbit.linstor.encryption_info:
@@ -861,6 +915,7 @@
       ansible.builtin.assert:
         that: crypt_info.status in ['unset', 'locked', 'unlocked']
         fail_msg: "encryption_info returned an unexpected status: {{ crypt_info.status }}"
+        quiet: true
 
     - name: "Info: remote_info returns a list"
       linbit.linstor.remote_info:
@@ -872,6 +927,7 @@
           - remote_info_all.remotes is sequence
           - not remote_info_all.changed
         fail_msg: "remote_info should return a list"
+        quiet: true
 
     - name: "Info: schedule_info returns a list"
       linbit.linstor.schedule_info:
@@ -881,6 +937,7 @@
       ansible.builtin.assert:
         that: schedule_info_all.schedules is sequence
         fail_msg: "schedule_info should return a list"
+        quiet: true
 
     - name: "Info: resource_definition_info returns a list when unfiltered"
       linbit.linstor.resource_definition_info:
@@ -890,6 +947,7 @@
       ansible.builtin.assert:
         that: rd_info_all.resource_definitions is sequence
         fail_msg: "resource_definition_info should return a list"
+        quiet: true
 
     - name: "Info: resource_info returns a list when unfiltered"
       linbit.linstor.resource_info:
@@ -899,6 +957,7 @@
       ansible.builtin.assert:
         that: res_info_all.resources is sequence
         fail_msg: "resource_info should return a list"
+        quiet: true
 
     - name: "Info: file_info reports a missing file as absent"
       linbit.linstor.file_info:
@@ -909,6 +968,7 @@
       ansible.builtin.assert:
         that: not file_info_missing.exists
         fail_msg: "file_info should report a missing file as exists=false"
+        quiet: true
 
     # =================================================================
     # Final cleanup

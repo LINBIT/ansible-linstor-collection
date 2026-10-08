@@ -37,6 +37,47 @@
 #   ansible-playbook -i <inventory> ./test_ha_gateway.yaml
 #   ansible-playbook -i <inventory> ./test_ha_gateway.yaml -e test_ganesha=true
 
+- name: Gather network facts on the first test node
+  hosts: linstor_satellites[0]
+  any_errors_fatal: true
+  gather_facts: false
+  tasks:
+    - name: Gather network facts
+      ansible.builtin.setup:
+        gather_subset:
+          - "!all"
+          - network
+
+- name: Resolve the test nodes and service addresses
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  gather_facts: false
+  tasks:
+    # Service IPs count down from the top of the first test node's replication network, whatever its size
+    - name: Resolve the test nodes and service addresses
+      ansible.builtin.set_fact:
+        _gw_nodes: "{{ groups['linstor_satellites'][:2] }}"
+        _gw_prefix: "{{ _gw_ipv4.prefix }}"
+        _gw_ips: >-
+          {%- set b = _gw_ipv4.broadcast.split('.') | map('int') | list -%}
+          {%- set top = ((b[0] * 256 + b[1]) * 256 + b[2]) * 256 + b[3] -%}
+          {%- set result = [] -%}
+          {%- for k in range(1, 11) -%}
+            {%- set n = top - k -%}
+            {%- set _ = result.append([n // 16777216, n // 65536 % 256, n // 256 % 256, n % 256] | join('.')) -%}
+          {%- endfor -%}
+          {{ result }}
+      vars:
+        _gw_first: "{{ hostvars[groups['linstor_satellites'][0]] }}"
+        _gw_ipv4: >-
+          {{ _gw_first.ansible_facts.interfaces
+             | map('regex_replace', '-', '_')
+             | map('extract', _gw_first.ansible_facts)
+             | selectattr('ipv4', 'defined')
+             | map(attribute='ipv4')
+             | selectattr('address', 'eq', _gw_first.replication_ip | default(_gw_first.ansible_host))
+             | first }}
+
 - name: Fetch OCF resource agents on satellites
   hosts: linstor_satellites
   any_errors_fatal: true
@@ -126,30 +167,26 @@
     linstor_iscsi_targets:
       - name: gw-iscsi-plain
         service_ips:
-          - 192.168.222.241/24
+          - "{{ _gw_ips[0] }}/{{ _gw_prefix }}"
         volumes:
           - size: 100M
-        nodes:
-          - linstor-1
-          - linstor-2
+        nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-iscsi-luks
         iqn: iqn.2026-06.com.linbit:gw-iscsi-luks
         service_ips:
-          - 192.168.222.242
+          - "{{ _gw_ips[1] }}"
         volumes:
           - size: 100M
         resource_group: rg-luks
     linstor_nfs_exports:
       - name: gw-nfs
         service_ips:
-          - 192.168.222.245
+          - "{{ _gw_ips[3] }}"
         exports:
           - path: /data
             size: 100M
-        nodes:
-          - linstor-1
-          - linstor-2
+        nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
         layer_list:
           - DRBD
@@ -159,16 +196,14 @@
       - name: gw-nvme-plain
         nqn: nqn.2026-06.io.linbit:nvme:gw-nvme-plain
         service_ips:
-          - 192.168.222.243
+          - "{{ _gw_ips[2] }}"
         volumes:
           - size: 100M
-        nodes:
-          - linstor-1
-          - linstor-2
+        nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-nvme-luks
         service_ips:
-          - 192.168.222.246
+          - "{{ _gw_ips[4] }}"
         volumes:
           - size: 100M
         resource_group: rg-luks
@@ -205,10 +240,9 @@
       ansible.builtin.assert:
         that:
           - _manual_info.resources | length == 1
-          - "'linstor-1' in _diskful"
-          - "'linstor-2' in _diskful"
-        fail_msg: "gw-iscsi-plain diskful nodes are {{ _diskful }}, expected linstor-1 and linstor-2"
-        success_msg: "gw-iscsi-plain placed diskful on linstor-1 and linstor-2 (manual)"
+          - _gw_nodes | difference(_diskful) | length == 0
+        fail_msg: "gw-iscsi-plain diskful nodes are {{ _diskful }}, expected {{ _gw_nodes | join(' and ') }}"
+        success_msg: "gw-iscsi-plain placed diskful on {{ _gw_nodes | join(' and ') }} (manual)"
         quiet: true
       vars:
         _res: "{{ _manual_info.resources[0] }}"
@@ -313,24 +347,20 @@
     linstor_nfs_exports:
       - name: gw-nfs-ganesha-a
         service_ips:
-          - 192.168.222.248
+          - "{{ _gw_ips[6] }}"
         implementation: ganesha
         exports:
           - {path: /data, size: 100M}
-        nodes:
-          - linstor-1
-          - linstor-2
+        nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-nfs-ganesha-b
         service_ips:
-          - 192.168.222.250
+          - "{{ _gw_ips[8] }}"
         implementation: ganesha
         exports:
           - {path: /one, size: 100M}
           - {path: /two, size: 100M}
-        nodes:
-          - linstor-1
-          - linstor-2
+        nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
   tasks:
     - name: Create two colocated ganesha exports
@@ -453,7 +483,7 @@
     - name: Create an iSCSI target with the linstor-gateway CLI (autoplace via RG)
       ansible.builtin.command: >-
         linstor-gateway iscsi create iqn.2026-06.com.linbit:gw-clicreate
-        192.168.222.247/24 100M --resource-group rg-gw-test
+        {{ _gw_ips[5] }}/{{ _gw_prefix }} 100M --resource-group rg-gw-test
       register: _cli_create
       changed_when: "'Created' in _cli_create.stdout"
       delegate_to: "{{ _gw_cli_host }}"
@@ -501,12 +531,10 @@
             linstor_iscsi_targets:
               - name: gw-bad
                 service_ips:
-                  - 192.168.222.249
+                  - "{{ _gw_ips[7] }}"
                 volumes:
                   - size: 100M
-                nodes:
-                  - linstor-1
-                  - linstor-2
+                nodes: "{{ _gw_nodes }}"
                 resource_group: rg-gw-test
             linstor_nfs_exports: []
             linstor_nvmeof_targets: []
