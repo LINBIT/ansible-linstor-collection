@@ -10,7 +10,6 @@
     _gw_placements: []
     _gw_rg_check: { results: [] }
     _gw_manual_place: { changed: false, results: [] }
-    _gw_spawn_rg: { changed: false, results: [] }
     _gw_spawn_auto: { changed: false, results: [] }
     _gw_query: { results: [] }
     _gw_resolved: []
@@ -150,38 +149,25 @@
   run_once: true  # noqa: run-once[task]
   register: _gw_manual_place
 
-# --- Resource group autoplace targets: spawn ---
+# --- Autoplace targets ---
 
-- name: "Spawn LINSTOR resources from resource groups (autoplace) - {{ _protocol }}"
-  linbit.linstor.resource:
-    name: "{{ _target._rd_name }}"
-    mode: spawn
-    resource_group: "{{ _target.resource_group }}"
-    sizes: >-
-      {{ [ha_gateway_tickle_dir_size]
-         + _target[_sizes_key] | map(attribute='size') | list }}
-  loop: "{{ _gw_autoplace | selectattr('resource_group', 'defined') | list }}"
-  loop_control:
-    loop_var: _target
-    label: "{{ _target._rd_name }}"
-  delegate_to: "{{ linstor_api_delegate }}"
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  run_once: true  # noqa: run-once[task]
-  register: _gw_spawn_rg
-
-# --- Autoplace targets without resource group ---
-
+# Like linstor-gateway, create the volumes and autoplace instead of spawning, which needs one size per volume group
 # Anti-affinity applies to kernel NFS exports only - ganesha exports may colocate
 - name: "Autoplace LINSTOR resources - {{ _protocol }}"
   linbit.linstor.resource:
     name: "{{ _target._rd_name }}"
     mode: autoplace
+    resource_group: "{{ _target.resource_group | default(omit) }}"
     sizes: >-
       {{ [ha_gateway_tickle_dir_size]
          + _target[_sizes_key] | map(attribute='size') | list }}
-    place_count: "{{ _target.place_count | default(ha_gateway_place_count) }}"
-    storage_pool: "{{ _target.storage_pool | default(ha_gateway_storage_pool) | default(omit, true) }}"
+    place_count: >-
+      {{ _target.place_count
+         | default(omit if _target.resource_group is defined else ha_gateway_place_count) }}
+    storage_pool: >-
+      {{ _target.storage_pool
+         | default(omit if _target.resource_group is defined else ha_gateway_storage_pool)
+         | default(omit, true) }}
     layer_list: "{{ _target.layer_list | default(omit, true) }}"
     do_not_place_with_regex: >-
       {{ _ha_gw_kernel_nfs_names | join('|')
@@ -198,7 +184,7 @@
         {%- endif -%}
       {%- endfor -%}
       {{ ns }}
-  loop: "{{ _gw_autoplace | rejectattr('resource_group', 'defined') | list }}"
+  loop: "{{ _gw_autoplace }}"
   loop_control:
     loop_var: _target
     label: "{{ _target._rd_name }}"
@@ -270,7 +256,7 @@
     path: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
   when: >-
     _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
+    or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
@@ -285,7 +271,7 @@
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
     _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
+    or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
@@ -300,7 +286,7 @@
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
     _gw_manual_place is changed
-    or _gw_spawn_rg is changed or _gw_spawn_auto is changed
+    or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export

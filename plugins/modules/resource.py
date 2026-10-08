@@ -85,8 +85,9 @@ options:
   place_count:
     description:
       - Number of replicas for autoplace mode.
+      - When omitted, the resource group's place count applies, which LINSTOR
+        defaults to 2 when the group sets none.
     type: int
-    default: 2
   do_not_place_with_regex:
     description:
       - Autoplace mode only.
@@ -377,7 +378,7 @@ def main():
         node=dict(type='str'),
         nodes=dict(type='list', elements='dict', default=[]),
         storage_pool=dict(type='str'),
-        place_count=dict(type='int', default=2),
+        place_count=dict(type='int'),
         do_not_place_with_regex=dict(type='str'),
         diskless=dict(type='bool', default=False),
         properties=dict(type='dict', default={}),

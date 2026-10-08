@@ -8,7 +8,8 @@
 # exercises all three protocols, both placement modes, layer_list (LUKS), and
 # the full interop and teardown matrix:
 #   - protocols: iSCSI, NFS, and NVMe-oF
-#   - placement: explicit nodes (manual) and resource group (autoplace)
+#   - placement: explicit nodes (manual) and resource group (autoplace),
+#     including a resource group with a volume group, as Proxmox VE sets up
 #   - layer_list: a LUKS layer via manual placement and via a resource group
 #   - teardown: role state=absent and the linstor-gateway CLI delete, each
 #     covering a LUKS and a non-LUKS target
@@ -162,6 +163,7 @@
     linstor_iscsi_targets:
       - {name: gw-iscsi-plain, state: absent}
       - {name: gw-iscsi-luks, state: absent}
+      - {name: gw-iscsi-rgvg, state: absent}
       - {name: gw-clicreate, state: absent}
     linstor_nfs_exports:
       - {name: gw-nfs, state: absent}
@@ -188,6 +190,19 @@
         name: rg-gw-test
         place_count: 2
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+
+    - name: Create a resource group with a volume group, as Proxmox VE sets up
+      linbit.linstor.resource_group:
+        name: rg-gw-vg
+        storage_pool: "{{ test_storage_pool | default('sp0') }}"
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+
+    - name: Add the volume group to that resource group
+      linbit.linstor.volume_group:
+        resource_group: rg-gw-vg
       delegate_to: localhost
       run_once: true  # noqa: run-once[task]
 
@@ -238,6 +253,13 @@
         volumes:
           - size: 100M
         resource_group: rg-luks
+      # Two volumes against the group's one volume group, which a spawn rejects
+      - name: gw-iscsi-rgvg
+        service_ips:
+          - "{{ _gw_ips[9] }}"
+        volumes:
+          - size: 100M
+        resource_group: rg-gw-vg
     linstor_nfs_exports:
       - name: gw-nfs
         service_ips:
@@ -334,12 +356,40 @@
                 | map(attribute='key') | list) }}
         _diskful: "{{ _res.nodes | difference(_diskless) }}"
 
-    - name: Query promoter external files for all five targets
+    - name: Query gw-iscsi-rgvg placement (autoplace via a resource group with a volume group)
+      linbit.linstor.resource_info:
+        name: gw-iscsi-rgvg
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+      register: _rgvg_info
+
+    - name: Assert gw-iscsi-rgvg has two diskful replicas on satellites
+      ansible.builtin.assert:
+        that:
+          - _rgvg_info.resources | length == 1
+          - _diskful | length == 2
+          - _diskful | difference(groups['linstor_satellites']) | length == 0
+        fail_msg: "gw-iscsi-rgvg diskful nodes are {{ _diskful }}, expected two satellites"
+        success_msg: "gw-iscsi-rgvg autoplaced two diskful replicas: {{ _diskful }}"
+        quiet: true
+      vars:
+        _res: "{{ _rgvg_info.resources[0] }}"
+        _diskless: >-
+          {{ (_res.flags | default({}) | dict2items
+              | selectattr('value', 'contains', 'TIE_BREAKER')
+              | map(attribute='key') | list)
+             + (_res.flags | default({}) | dict2items
+                | selectattr('value', 'contains', 'DRBD_DISKLESS')
+                | map(attribute='key') | list) }}
+        _diskful: "{{ _res.nodes | difference(_diskless) }}"
+
+    - name: Query promoter external files for all six targets
       linbit.linstor.file_info:
         path: "/etc/drbd-reactor.d/linstor-gateway-{{ item }}.toml"
       loop:
         - iscsi-gw-iscsi-plain
         - iscsi-gw-iscsi-luks
+        - iscsi-gw-iscsi-rgvg
         - nfs-gw-nfs
         - nvmeof-gw-nvme-plain
         - nvmeof-gw-nvme-luks
@@ -349,11 +399,11 @@
 
     - name: Assert all promoter external files exist (linstor-gateway interop)
       ansible.builtin.assert:
-        that: _gw_files.results | selectattr('exists') | list | length == 5
+        that: _gw_files.results | selectattr('exists') | list | length == 6
         fail_msg: >-
           Missing promoter external files:
           {{ _gw_files.results | rejectattr('exists') | map(attribute='item') | list }}
-        success_msg: "All five gateway promoter external files exist in LINSTOR"
+        success_msg: "All six gateway promoter external files exist in LINSTOR"
         quiet: true
       run_once: true  # noqa: run-once[task]
 
@@ -367,11 +417,12 @@
         that:
           - _rl.stdout is search('gw-iscsi-plain')
           - _rl.stdout is search('gw-iscsi-luks.*LUKS')
+          - _rl.stdout is search('gw-iscsi-rgvg')
           - _rl.stdout is search('gw-nfs.*LUKS')
           - _rl.stdout is search('gw-nvme-plain')
           - _rl.stdout is search('gw-nvme-luks.*LUKS')
         fail_msg: "A target is missing or a LUKS layer is absent:\n{{ _rl.stdout }}"
-        success_msg: "All five targets deployed; the three LUKS targets carry a LUKS layer"
+        success_msg: "All six targets deployed; the three LUKS targets carry a LUKS layer"
         quiet: true
 
     - name: List each protocol via linstor-gateway
@@ -389,11 +440,12 @@
         that:
           - "'gw-iscsi-plain' in _gw_lists.results[0].stdout"
           - "'gw-iscsi-luks' in _gw_lists.results[0].stdout"
+          - "'gw-iscsi-rgvg' in _gw_lists.results[0].stdout"
           - "'gw-nfs' in _gw_lists.results[1].stdout"
           - "'gw-nvme-plain' in _gw_lists.results[2].stdout"
           - "'gw-nvme-luks' in _gw_lists.results[2].stdout"
         fail_msg: "linstor-gateway lists reachable but missing targets"
-        success_msg: "All five targets visible across linstor-gateway iscsi, nfs, and nvme list"
+        success_msg: "All six targets visible across linstor-gateway iscsi, nfs, and nvme list"
         quiet: true
 
 - name: Ganesha - two userspace NFS exports on the same nodes
@@ -621,6 +673,7 @@
     linstor_iscsi_targets:
       - {name: gw-iscsi-plain, state: absent}
       - {name: gw-iscsi-luks, state: absent}
+      - {name: gw-iscsi-rgvg, state: absent}
       - {name: gw-clicreate, state: absent}
     linstor_nfs_exports:
       - {name: gw-nfs, state: absent}
@@ -648,6 +701,7 @@
         state: absent
       loop:
         - rg-gw-test
+        - rg-gw-vg
         - rg-luks
       delegate_to: localhost
       run_once: true  # noqa: run-once[task]

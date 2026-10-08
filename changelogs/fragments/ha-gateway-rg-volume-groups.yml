@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    ha_gateway - a target with ``resource_group`` now works when the group
+    has volume groups, such as the Proxmox VE resource group. The role creates
+    the resource in the group and autoplaces it, as ``linstor-gateway`` does,
+    instead of spawning it, which LINSTOR rejects when the target's volume
+    count differs from the group's volume groups. Kernel NFS exports in a
+    resource group now also avoid nodes that run another kernel NFS export.
+minor_changes:
+  - >-
+    resource - ``place_count`` has no default. In ``autoplace`` mode an
+    omitted ``place_count`` leaves the choice to the resource group, which
+    LINSTOR sets to 2 when the group has none.
