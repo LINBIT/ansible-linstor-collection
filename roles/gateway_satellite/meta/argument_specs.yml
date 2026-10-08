@@ -93,11 +93,10 @@ argument_specs:
         type: str
         default: ""
         description:
+          - Read by C(linbit.linstor.gateway_install), which configures the
+            daemon on every node that runs it.
           - Whether the LINSTOR Gateway daemon authenticates to the controller
             with a bearer token.
-          - LINSTOR 1.34 and later enable token authentication and REST HTTPS
-            during auth init, at which point the daemon needs its own token and
-            the controller CA.
           - Leave empty to auto-detect from the controller
             C(Auth/TokenAuthenticationEnabled) property.
           - Set C(true) or C(false) to force the behavior.
@@ -114,15 +113,10 @@ argument_specs:
         type: str
         default: ""
         description:
-          - CA certificate PEM content to trust for the controller REST
-            endpoint.
-          - When set, it is used instead of the C(ssl_init) CA file at
-            C(gateway_satellite_ca_cert_file).
-          - With token authentication over HTTPS, one of the two is required,
-            because C(linstor-gateway) cannot verify the certificate that token
-            authentication generates for the controller.
-          - The resolved certificate is written into
-            C(gateway_satellite_config_dir) and installed into the operating
-            system trust store, which is where the daemon's Go client looks.
-          - Use it when the cluster does not run C(linbit.linstor.ssl_init) but
-            token authentication requires the daemon to trust the controller CA.
+          - Read by C(linbit.linstor.gateway_install), which configures the
+            daemon on every node that runs it.
+          - CA certificate PEM content the daemon trusts for the controller
+            REST endpoint under token authentication.
+          - When set, it is used instead of the C(linbit.linstor.ssl_init) CA.
+          - The certificate is installed into the operating system trust store,
+            which is where the daemon's Go client looks.

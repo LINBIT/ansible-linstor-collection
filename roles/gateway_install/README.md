@@ -56,6 +56,19 @@ Creating the token needs the controller API, so the role leaves `token_file` out
 
 Earlier `linstor-gateway` releases ignore `token_file` and fail against a token-authenticated controller.
 
+## Certificate trust
+
+Token authentication serves the REST API over HTTPS, so the daemon also has to trust the controller's certificate.
+The role resolves the trust on every node that runs the daemon, in this order:
+
+1. `gateway_satellite_ca_cert` content when set, installed into the operating system trust store.
+1. The [`ssl_init`](../ssl_init/README.md) CA when present, installed the same way.
+1. Otherwise, the certificate the controller generated for itself when token authentication enabled HTTPS. The role fetches it from the controller and passes it to the daemon alone, as golinstor's `LS_ROOT_CA` environment variable in the `/etc/systemd/system/linstor-gateway.service.d/root-ca.conf` drop-in.
+
+The drop-in keeps the self-generated certificate out of the system trust store, which is not meant for internal certificates.
+The role removes the drop-in once one of the CAs is available.
+A controller that regenerates its certificate, for example when it expires after a year, needs a rerun with `gateway_install_force_reconfigure=true`.
+
 ## Dependencies
 
 No formal role dependencies.

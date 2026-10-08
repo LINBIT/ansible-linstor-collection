@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install the provided controller CA
+  ansible.builtin.copy:
+    content: "{{ gateway_satellite_ca_cert }}"
+    dest: "{{ _gateway_install_config_dir }}/ca.crt"
+    mode: '0644'
+  when: gateway_satellite_ca_cert | default('') != ''
+  notify: restart_linstor_gateway
+
+- name: Check for the ssl_init CA certificate
+  ansible.builtin.stat:
+    path: "{{ _gateway_install_ssl_init_ca_file }}"
+  register: _gw_ssl_ca
+  when: gateway_satellite_ca_cert | default('') == ''
+
+- name: Resolve the CA the daemon trusts
+  ansible.builtin.set_fact:
+    _gw_ca_path: >-
+      {%- if gateway_satellite_ca_cert | default('') != '' -%}
+        {{ _gateway_install_config_dir ~ '/ca.crt' }}
+      {%- elif _gw_ssl_ca.stat.exists -%}
+        {{ _gateway_install_ssl_init_ca_file }}
+      {%- else -%}
+        {{ '' }}
+      {%- endif -%}
+
+- name: Gather OS facts for the OS trust store
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - min
+  when:
+    - _gw_ca_path != ''
+    - ansible_facts['os_family'] is not defined
+
+# The daemon's Go client reads the system pool, so the CA has to be in the OS trust store
+- name: Install the controller CA into the OS trust store
+  ansible.builtin.include_role:
+    name: linbit.linstor.ssl_init
+    tasks_from: install-ca-cert
+  vars:
+    ssl_init_dir: "{{ _gw_ca_path | dirname }}"
+  when: _gw_ca_path != ''
+
+# Only the active controller listens on 3371, and all controllers serve the same certificate
+- name: Fetch the controller's auto-generated HTTPS certificate
+  ansible.builtin.command:
+    argv: "{{ ['python3', '-c', _gw_cert_fetch_script] + _gw_controller_addrs }}"
+  vars:
+    _gw_controller_addrs: >-
+      {{ ([linstor_ha_vip] if linstor_ha_vip | default('') != '' else [])
+         + query('linbit.linstor.group_addresses', 'linstor_controllers') }}
+    _gw_cert_fetch_script: |
+      import socket, ssl, sys
+      socket.setdefaulttimeout(5)
+      for addr in sys.argv[1:]:
+          try:
+              print(ssl.get_server_certificate((addr, 3371)))
+              break
+          except OSError:
+              pass
+      else:
+          sys.exit("No controller answered on port 3371: " + " ".join(sys.argv[1:]))
+  when: _gw_ca_path == ''
+  register: _gw_served_cert
+  changed_when: false
+
+- name: Create the linstor-gateway drop-in directory
+  ansible.builtin.file:
+    path: "{{ _gateway_install_dropin_dir }}"
+    state: directory
+    mode: '0755'
+  when: _gw_ca_path == ''
+
+# golinstor reads LS_ROOT_CA as PEM content, so only the daemon trusts the certificate, not the whole system
+- name: Hand the controller certificate to the daemon
+  ansible.builtin.template:
+    src: linstor-gateway-root-ca.conf.j2
+    dest: "{{ _gateway_install_dropin_dir }}/root-ca.conf"
+    mode: '0644'
+  when: _gw_ca_path == ''
+  notify: restart_linstor_gateway
+
+- name: Remove the controller certificate drop-in when a CA is trusted
+  ansible.builtin.file:
+    path: "{{ _gateway_install_dropin_dir }}/root-ca.conf"
+    state: absent
+  when: _gw_ca_path != ''
+  notify: restart_linstor_gateway

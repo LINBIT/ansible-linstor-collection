@@ -49,6 +49,12 @@
     - _gw_token_auth | bool
     - _gateway_install_token_file != ''
 
+- name: Trust the controller CA for the daemon
+  ansible.builtin.include_tasks: ca-trust.yml
+  when:
+    - _gw_token_auth | bool
+    - _gateway_install_https | bool
+
 - name: Setup linstor-gateway.toml
   ansible.builtin.template:
     src: linstor-gateway.j2

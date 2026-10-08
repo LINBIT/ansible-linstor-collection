@@ -15,10 +15,12 @@
 #   5. Token authentication is enabled in the controller properties
 #   6. A user token exists in the token list
 #   7. Every node running the LINSTOR Gateway daemon, controller-only nodes
-#      included, has its own 0600 token set as token_file and reaches the controller
+#      included, has its own 0600 token set as token_file, the token
+#      authenticates to the controller, and the daemon reaches the controller
 #   8. The daemon still authenticates after a controller restart, which
 #      replaces the satellite tokens
-#   9. gateway_satellite stops on token authentication over HTTPS without a CA
+#   9. Daemon nodes without a CA trust the controller certificate through the
+#      LS_ROOT_CA drop-in, and nodes with a CA have no drop-in
 #
 # The satellite token file mode is a controller-side concern, verified
 # separately, not asserted here.
@@ -173,9 +175,35 @@
               and set token_file on every node that runs the daemon.
             quiet: true
 
+        - name: Read the gateway token
+          ansible.builtin.slurp:
+            src: /etc/linstor-gateway/auth-token
+          register: _gw_token
+          no_log: true
+
+        # HA clusters answer on the promoted controller only, so require one 200
+        - name: Call the controller REST API with the gateway token
+          ansible.builtin.uri:
+            url: "https://{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}:3371/v1/nodes"
+            headers:
+              Authorization: "Bearer {{ _gw_token.content | b64decode | trim }}"
+            validate_certs: false
+            status_code: [200, -1]
+          loop: "{{ groups['linstor_controllers'] }}"
+          loop_control:
+            label: "{{ item }}"
+          register: _gw_token_probe
+          failed_when: false
+          no_log: true
+
+        - name: Assert the gateway token authenticates to the controller
+          ansible.builtin.assert:
+            that: _gw_token_probe.results | selectattr('status', 'eq', 200) | list | length >= 1
+            fail_msg: "No controller accepted the gateway token from {{ inventory_hostname }}"
+            quiet: true
+
         # A zero exit proves the daemon authenticated to the controller: the CLI
-        # proxies to the local daemon, which makes the token auth REST
-        # call. linstor-gateway exits 1 when that call fails.
+        # proxies to the local daemon, which makes the token auth REST call
         - name: List iSCSI targets through the gateway daemon
           ansible.builtin.command: linstor-gateway iscsi list
           register: _gw_list
@@ -230,8 +258,8 @@
       retries: 6
       delay: 5
 
-- name: Verify gateway_satellite refuses token authentication over HTTPS without a CA
-  hosts: linstor_satellites[0]
+- name: Verify how the gateway daemon trusts the controller certificate
+  hosts: linstor_cluster
   any_errors_fatal: true
   become: true
   gather_facts: false
@@ -240,23 +268,37 @@
     - name: Gather service facts
       ansible.builtin.service_facts:
 
-    - name: Run the gateway CA trust step with no CA available
+    - name: Read linstor-gateway.toml
+      ansible.builtin.slurp:
+        src: /etc/linstor-gateway/linstor-gateway.toml
+      register: _gw_toml
       when: ansible_facts.services['linstor-gateway.service'] is defined
-      block:
-        - name: Include the gateway_satellite CA trust tasks with a missing CA
-          ansible.builtin.include_role:
-            name: linbit.linstor.gateway_satellite
-            tasks_from: ca-trust
-          vars:
-            gateway_satellite_ca_cert: ""
-            gateway_satellite_ca_cert_file: /nonexistent/linstor-ca.crt
 
-        - name: Fail because the role accepted token authentication without a CA
-          ansible.builtin.fail:
-            msg: gateway_satellite did not stop on token authentication over HTTPS without a CA
-      rescue:
-        - name: Confirm the failure was the missing CA guard
+    - name: Check the CA and drop-in on a gateway daemon node talking HTTPS
+      when:
+        - ansible_facts.services['linstor-gateway.service'] is defined
+        - "'https://' in (_gw_toml.content | b64decode)"
+      block:
+        - name: Check for a CA the daemon trusts
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - /etc/linstor-gateway/ca.crt
+            - /etc/linstor/ssl/ca.crt
+          register: _gw_ca_files
+
+        - name: Read the daemon unit properties
+          ansible.builtin.systemd_service:
+            name: linstor-gateway.service
+          register: _gw_unit
+
+        - name: Assert the drop-in matches the CA state
           ansible.builtin.assert:
-            that: "'cannot verify' in (ansible_failed_result.msg | default(''))"
-            fail_msg: "Unexpected failure: {{ ansible_failed_result.msg | default(ansible_failed_result) }}"
+            that: >-
+              ('LS_ROOT_CA=-----BEGIN CERTIFICATE-----' in (_gw_unit.status.Environment | default('')))
+              == (_gw_ca_files.results | selectattr('stat.exists') | list | length == 0)
+            fail_msg: >-
+              {{ inventory_hostname }} has
+              {{ 'no CA and no' if _gw_ca_files.results | selectattr('stat.exists') | list | length == 0 else 'a CA and an' }}
+              LS_ROOT_CA drop-in for linstor-gateway
             quiet: true

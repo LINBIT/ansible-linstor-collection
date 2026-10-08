@@ -33,7 +33,7 @@ gateway_satellite_ganesha: false
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint
 linstor_api_delegate: localhost
 
-# --- Token authentication (LINSTOR 1.34+) ---
+# --- Token authentication (LINSTOR 1.34+), read by gateway_install ---
 # Auto-detect from the controller Auth/TokenAuthenticationEnabled property
 # Set to true or false to override manually
 gateway_satellite_token_auth: ""
@@ -43,7 +43,6 @@ gateway_satellite_token_auth: ""
 # recover from a revoked token
 gateway_satellite_token_force: false
 
-# CA PEM content to trust for the controller REST endpoint, written to
-# gateway_satellite_config_dir and used instead of the ssl_init CA file when the
-# cluster does not run linbit.linstor.ssl_init
+# CA PEM content the daemon trusts for the controller REST endpoint, used
+# instead of the ssl_init CA
 gateway_satellite_ca_cert: ""

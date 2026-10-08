@@ -5,3 +5,8 @@ _gateway_install_rest_port_https: 3371
 _gateway_install_rest_port_plain: 3370
 
 _gateway_install_config_dir: /etc/linstor-gateway
+
+# linbit.linstor.ssl_init CA the daemon trusts for the controller REST endpoint
+_gateway_install_ssl_init_ca_file: /etc/linstor/ssl/ca.crt
+
+_gateway_install_dropin_dir: /etc/systemd/system/linstor-gateway.service.d

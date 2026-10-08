@@ -2,10 +2,13 @@
 ---
 breaking_changes:
   - >-
-    gateway_satellite - the role no longer fetches the controller's
-    auto-generated HTTPS certificate and adds it to the operating system trust
-    store. With token authentication over HTTPS, the role now fails unless the
-    cluster uses ``ssl_init`` or ``gateway_satellite_ca_cert`` is set. The trust
-    store is not meant for internal certificates, and the certificate only made
-    LINSTOR Gateway work on Debian and Ubuntu. Deploy LINSTOR Gateway with
-    ``ssl_init``, or disable token authentication.
+    gateway_satellite - the role no longer adds the controller's
+    auto-generated HTTPS certificate to the operating system trust store,
+    which is not meant for internal certificates. Controller trust for the
+    LINSTOR Gateway daemon moved to ``gateway_install``, which runs on every
+    node with the daemon, controller-only nodes included. It installs
+    ``gateway_satellite_ca_cert`` or the ``ssl_init`` CA as before, and
+    otherwise passes the auto-generated certificate to the daemon alone
+    through golinstor's ``LS_ROOT_CA`` in a systemd drop-in. LINSTOR Gateway
+    now works with token authentication and the auto-generated certificate
+    on every distribution, not only on Debian and Ubuntu.

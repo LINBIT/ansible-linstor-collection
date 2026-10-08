@@ -86,11 +86,5 @@
       environment:
         LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
 
-    - name: Trust the controller CA for the gateway daemon
-      ansible.builtin.include_tasks: ca-trust.yml
-      when:
-        - ansible_facts.services['linstor-gateway.service'] is defined
-        - ansible_facts.services['linstor-gateway.service'].status != 'not-found'
-
 - name: Flush handlers for gateway_satellite
   ansible.builtin.meta: flush_handlers
