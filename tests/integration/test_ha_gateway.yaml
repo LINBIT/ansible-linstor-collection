@@ -192,11 +192,18 @@
       run_once: true  # noqa: run-once[task]
 
     - name: Ensure a LINSTOR master passphrase exists (required for LUKS)
-      ansible.builtin.command: >-
-        linstor encryption create-passphrase
-        -p {{ test_luks_passphrase | default('testpassphrase') }}
-      changed_when: false
-      failed_when: false
+      linbit.linstor.encryption:
+        state: created
+        passphrase: "{{ test_luks_passphrase | default('testpassphrase') }}"
+      delegate_to: localhost
+      run_once: true  # noqa: run-once[task]
+
+    # A controller restart locks the master passphrase again
+    - name: Unlock the LINSTOR master passphrase
+      linbit.linstor.encryption:
+        state: entered
+        passphrase: "{{ test_luks_passphrase | default('testpassphrase') }}"
+      delegate_to: localhost
       run_once: true  # noqa: run-once[task]
 
     - name: Create the LUKS test resource group
