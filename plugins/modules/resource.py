@@ -21,8 +21,8 @@ options:
   state:
     description:
       - Desired state of the resource.
-      - When C(absent) with C(node) specified, removes the resource from that node only.
-      - When C(absent) without C(node), deletes the entire resource definition and all replicas.
+      - When C(absent) with O(node) specified, removes the resource from that node only.
+      - When C(absent) without O(node), deletes the entire resource definition and all replicas.
       - C(available) runs LINSTOR's C(make-available) for O(node). It creates the copy when it is
         missing, diskless unless O(available_diskful) is set or diskless is not possible,
         activates an C(INACTIVE) copy, and turns a TieBreaker into a wanted diskless copy.
@@ -40,7 +40,7 @@ options:
     description:
       - Deployment mode.
       - C(autoplace) places replicas automatically.
-      - C(spawn) creates the resource from a resource group (uses C(resource_group) + C(sizes)).
+      - C(spawn) creates the resource from a resource group (uses O(resource_group) + O(sizes)).
       - C(manual) places the resource on a specific node.
     type: str
     default: autoplace
@@ -54,13 +54,13 @@ options:
   size:
     description:
       - Volume size for single-volume resources (e.g. C(10G), C(500M)).
-      - Convenience alternative to C(sizes) for the common single-volume case.
-      - Mutually exclusive with C(sizes).
+      - Convenience alternative to O(sizes) for the common single-volume case.
+      - Mutually exclusive with O(sizes).
     type: str
   sizes:
     description:
       - List of volume sizes (e.g. C(['64M', '1G'])).
-      - Required when C(mode=spawn) (unless C(size) is given instead).
+      - Required when C(mode=spawn) (unless O(size) is given instead).
     type: list
     elements: str
   definitions_only:
@@ -72,7 +72,7 @@ options:
   node:
     description:
       - Target node name for single-node manual placement.
-      - Mutually exclusive with C(nodes).
+      - Mutually exclusive with O(nodes).
     type: str
   nodes:
     description:
@@ -80,7 +80,7 @@ options:
       - Each entry is a dict with C(node) (required) and optional C(diskless) (default false),
         C(storage_pool), and C(active) (default O(active)).
       - All nodes are placed in a single API call, avoiding TieBreaker race conditions.
-      - Mutually exclusive with C(node).
+      - Mutually exclusive with O(node).
     type: list
     elements: dict
     default: []
@@ -176,12 +176,12 @@ notes:
     all API calls from a single host.
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname).
-  - "In C(mode=manual), use C(nodes) instead of C(node) for multi-node placement.
+  - "In C(mode=manual), use O(nodes) instead of O(node) for multi-node placement.
     All nodes are placed in a single API call, which prevents LINSTOR from
-    auto-creating a TieBreaker between placements. With C(node) and a loop,
+    auto-creating a TieBreaker between placements. With O(node) and a loop,
     LINSTOR may auto-create a TieBreaker after placing the second replica,
     resulting in an extra node."
-  - "When C(state=absent) with C(node) specified, LINSTOR may convert a diskful
+  - "When C(state=absent) with O(node) specified, LINSTOR may convert a diskful
     resource to a TieBreaker (diskless quorum voter) instead of fully deleting it.
     This only happens at the 3-to-2 diskful replica boundary when C(auto-quorum)
     is enabled. Deleting from 4 or more replicas down to 3 is a clean delete.

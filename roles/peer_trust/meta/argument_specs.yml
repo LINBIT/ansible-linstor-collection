@@ -9,7 +9,7 @@ argument_specs:
         truststore so that cross-cluster backup shipping over HTTPS can verify
         the peer controller's certificate.
       - >-
-        Idempotent on alias: re-running with the same C(peer_trust_alias)
+        Idempotent on alias: re-running with the same O(peer_trust_alias)
         and unchanged peer cert is a no-op and does not restart
         C(linstor-controller).
       - >-

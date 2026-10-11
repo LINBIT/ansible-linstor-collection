@@ -9,7 +9,7 @@ argument_specs:
       - >-
         Resources created by this role appear in C(linstor-gateway iscsi list), C(linstor-gateway nfs list),
         and C(linstor-gateway nvme list).
-      - Processes C(linstor_iscsi_targets), C(linstor_nfs_exports), and C(linstor_nvmeof_targets) inventory variables.
+      - Processes O(linstor_iscsi_targets), O(linstor_nfs_exports), and O(linstor_nvmeof_targets) inventory variables.
       - LINSTOR resource names follow the Gateway scheme, iSCSI WWN, NFS name, NVMe-oF subsystem.
       - Requires C(linbit.linstor.gateway_satellite) on all satellite nodes before use.
     options:
@@ -121,7 +121,7 @@ argument_specs:
         description:
           - List of NFS export definitions.
           - Each entry requires C(name), C(service_ips), and C(exports).
-          - Optional C(implementation) per entry (C(kernel) or C(ganesha)) overrides C(ha_gateway_nfs_implementation).
+          - Optional C(implementation) per entry (C(kernel) or C(ganesha)) overrides O(ha_gateway_nfs_implementation).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
       linstor_nvmeof_targets:

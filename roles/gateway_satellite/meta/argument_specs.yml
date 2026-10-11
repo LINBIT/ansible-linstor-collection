@@ -59,8 +59,8 @@ argument_specs:
         description:
           - Combined list of firewall ports to open.
           - >-
-            Computed from C(gateway_satellite_firewall_ports_base) and C(gateway_satellite_firewall_ports_nfsv3)
-            based on C(gateway_satellite_nfsv4_only).
+            Computed from O(gateway_satellite_firewall_ports_base) and O(gateway_satellite_firewall_ports_nfsv3)
+            based on O(gateway_satellite_nfsv4_only).
           - Override directly for full control.
       gateway_satellite_scst:
         type: bool

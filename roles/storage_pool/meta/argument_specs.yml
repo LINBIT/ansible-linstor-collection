@@ -7,7 +7,7 @@ argument_specs:
       - Create LINSTOR storage pools on diskful satellite nodes.
       - Supports all LINSTOR storage pool driver types.
       - >-
-        The role loops over the C(linstor_storage_pools) inventory variable and creates the underlying
+        The role loops over the O(linstor_storage_pools) inventory variable and creates the underlying
         storage before registering each pool with LINSTOR.
       - >-
         Each satellite creates the pools that target it; a satellite no pool targets is left diskless.

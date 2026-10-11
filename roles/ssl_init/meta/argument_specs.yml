@@ -28,14 +28,14 @@ argument_specs:
         default: false
         description:
           - Enable client certificate authentication for the REST API.
-          - Requires C(ssl_init_https) to be true.
+          - Requires O(ssl_init_https) to be true.
       ssl_init_generate_certs:
         type: bool
         default: true
         description:
           - Generate a private CA and sign per-node certificates.
           - Set to false to use externally-provided PEM certificates.
-          - Place C(ca.crt), C(node.crt), and C(node.key) in C(ssl_init_dir) on each node.
+          - Place C(ca.crt), C(node.crt), and C(node.key) in O(ssl_init_dir) on each node.
           - The role handles JKS keystore conversion, truststore creation, and OS trust store installation.
       ssl_init_ca_name:
         type: str
@@ -60,23 +60,23 @@ argument_specs:
           - RSA
         description:
           - Key algorithm for certificate generation.
-          - C(EC) uses ECDSA with curves specified by C(ssl_init_ca_curve) and C(ssl_init_node_curve).
-          - C(RSA) uses RSA with key size specified by C(ssl_init_rsa_key_size).
+          - C(EC) uses ECDSA with curves specified by O(ssl_init_ca_curve) and O(ssl_init_node_curve).
+          - C(RSA) uses RSA with key size specified by O(ssl_init_rsa_key_size).
       ssl_init_ca_curve:
         type: str
         default: secp384r1
         description:
-          - Elliptic curve for the CA key. Only used when C(ssl_init_key_algorithm) is C(EC).
+          - Elliptic curve for the CA key. Only used when O(ssl_init_key_algorithm) is C(EC).
       ssl_init_node_curve:
         type: str
         default: prime256v1
         description:
-          - Elliptic curve for node and client keys. Only used when C(ssl_init_key_algorithm) is C(EC).
+          - Elliptic curve for node and client keys. Only used when O(ssl_init_key_algorithm) is C(EC).
       ssl_init_rsa_key_size:
         type: int
         default: 4096
         description:
-          - Key size in bits for RSA keys. Only used when C(ssl_init_key_algorithm) is C(RSA).
+          - Key size in bits for RSA keys. Only used when O(ssl_init_key_algorithm) is C(RSA).
       ssl_init_cert_ou:
         type: str
         description:

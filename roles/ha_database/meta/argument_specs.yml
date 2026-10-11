@@ -52,7 +52,7 @@ argument_specs:
         default: false
         description:
           - Deploy the C(ha_controller_proxy) role on the controller nodes after conversion.
-          - Runs a TCP-passthrough HAProxy instance so clients reach the active controller from any controller node, as an alternative to C(ha_database_vip).
+          - Runs a TCP-passthrough HAProxy instance so clients reach the active controller from any controller node, as an alternative to O(ha_database_vip).
       ha_database_drbd_options:
         type: dict
         description:

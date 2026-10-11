@@ -48,7 +48,7 @@ argument_specs:
         default: false
         description:
           - Restrict REST API to clients with a valid certificate.
-          - Requires C(cluster_init_ssl) to be true.
+          - Requires O(cluster_init_ssl) to be true.
       cluster_init_token_auth:
         type: bool
         default: true

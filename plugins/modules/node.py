@@ -61,7 +61,7 @@ options:
     description:
       - TCP port for the default network interface.
       - Defaults to C(3366) for C(Plain) or C(3367) for C(SSL) when creating a new node.
-      - When C(com_type) is specified on an existing node and C(port) is omitted,
+      - When O(com_type) is specified on an existing node and O(port) is omitted,
         the port defaults to C(3366) for C(Plain) or C(3367) for C(SSL).
     type: int
   netif_name:

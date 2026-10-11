@@ -84,7 +84,7 @@ notes:
     all API calls from a single host.
   - Per-host, let each play host call the module with its own host variables
     such as C(inventory_hostname).
-  - The C(node) parameter must refer to a LINSTOR satellite that has local
+  - The O(node) parameter must refer to a LINSTOR satellite that has local
     storage (a node a pool targets, which is what makes it a diskful satellite).
     C(diskless) pools are the exception and can target any satellite.
   - "Over-provisioning: C(MaxFreeCapacityOversubscriptionRatio),

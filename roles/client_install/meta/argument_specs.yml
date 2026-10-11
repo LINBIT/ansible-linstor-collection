@@ -64,7 +64,7 @@ argument_specs:
       client_install_local_config:
         type: bool
         description:
-          - Render the C(linstor-client.conf) on the control node, set by C(linstor_client_config_file).
+          - Render the C(linstor-client.conf) on the control node, set by O(linstor_client_config_file).
           - >-
             Defaults to true when C(linstor_api_delegate) is C(localhost) or unset, and to false
             when it points at another host, because only LINSTOR modules that run on the control

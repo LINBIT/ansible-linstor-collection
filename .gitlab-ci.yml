@@ -59,6 +59,23 @@ antsibull-docs:
     - pip install --quiet 'ansible-core>=2.20,<2.21' antsibull-docs
   script:
     - antsibull-docs lint-collection-docs --plugin-docs --validate-collection-refs self .
+    # antsibull-docs validates option names in O() but not in C(), where a renamed option goes unnoticed
+    - |
+      python3 - <<'EOF'
+      import glob, re, sys, yaml
+      found = False
+      for path in sorted(glob.glob('roles/*/meta/argument_specs.yml')):
+          text = open(path).read()
+          options = set()
+          for entry in (yaml.safe_load(text).get('argument_specs') or {}).values():
+              options.update((entry or {}).get('options') or {})
+          for number, line in enumerate(text.splitlines(), 1):
+              for name in re.findall(r'C\(([A-Za-z0-9_]+)\)', line):
+                  if name in options:
+                      print(f'{path}:{number}: write option {name} as O({name}), not C({name})')
+                      found = True
+      sys.exit(1 if found else 0)
+      EOF
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "main"'
