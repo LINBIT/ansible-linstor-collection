@@ -89,6 +89,11 @@ nodes:
     satellite_port:
       description: Satellite port of the O(netif_name) interface.
       type: int
+    flags:
+      description: Node flags (for example C(EVACUATE) or C(EVICTED)).
+      type: list
+      elements: str
+      version_added: "0.9.11"
     properties:
       description: Node properties.
       type: dict
@@ -165,6 +170,7 @@ def node_to_dict(node, netif_name):
         ip=get_node_ip(node, netif_name),
         com_type=netif.stlt_encryption_type if netif else None,
         satellite_port=netif.stlt_port if netif else None,
+        flags=list(getattr(node, 'flags', []) or []),
         properties=props,
         aux_properties=get_aux_properties(props),
     )

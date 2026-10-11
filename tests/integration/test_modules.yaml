@@ -145,6 +145,96 @@
       register: node_prop_del_idem
       failed_when: node_prop_del_idem.changed
 
+    - name: "Node: evicting an online node fails, also in check mode"
+      linbit.linstor.node:
+        name: "{{ _test_node }}"
+        state: evicted
+      check_mode: true
+      register: node_evict_online
+      failed_when: not node_evict_online.failed or 'is online' not in node_evict_online.msg
+
+    # An unreachable node, so eviction and node lost touch no real satellite
+    - name: "Node: remove a leftover offline test node"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: lost
+      failed_when: false
+
+    - name: "Node: create an offline test node"
+      linbit.linstor.node:
+        name: test-offline-node
+        ip: 192.0.2.10
+        node_type: Satellite
+
+    - name: "Node: check_mode reports eviction"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: evicted
+      check_mode: true
+      register: node_evict_check
+      failed_when: not node_evict_check.changed
+
+    - name: "Node: evict the offline node"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: evicted
+      register: node_evict
+      failed_when: not node_evict.changed
+
+    - name: "Node: evict idempotent"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: evicted
+      register: node_evict_idem
+      failed_when: node_evict_idem.changed
+
+    - name: "Node: read flags after eviction"
+      linbit.linstor.node_info:
+        name: test-offline-node
+      register: node_evict_info
+
+    - name: "Node: verify the node is EVICTED"
+      ansible.builtin.assert:
+        that: "'EVICTED' in node_evict_info.nodes[0].flags"
+        fail_msg: "Expected EVICTED: {{ node_evict_info.nodes[0] }}"
+        quiet: true
+
+    - name: "Node: restore the evicted node"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: restored
+      register: node_restore_evicted
+      failed_when: not node_restore_evicted.changed
+
+    - name: "Node: restore idempotent"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: restored
+      register: node_restore_idem
+      failed_when: node_restore_idem.changed
+
+    - name: "Node: check_mode reports node lost"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: lost
+      check_mode: true
+      register: node_lost_check
+      failed_when: not node_lost_check.changed
+
+    - name: "Node: delete the offline node as lost"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: lost
+      register: node_lost
+      failed_when: not node_lost.changed
+
+    - name: "Node: node lost idempotent"
+      linbit.linstor.node:
+        name: test-offline-node
+        state: lost
+      register: node_lost_idem
+      failed_when: node_lost_idem.changed
+
     # =================================================================
     # linstor_node_interface
     # =================================================================

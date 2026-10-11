@@ -24,11 +24,19 @@ options:
       - Desired state of the node.
       - C(evacuated) migrates all resources off the node for maintenance.
         Idempotent, skips if the node already has the C(EVACUATE) flag.
-      - C(restored) reverses an evacuation, allowing resources to return.
-        Idempotent, skips if the node does not have the C(EVACUATE) flag.
+      - C(restored) reverses an evacuation or an eviction, allowing resources to return.
+        Idempotent, skips if the node has neither the C(EVACUATE) nor the C(EVICTED) flag.
+      - C(evicted) declares an offline node evicted, as LINSTOR's auto-evict does, so
+        LINSTOR replaces its copies on other nodes. LINSTOR refuses to evict an online node.
+        Idempotent, skips if the node already has the C(EVICTED) flag.
+      - C(evicted) is meant for testing, such as bug reproducers that cannot wait for
+        auto-evict. On a real cluster, LINSTOR evicts an offline node by itself after
+        C(DrbdOptions/AutoEvictAfterTime), and the C(linstor) client has no evict command.
+      - C(lost) deletes a node that is gone for good without contacting its satellite
+        (C(linstor node lost)). Idempotent, skips if the node does not exist.
     type: str
     default: present
-    choices: [present, absent, evacuated, restored]
+    choices: [present, absent, evacuated, restored, evicted, lost]
   node_type:
     description: >-
       LINSTOR node type.
@@ -254,6 +262,19 @@ EXAMPLES = r'''
     restore_delete_snapshots: true
   run_once: true  # noqa: run-once[task]
 
+# For testing: on a real cluster, LINSTOR's auto-evict evicts offline nodes by itself
+- name: Evict an offline node
+  linbit.linstor.node:
+    name: node-3
+    state: evicted
+  run_once: true  # noqa: run-once[task]
+
+- name: Delete a node whose satellite is gone for good
+  linbit.linstor.node:
+    name: node-3
+    state: lost
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a node from the cluster
   linbit.linstor.node:
     name: node-3
@@ -301,7 +322,11 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     check_api_response,
     compute_property_diff,
     same_ip,
+    HAS_LINSTOR,
 )
+
+if HAS_LINSTOR:
+    from linstor import sharedconsts
 
 
 NODE_TYPE_MAP = {
@@ -359,6 +384,15 @@ def get_connection_status(node):
     return ''
 
 
+def evict_node(lin, name):
+    """Evict a node; python-linstor has no call for PUT /v1/nodes/{node}/evict."""
+    if hasattr(lin, 'node_evict'):
+        return lin.node_evict(name)
+    return lin._rest_request(
+        sharedconsts.API_NODE_EVICT, 'PUT',
+        '/v1/nodes/%s/evict' % name)
+
+
 def get_aux_properties(props):
     """Extract auxiliary properties with the Aux/ prefix stripped."""
     aux = {}
@@ -373,7 +407,8 @@ def main():
     argument_spec.update(dict(
         name=dict(type='str', required=True),
         state=dict(type='str', default='present',
-                   choices=['present', 'absent', 'evacuated', 'restored']),
+                   choices=['present', 'absent', 'evacuated', 'restored',
+                            'evicted', 'lost']),
         node_type=dict(type='str', default=None,
                        choices=['Controller', 'Satellite', 'Combined', 'Auxiliary']),
         ip=dict(type='str'),
@@ -429,6 +464,42 @@ def main():
             check_api_response(module, replies, 'delete node %s' % name)
             module.exit_json(changed=True, name=name)
 
+        if state in ('evicted', 'lost') and existing_node is not None \
+                and get_connection_status(existing_node).upper() == 'ONLINE':
+            module.fail_json(
+                msg="Node '%s' is online, LINSTOR only declares an offline node %s" % (
+                    name, state))
+
+        if state == 'lost':
+            if existing_node is None:
+                module.exit_json(changed=False, name=name)
+            if module.check_mode:
+                module.exit_json(changed=True, name=name)
+            replies = lin.node_lost(name)
+            check_api_response(module, replies, 'delete lost node %s' % name)
+            module.exit_json(changed=True, name=name)
+
+        if state == 'evicted':
+            if existing_node is None:
+                module.fail_json(
+                    msg="Node '%s' does not exist, cannot evict" % name)
+            if 'EVICTED' in getattr(existing_node, 'flags', []):
+                module.exit_json(changed=False, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            if module.check_mode:
+                module.exit_json(changed=True, name=name,
+                                 node_type=get_node_type_str(existing_node),
+                                 ip=get_node_ip(existing_node, netif_name),
+                                 properties=get_node_props(existing_node))
+            replies = evict_node(lin, name)
+            check_api_response(module, replies, 'evict node %s' % name)
+            module.exit_json(changed=True, name=name,
+                             node_type=get_node_type_str(existing_node),
+                             ip=get_node_ip(existing_node, netif_name),
+                             properties=get_node_props(existing_node))
+
         if state == 'evacuated':
             if existing_node is None:
                 module.fail_json(
@@ -463,7 +534,7 @@ def main():
                 module.fail_json(
                     msg="Node '%s' does not exist, cannot restore" % name)
             node_flags = getattr(existing_node, 'flags', [])
-            if 'EVACUATE' not in node_flags:
+            if 'EVACUATE' not in node_flags and 'EVICTED' not in node_flags:
                 module.exit_json(changed=False, name=name,
                                  node_type=get_node_type_str(existing_node),
                                  ip=get_node_ip(existing_node, netif_name),
