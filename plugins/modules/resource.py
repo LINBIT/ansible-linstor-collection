@@ -23,9 +23,19 @@ options:
       - Desired state of the resource.
       - When C(absent) with C(node) specified, removes the resource from that node only.
       - When C(absent) without C(node), deletes the entire resource definition and all replicas.
+      - C(available) runs LINSTOR's C(make-available) for O(node). It creates the copy when it is
+        missing, diskless unless O(available_diskful) is set or diskless is not possible,
+        activates an C(INACTIVE) copy, and turns a TieBreaker into a wanted diskless copy.
+        The resource definition must exist.
+      - C(unavailable) runs LINSTOR's C(unmake-available) for O(node). It removes a diskless
+        copy, which LINSTOR can keep as a TieBreaker for quorum instead. It removes a copy in a
+        shared storage pool while another usable copy shares its data. It keeps other diskful
+        copies and TieBreakers.
+      - C(available) and C(unavailable) require O(node). They report C(changed) when the copy on
+        that node appears, disappears, or changes flags.
     type: str
     default: present
-    choices: [present, absent]
+    choices: [present, absent, available, unavailable]
   mode:
     description:
       - Deployment mode.
@@ -81,6 +91,7 @@ options:
     description:
       - Layer stack for the resource definition (for example C([DRBD, LUKS, STORAGE])).
       - Applied in C(manual) and C(autoplace) modes; C(spawn) takes layers from the resource group.
+      - With O(state=available), the layer stack for a copy that C(make-available) creates.
     type: list
     elements: str
   place_count:
@@ -115,6 +126,24 @@ options:
       - LINSTOR refuses to deactivate a copy that is in use, and to activate a second copy
         of a resource in the same shared storage pool.
     type: bool
+    version_added: "0.9.11"
+  available_diskful:
+    description:
+      - Create the copy diskful even where a diskless copy is possible, or toggle a diskless copy
+        to diskful.
+      - Only used when O(state=available).
+    type: bool
+    default: false
+    version_added: "0.9.11"
+  available_dual_primary:
+    description:
+      - Prepare the copy for a live migration. For DRBD resources, LINSTOR allows two Primaries
+        between this node and the node that uses the resource. In a shared storage pool, LINSTOR
+        activates the copy on both nodes.
+      - Revert with O(state=unavailable) on the migration source node.
+      - Only used when O(state=available). Requires LINSTOR 1.29.0 or later.
+    type: bool
+    default: false
     version_added: "0.9.11"
   properties:
     description: Dictionary of LINSTOR properties to set on the resource.
@@ -295,6 +324,46 @@ EXAMPLES = r'''
     node: node-3
   run_once: true  # noqa: run-once[task]
 
+# What a LINSTOR hypervisor plugin runs when a VM disk attaches to a node
+- name: Make a resource available on a node
+  linbit.linstor.resource:
+    name: res-data
+    node: node-3
+    state: available
+  run_once: true  # noqa: run-once[task]
+
+# Adds a full copy on node-3, or converts its diskless copy to one
+- name: Make a resource available on a node with a diskful copy
+  linbit.linstor.resource:
+    name: res-data
+    node: node-3
+    state: available
+    available_diskful: true
+  run_once: true  # noqa: run-once[task]
+
+- name: Revert make-available after the disk detaches
+  linbit.linstor.resource:
+    name: res-data
+    node: node-3
+    state: unavailable
+  run_once: true  # noqa: run-once[task]
+
+# The live migration of a VM disk from node-1 to node-2, as a hypervisor plugin runs it
+- name: Prepare the target node for a live migration
+  linbit.linstor.resource:
+    name: res-vm-disk
+    node: node-2
+    state: available
+    available_dual_primary: true
+  run_once: true  # noqa: run-once[task]
+
+- name: Revert the dual-primary settings on the source node after the migration
+  linbit.linstor.resource:
+    name: res-vm-disk
+    node: node-1
+    state: unavailable
+  run_once: true  # noqa: run-once[task]
+
 # To delete an entire resource (definition + all replicas), prefer
 # linbit.linstor.resource_definition with state=absent instead.
 - name: Remove a resource definition and all replicas
@@ -455,6 +524,82 @@ def entry_active(entry, default):
     return default if active is None else active
 
 
+def node_resource_flags(resources, node):
+    """Sorted flags of the copy on a node, or None when it has no copy."""
+    for rsc in resources:
+        if rsc.node_name == node:
+            return sorted(getattr(rsc, 'flags', []) or [])
+    return None
+
+
+def unmake_removes_copy(lin, deployed, node, flags):
+    """Predict whether unmake-available changes the copy on a node, as LINSTOR decides it."""
+    if flags is None:
+        return False
+    pools = set(vlm.storage_pool_name for rsc in deployed if rsc.node_name == node
+                for vlm in (rsc.volumes or [])) - set([None])
+    if pools:
+        shared_spaces = dict(
+            ((sp.node_name, sp.name), sp.free_space_mgr_name)
+            for sp in lin.storage_pool_list_raise(filter_by_stor_pools=list(pools)).storage_pools)
+        own = set(shared_spaces.get((node, p)) for p in pools) - set([None])
+        peers = [rsc for rsc in deployed if rsc.node_name != node
+                 and any(shared_spaces.get((rsc.node_name, vlm.storage_pool_name)) in own
+                         for vlm in (rsc.volumes or []))]
+        if peers:
+            # a copy in a shared storage pool goes only while another usable copy keeps the data
+            return any(not set(rsc.flags or []) & set(['DELETE', 'INACTIVE_PERMANENTLY'])
+                       for rsc in peers)
+    if 'TIE_BREAKER' in flags:
+        return False
+    return 'DRBD_DISKLESS' in flags
+
+
+def manage_availability(module, lin, name, existing_rd, node, state):
+    """Run make-available or unmake-available for one node and exit."""
+    if not node:
+        module.fail_json(msg="state=%s requires the 'node' parameter" % state)
+    if existing_rd is None:
+        if state == 'unavailable':
+            module.exit_json(changed=False, name=name, nodes=[])
+        module.fail_json(
+            msg="Resource definition '%s' does not exist, cannot make it "
+                "available on %s" % (name, node))
+
+    deployed = get_resources(lin, name)
+    before = node_resource_flags(deployed, node)
+
+    if module.check_mode:
+        if state == 'available':
+            expected_change = (
+                before is None
+                or copy_activation(deployed, node) == 'inactive'
+                or 'TIE_BREAKER' in before
+                or (module.params['available_diskful'] and 'DRBD_DISKLESS' in before))
+        else:
+            expected_change = unmake_removes_copy(lin, deployed, node, before)
+        module.exit_json(changed=expected_change, name=name,
+                         nodes=get_resource_nodes(deployed))
+
+    if state == 'available':
+        kwargs = dict(diskful=module.params['available_diskful'])
+        if module.params.get('layer_list'):
+            kwargs['layer_list'] = module.params['layer_list']
+        if module.params['available_dual_primary']:
+            kwargs['auto_manage_dual_primary'] = True
+        replies = lin.resource_make_available(node, name, **kwargs)
+        action = 'make resource %s available on %s'
+    else:
+        replies = lin.resource_unmake_available(node, name)
+        action = 'unmake resource %s available on %s'
+    check_api_response(module, replies, action % (name, node))
+
+    deployed = get_resources(lin, name)
+    after = node_resource_flags(deployed, node)
+    module.exit_json(changed=before != after, name=name,
+                     nodes=get_resource_nodes(deployed))
+
+
 def get_rd_props(rd):
     """Extract properties from a resource definition."""
     if hasattr(rd, 'properties') and rd.properties:
@@ -466,7 +611,8 @@ def main():
     argument_spec = linstor_argument_spec()
     argument_spec.update(dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', default='present', choices=['present', 'absent']),
+        state=dict(type='str', default='present',
+                   choices=['present', 'absent', 'available', 'unavailable']),
         mode=dict(type='str', default='autoplace',
                   choices=['autoplace', 'spawn', 'manual']),
         resource_group=dict(type='str', default='DfltRscGrp'),
@@ -483,6 +629,8 @@ def main():
         delete_properties=dict(type='list', elements='str', default=[]),
         layer_list=dict(type='list', elements='str'),
         active=dict(type='bool'),
+        available_diskful=dict(type='bool', default=False),
+        available_dual_primary=dict(type='bool', default=False),
     ))
 
     module = AnsibleModule(
@@ -527,6 +675,9 @@ def main():
 
     try:
         existing_rd = get_resource_definition(lin, name)
+
+        if state in ('available', 'unavailable'):
+            manage_availability(module, lin, name, existing_rd, node, state)
 
         if state == 'absent':
             if existing_rd is None:

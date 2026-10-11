@@ -48,6 +48,7 @@
         - test-multivol-res
         - test-manual-res
         - test-inactive-res
+        - test-avail-res
         - test-rd-vols
       failed_when: false
 
@@ -916,6 +917,101 @@
       linbit.linstor.resource_definition:
         name: test-inactive-res
         state: absent
+
+    - name: "RD: create for make-available test"
+      linbit.linstor.resource_definition:
+        name: test-avail-res
+        volume_definitions:
+          - size: 32M
+
+    - name: "Resource: place the diskful copy for make-available"
+      linbit.linstor.resource:
+        name: test-avail-res
+        mode: manual
+        node: "{{ _test_node }}"
+        storage_pool: "{{ _test_storage_pool }}"
+
+    - name: "Resource: check_mode reports make-available"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: available
+      check_mode: true
+      register: res_avail_check
+      failed_when: not res_avail_check.changed
+
+    - name: "Resource: make available on the second node"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: available
+      register: res_avail
+      failed_when: not res_avail.changed or _test_node2 not in res_avail.nodes
+
+    - name: "Resource: make-available idempotent"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: available
+      register: res_avail_idem
+      failed_when: res_avail_idem.changed
+
+    - name: "Resource: read flags after make-available"
+      linbit.linstor.resource_info:
+        name: test-avail-res
+      register: res_avail_info
+
+    - name: "Resource: verify make-available created a diskless copy"
+      ansible.builtin.assert:
+        that: "'DRBD_DISKLESS' in res_avail_info.resources[0].flags[_test_node2]"
+        fail_msg: "Expected DRBD_DISKLESS on {{ _test_node2 }}: {{ res_avail_info.resources[0].flags }}"
+        quiet: true
+
+    - name: "Resource: check_mode reports unmake-available"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: unavailable
+      check_mode: true
+      register: res_unavail_check
+      failed_when: not res_unavail_check.changed
+
+    - name: "Resource: unmake available on the second node"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: unavailable
+      register: res_unavail
+      failed_when: not res_unavail.changed or _test_node2 in res_unavail.nodes
+
+    - name: "Resource: unmake-available idempotent"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: unavailable
+      register: res_unavail_idem
+      failed_when: res_unavail_idem.changed
+
+    - name: "Resource: unmake-available keeps the diskful copy"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node }}"
+        state: unavailable
+      register: res_unavail_diskful
+      failed_when: res_unavail_diskful.changed or _test_node not in res_unavail_diskful.nodes
+
+    - name: "Cleanup: delete make-available resource"
+      linbit.linstor.resource_definition:
+        name: test-avail-res
+        state: absent
+
+    - name: "Resource: unmake-available on a missing resource is a no-op"
+      linbit.linstor.resource:
+        name: test-avail-res
+        node: "{{ _test_node2 }}"
+        state: unavailable
+      register: res_unavail_missing
+      failed_when: res_unavail_missing.changed
 
     # =================================================================
     # Explicit controllers parameter
