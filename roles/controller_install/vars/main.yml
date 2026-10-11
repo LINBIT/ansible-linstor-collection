@@ -1,3 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 # vars file for linstor_controller
+_controller_install_db_default_ports:
+  mariadb: 3306
+  mysql: 3306
+  postgresql: 5432
+
+_controller_install_db_default_port: "{{ _controller_install_db_default_ports[controller_install_db_type | lower] | default(0) }}"

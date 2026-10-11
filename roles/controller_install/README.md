@@ -21,6 +21,18 @@ The following inventory group must be defined:
 | `controller_install_firewalld_zone` | `""` | firewalld zone to open the LINSTOR controller ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `controller_install_firewall_ports` | `3370/tcp` | Ports to open in firewalld or UFW for the LINSTOR controller |
 | `controller_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged, re-asserts firewall and controller service state; **briefly restarts the active controller on a running cluster** (drift correction) |
+| `controller_install_db_type` | `h2` | `h2`, `mariadb`, `mysql`, or `postgresql`, in any case; `h2` keeps the built-in database and leaves `linstor.toml` alone, the others connect to an existing database by writing `[db]` in `linstor.toml` before the package install |
+| `controller_install_db_host` | `""` | Database host name or IP address, required for every type but `h2` |
+| `controller_install_db_port` | per type | Database port; `3306` for `mariadb` and `mysql`, `5432` for `postgresql` |
+| `controller_install_db_name` | `linstor` | Database name |
+| `controller_install_db_user` | `""` | Database user, required for every type but `h2` |
+| `controller_install_db_password` | `""` | Database password |
+| `controller_install_db_wait_timeout` | `30` | Seconds to wait for a MariaDB, MySQL, or PostgreSQL database to accept connections |
+| `controller_install_db_force` | `false` | Switch an installed controller to a different database URL and restart it there if it is running; the target must already hold the cluster's data; a first install does not need it |
+
+On an installed controller, a changed database user or password restarts the running controller.
+A changed URL fails unless `controller_install_db_force` is set, because the role does not move the cluster's data.
+Move it first with `linstor-database export-db` and `import-db`.
 
 See `defaults/main.yml` for additional variables.
 

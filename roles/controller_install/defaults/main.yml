@@ -16,3 +16,13 @@ controller_install_firewall_ports:
   - { port: '3370-3371', proto: tcp, zone: "{{ controller_install_firewalld_zone }}" }
 
 controller_install_force_reconfigure: false
+
+# h2 keeps the controller's built-in database and leaves linstor.toml alone
+controller_install_db_type: h2
+controller_install_db_host: ""
+controller_install_db_port: "{{ _controller_install_db_default_port }}"
+controller_install_db_name: linstor
+controller_install_db_user: ""
+controller_install_db_password: ""
+controller_install_db_wait_timeout: 30
+controller_install_db_force: false

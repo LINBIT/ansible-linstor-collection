@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Assert the LINSTOR controller database settings are complete
+  ansible.builtin.assert:
+    that:
+      - controller_install_db_type | lower in ['mariadb', 'mysql', 'postgresql']
+      - controller_install_db_host | length > 0
+      - controller_install_db_port | int > 0
+      - controller_install_db_name | length > 0
+      - controller_install_db_user | length > 0
+    fail_msg: >-
+      controller_install_db_type must be h2, mariadb, mysql or postgresql, and an external
+      database needs controller_install_db_host, controller_install_db_port,
+      controller_install_db_name and controller_install_db_user
+      (type '{{ controller_install_db_type }}', host '{{ controller_install_db_host }}',
+      port '{{ controller_install_db_port }}', name '{{ controller_install_db_name }}',
+      user '{{ controller_install_db_user }}')
+    quiet: true
+
+- name: Build the LINSTOR controller database URL
+  ansible.builtin.set_fact:
+    _controller_install_db_url: >-
+      {{ 'jdbc:' ~ controller_install_db_type | lower ~ '://' ~ _controller_install_db_url_host
+         ~ ':' ~ controller_install_db_port | int ~ '/' ~ controller_install_db_name }}
+  vars:
+    _controller_install_db_url_host: "{{ '[' ~ controller_install_db_host ~ ']' if ':' in controller_install_db_host else controller_install_db_host }}"
+
+- name: Read the current LINSTOR controller configuration
+  ansible.builtin.slurp:
+    src: /etc/linstor/linstor.toml
+  when: _controller_install_check.stat.exists
+  register: _controller_install_toml
+  failed_when: false
+
+- name: Refuse to move an installed LINSTOR controller to another database
+  ansible.builtin.assert:
+    that: >-
+      not _controller_install_check.stat.exists
+      or _controller_install_db_current == _controller_install_db_url
+      or controller_install_db_force | bool
+    fail_msg: >-
+      The LINSTOR controller uses {{ _controller_install_db_current }}.
+      Switching it to {{ _controller_install_db_url }} restarts it on that database,
+      which must already hold this cluster's data, for example through
+      linstor-database export-db and import-db. Set controller_install_db_force to true to switch.
+    quiet: true
+  vars:
+    _controller_install_db_current: >-
+      {{ _controller_install_toml.content | default('') | b64decode
+         | regex_findall('(?m)^connection_url *= *"([^"]*)"') | first
+         | default('jdbc:h2:/var/lib/linstor/linstordb') }}
+
+- name: Wait for the LINSTOR controller database to accept connections
+  ansible.builtin.wait_for:
+    host: "{{ controller_install_db_host }}"
+    port: "{{ controller_install_db_port | int }}"
+    timeout: "{{ controller_install_db_wait_timeout }}"
+    msg: >-
+      No {{ controller_install_db_type }} database answered on
+      {{ controller_install_db_host }}:{{ controller_install_db_port }} from this controller
+      within {{ controller_install_db_wait_timeout }} seconds
+
+- name: Create the LINSTOR configuration directory
+  ansible.builtin.file:
+    path: /etc/linstor
+    state: directory
+    mode: '0755'
+
+- name: Set the LINSTOR controller database in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: db
+    option: "{{ item.key }}"
+    value: '"{{ item.value }}"'
+    mode: '0644'
+  vars:
+    _controller_install_db_settings:
+      connection_url: "{{ _controller_install_db_url }}"
+      user: "{{ controller_install_db_user }}"
+      password: "{{ controller_install_db_password }}"
+  loop: "{{ _controller_install_db_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: _controller_install_db_written
+  no_log: "{{ item.key == 'password' }}"
+
+- name: Restart a running LINSTOR controller on the new database settings # noqa: no-handler
+  when: _controller_install_db_written is changed
+  block:
+    - name: Read the LINSTOR controller service state
+      ansible.builtin.service_facts:
+
+    - name: Restart the LINSTOR controller
+      ansible.builtin.systemd_service:
+        name: linstor-controller.service
+        state: restarted
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].state == 'running'
+
+    - name: Wait for the LINSTOR controller to respond
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ controller_port }}"
+        timeout: 60
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].state == 'running'

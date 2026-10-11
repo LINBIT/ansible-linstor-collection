@@ -28,6 +28,11 @@
       {{ ['linstor-controller']
          + (['linstor-gui'] if controller_install_gui | bool else []) }}
 
+# The controller creates its database on first start, and Debian starts it on package install
+- name: Configure the LINSTOR controller database
+  ansible.builtin.include_tasks: configure-database.yml
+  when: controller_install_db_type | lower != 'h2'
+
 - name: Install LINSTOR controller
   when:
     - not _controller_install_check.stat.exists

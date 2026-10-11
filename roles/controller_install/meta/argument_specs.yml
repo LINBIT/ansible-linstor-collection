@@ -79,3 +79,78 @@ argument_specs:
           - >-
             Use deliberately for drift correction; not recommended on
             production clusters without an outage window.
+      controller_install_db_type:
+        type: str
+        default: h2
+        description:
+          - >-
+            Database for the controller: C(h2), C(mariadb), C(mysql), or
+            C(postgresql), in any case.
+          - >-
+            C(h2) keeps the controller's built-in database and leaves
+            C(/etc/linstor/linstor.toml) alone.
+          - >-
+            The other types connect to an existing database. The role builds
+            the JDBC URL from O(controller_install_db_host),
+            O(controller_install_db_port), and O(controller_install_db_name),
+            and writes it with the user and password to the C([db]) section of
+            C(/etc/linstor/linstor.toml) before the package install, because
+            the controller creates its database on first start.
+          - >-
+            The database and its user must exist, and the controller creates
+            its tables.
+          - >-
+            On an installed controller, a changed user or password restarts
+            the running controller. A changed URL fails unless
+            O(controller_install_db_force) is set, because it does not move
+            the cluster's data.
+      controller_install_db_host:
+        type: str
+        default: ""
+        description:
+          - Host name or IP address of the database, required for every type but C(h2).
+      controller_install_db_port:
+        type: int
+        description:
+          - >-
+            Database port. Defaults to C(3306) for C(mariadb) and C(mysql),
+            and C(5432) for C(postgresql).
+      controller_install_db_name:
+        type: str
+        default: linstor
+        description:
+          - Database name.
+      controller_install_db_user:
+        type: str
+        default: ""
+        description:
+          - Database user, required for every type but C(h2).
+      controller_install_db_password:
+        type: str
+        default: ""
+        description:
+          - Database password.
+      controller_install_db_wait_timeout:
+        type: int
+        default: 30
+        description:
+          - >-
+            Seconds to wait for a MariaDB, MySQL, or PostgreSQL database to
+            accept connections before the controller starts.
+      controller_install_db_force:
+        type: bool
+        default: false
+        description:
+          - >-
+            Switch an installed controller to a different database URL, built
+            from O(controller_install_db_type), O(controller_install_db_host),
+            O(controller_install_db_port), and O(controller_install_db_name),
+            and restart it on that database if it is running.
+          - >-
+            Only an installed controller needs it. A first install writes the
+            URL without it, because the controller has no data yet.
+          - >-
+            The target database must already hold the cluster's data, for
+            example moved there with C(linstor-database export-db) and
+            C(import-db). On an empty database the controller starts with
+            no nodes or resources.
