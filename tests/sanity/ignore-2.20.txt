@@ -10,6 +10,7 @@ plugins/modules/controller.py validate-modules:missing-gplv3-license
 plugins/modules/controller_info.py validate-modules:missing-gplv3-license
 plugins/modules/encryption.py validate-modules:missing-gplv3-license
 plugins/modules/encryption_info.py validate-modules:missing-gplv3-license
+plugins/modules/error_report_info.py validate-modules:missing-gplv3-license
 plugins/modules/file.py validate-modules:missing-gplv3-license
 plugins/modules/file_info.py validate-modules:missing-gplv3-license
 plugins/modules/key_value_store.py validate-modules:missing-gplv3-license

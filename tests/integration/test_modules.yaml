@@ -23,6 +23,10 @@
     _test_node_type: "{{ 'Combined' if _test_node in groups['linstor_controllers'] else 'Satellite' }}"
     _test_storage_pool: "{{ test_storage_pool | default('sp0') }}"
   tasks:
+    - name: Record the start time for the error report check
+      ansible.builtin.set_fact:
+        _test_start: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+
     - name: Read the test storage pool on the test node
       linbit.linstor.storage_pool_info:
         name: "{{ _test_storage_pool }}"
@@ -1266,6 +1270,46 @@
         that: not file_info_missing.exists
         fail_msg: "file_info should report a missing file as exists=false"
         quiet: true
+
+    - name: "Info: error_report_info returns the reports since the play started"
+      linbit.linstor.error_report_info:
+        since: "{{ _test_start }}"
+      register: err_since
+
+    - name: "Info: error_report_info returns a list"
+      ansible.builtin.assert:
+        that: err_since.error_reports is sequence
+        fail_msg: "error_report_info should return a list: {{ err_since }}"
+        quiet: true
+
+    - name: "Info: error_report_info rejects a malformed time"
+      linbit.linstor.error_report_info:
+        since: yesterday
+      register: err_bad_time
+      failed_when: not err_bad_time.failed
+
+    - name: "Info: error_report_info returns the last 30 days"
+      linbit.linstor.error_report_info:
+        since: 30d
+      register: err_month
+
+    - name: "Info: error_report_info reads one report with its text"
+      linbit.linstor.error_report_info:
+        ids:
+          - "{{ err_month.error_reports[-1].id }}"
+        with_content: true
+      when: err_month.error_reports | length > 0
+      register: err_one
+
+    - name: "Info: error_report_info returned the requested report"
+      ansible.builtin.assert:
+        that:
+          - err_one.error_reports | length == 1
+          - err_one.error_reports[0].id == err_month.error_reports[-1].id
+          - err_one.error_reports[0].text | length > 0
+        fail_msg: "Unexpected result: {{ err_one.error_reports }}"
+        quiet: true
+      when: err_month.error_reports | length > 0
 
     # =================================================================
     # Final cleanup

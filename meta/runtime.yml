@@ -16,6 +16,7 @@ action_groups:
     - controller_info
     - encryption
     - encryption_info
+    - error_report_info
     - file
     - file_info
     - key_value_store

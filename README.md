@@ -100,6 +100,7 @@ Custom Ansible modules for managing LINSTOR objects declaratively. Install [`pyt
 | `key_value_store_info` | Read-only query for a key-value store's entries (requires `name`) |
 | `file` | Manage LINSTOR external files (used by `ha_gateway` to push promoter configs) |
 | `file_info` | Read-only query for a LINSTOR external file's content (requires `path`) |
+| `error_report_info` | Read-only query for error reports (filter by `nodes`, `since` and `to`, or `ids`) |
 | `linstor_installed` | Read-only check returning whether `linstor-controller` or `linstor-satellite` is installed on a node (used to gate integration plays) |
 
 Most module tasks should use `run_once: true` or a single-host play. See [Using LINSTOR modules](#using-linstor-modules) for examples.
