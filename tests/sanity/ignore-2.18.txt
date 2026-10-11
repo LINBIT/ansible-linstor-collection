@@ -34,6 +34,7 @@ plugins/modules/schedule.py validate-modules:missing-gplv3-license
 plugins/modules/schedule_info.py validate-modules:missing-gplv3-license
 plugins/modules/snapshot.py validate-modules:missing-gplv3-license
 plugins/modules/snapshot_info.py validate-modules:missing-gplv3-license
+plugins/modules/sos_report.py validate-modules:missing-gplv3-license
 plugins/modules/storage_pool.py validate-modules:missing-gplv3-license
 plugins/modules/storage_pool_info.py validate-modules:missing-gplv3-license
 plugins/modules/volume_group.py validate-modules:missing-gplv3-license

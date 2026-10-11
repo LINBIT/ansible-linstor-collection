@@ -1311,6 +1311,49 @@
         quiet: true
       when: err_month.error_reports | length > 0
 
+    - name: "SOS: create a directory for the report"
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -linstor-sos
+      register: sos_dir
+
+    - name: "SOS: check_mode creates no report"
+      linbit.linstor.sos_report:
+        dest: "{{ sos_dir.path }}"
+        nodes:
+          - "{{ _test_node }}"
+      check_mode: true
+      register: sos_check
+      failed_when: not sos_check.changed or sos_check.path is defined
+
+    - name: "SOS: create and download a report of one node"
+      linbit.linstor.sos_report:
+        dest: "{{ sos_dir.path }}"
+        nodes:
+          - "{{ _test_node }}"
+        since: 10m
+      register: sos
+
+    - name: "SOS: read the downloaded archive"
+      ansible.builtin.stat:
+        path: "{{ sos.path }}"
+      register: sos_file
+
+    - name: "SOS: verify the archive is in the directory"
+      ansible.builtin.assert:
+        that:
+          - sos.changed
+          - sos_file.stat.exists
+          - sos_file.stat.size > 0
+          - sos.path | dirname == sos_dir.path
+        fail_msg: "Unexpected SOS report: {{ sos }}"
+        quiet: true
+
+    - name: "Cleanup: remove the SOS report directory"
+      ansible.builtin.file:
+        path: "{{ sos_dir.path }}"
+        state: absent
+
     # =================================================================
     # Final cleanup
     # =================================================================

@@ -39,6 +39,7 @@ action_groups:
     - schedule_info
     - snapshot
     - snapshot_info
+    - sos_report
     - storage_pool
     - storage_pool_info
     - volume_group
