@@ -7,3 +7,11 @@ _controller_install_db_default_ports:
   postgresql: 5432
 
 _controller_install_db_default_port: "{{ _controller_install_db_default_ports[controller_install_db_type | lower] | default(0) }}"
+
+# LINSTOR keeps its tables in a schema named LINSTOR, which is the database itself on MariaDB and MySQL
+_controller_install_db_default_names:
+  mariadb: LINSTOR
+  mysql: LINSTOR
+  postgresql: linstor
+
+_controller_install_db_default_name: "{{ _controller_install_db_default_names[controller_install_db_type | lower] | default('linstor') }}"

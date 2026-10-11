@@ -117,9 +117,12 @@ argument_specs:
             and C(5432) for C(postgresql).
       controller_install_db_name:
         type: str
-        default: linstor
         description:
-          - Database name.
+          - >-
+            Database name. Defaults to C(LINSTOR) for C(mariadb) and C(mysql), where
+            the controller always keeps its tables in a database named C(LINSTOR),
+            and to C(linstor) for C(postgresql), where it creates a C(LINSTOR) schema
+            inside this database.
       controller_install_db_user:
         type: str
         default: ""

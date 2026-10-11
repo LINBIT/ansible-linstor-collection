@@ -24,7 +24,7 @@ The following inventory group must be defined:
 | `controller_install_db_type` | `h2` | `h2`, `mariadb`, `mysql`, or `postgresql`, in any case; `h2` keeps the built-in database and leaves `linstor.toml` alone, the others connect to an existing database by writing `[db]` in `linstor.toml` before the package install |
 | `controller_install_db_host` | `""` | Database host name or IP address, required for every type but `h2` |
 | `controller_install_db_port` | per type | Database port; `3306` for `mariadb` and `mysql`, `5432` for `postgresql` |
-| `controller_install_db_name` | `linstor` | Database name |
+| `controller_install_db_name` | per type | Database name; `LINSTOR` for `mariadb` and `mysql`, where the controller always keeps its tables in a database named `LINSTOR`, and `linstor` for `postgresql`, where it creates a `LINSTOR` schema inside this database |
 | `controller_install_db_user` | `""` | Database user, required for every type but `h2` |
 | `controller_install_db_password` | `""` | Database password |
 | `controller_install_db_wait_timeout` | `30` | Seconds to wait for a MariaDB, MySQL, or PostgreSQL database to accept connections |
@@ -33,6 +33,10 @@ The following inventory group must be defined:
 On an installed controller, a changed database user or password restarts the running controller.
 A changed URL fails unless `controller_install_db_force` is set, because the role does not move the cluster's data.
 Move it first with `linstor-database export-db` and `import-db`.
+
+Several controllers share one external database, and controllers that start together on an empty database leave it half-initialized.
+On the Debian family, where the package starts the controller on install, a first install with more than one controller keeps the package from starting them.
+The role then starts the controller on the first host in `linstor_controllers` and disables it on the others.
 
 See `defaults/main.yml` for additional variables.
 

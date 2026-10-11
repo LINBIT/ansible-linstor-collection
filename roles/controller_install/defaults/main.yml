@@ -21,7 +21,7 @@ controller_install_force_reconfigure: false
 controller_install_db_type: h2
 controller_install_db_host: ""
 controller_install_db_port: "{{ _controller_install_db_default_port }}"
-controller_install_db_name: linstor
+controller_install_db_name: "{{ _controller_install_db_default_name }}"
 controller_install_db_user: ""
 controller_install_db_password: ""
 controller_install_db_wait_timeout: 30

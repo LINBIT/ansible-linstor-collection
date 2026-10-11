@@ -46,6 +46,23 @@
       ansible.builtin.include_tasks: "pin-version-{{ ansible_facts['os_family'] | lower }}.yml"
       when: linstor_install_version | default('') | length > 0
 
+    # Controllers that start together on an empty shared database leave it half-initialized
+    - name: Keep the package install from starting the LINSTOR controller (APT)
+      ansible.builtin.copy:
+        dest: /usr/sbin/policy-rc.d
+        content: |
+          #!/bin/sh
+          case "$1" in linstor-controller|linstor-controller.service) exit 101 ;; esac
+          exit 0
+        mode: '0755'
+        force: false
+      when:
+        - ansible_facts['os_family'] | lower == 'debian'
+        - controller_install_db_type | lower != 'h2'
+        - groups['linstor_controllers'] | length > 1
+        - not _controller_install_check.stat.exists
+      register: _controller_install_policy_rc
+
     - name: Install LINSTOR controller packages
       ansible.builtin.package:
         name: "{{ _controller_install_packages_list }}"
@@ -57,6 +74,12 @@
     - name: Lock LINSTOR controller package versions
       ansible.builtin.include_tasks: "lock-{{ ansible_facts['os_family'] | lower }}.yml"
       when: linstor_install_version | default('') | length > 0
+  always:
+    - name: Let the package manager start services again (APT) # noqa: no-handler
+      ansible.builtin.file:
+        path: /usr/sbin/policy-rc.d
+        state: absent
+      when: _controller_install_policy_rc is changed
 
 - name: Configure LINSTOR controller # noqa: no-handler
   ansible.builtin.include_tasks: configure-controller.yml

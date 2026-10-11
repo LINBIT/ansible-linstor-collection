@@ -7,7 +7,13 @@ minor_changes:
     ``controller_install_db_name``, ``controller_install_db_user``, and
     ``controller_install_db_password``, which connect the controller to an
     existing MariaDB, MySQL, or PostgreSQL database before its first start. The
-    default ``h2`` keeps the built-in database.
+    port and database name default per type, and the default ``h2`` keeps the
+    built-in database.
+  - >-
+    controller_install - on the Debian family, keep the package install from
+    starting the controllers of a shared external database, start only the
+    first one, and disable the others, because controllers that start together
+    on an empty database leave it half-initialized.
   - >-
     controller_install - restart a running controller when its database user
     or password changes, and refuse a different database on an installed

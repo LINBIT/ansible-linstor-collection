@@ -47,6 +47,16 @@
       (_active_count | int == 0))
     - inventory_hostname == groups['linstor_controllers'][0]
 
+- name: Disable the LINSTOR controller on the other controllers of a shared database
+  ansible.builtin.systemd:
+    name: linstor-controller.service
+    enabled: false
+  when:
+    - controller_install_db_type | lower != 'h2'
+    - groups['linstor_controllers'] | length > 1
+    - not _controller_install_check.stat.exists
+    - inventory_hostname != groups['linstor_controllers'][0]
+
 - name: Reload service facts
   ansible.builtin.service_facts:
 
