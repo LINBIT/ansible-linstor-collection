@@ -47,6 +47,7 @@
         - test-autoplace-res
         - test-multivol-res
         - test-manual-res
+        - test-inactive-res
         - test-rd-vols
       failed_when: false
 
@@ -799,12 +800,122 @@
         fail_msg: "Expected both {{ _test_node }} and {{ _test_node2 }} in nodes"
         quiet: true
 
+    - name: "Resource: check_mode reports deactivation"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: "{{ _test_node2 }}"
+        diskless: true
+        active: false
+      check_mode: true
+      register: res_deact_check
+      failed_when: not res_deact_check.changed
+
+    - name: "Resource: deactivate the diskless copy"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: "{{ _test_node2 }}"
+        diskless: true
+        active: false
+      register: res_deact
+      failed_when: not res_deact.changed
+
+    - name: "Resource: deactivate idempotent"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: "{{ _test_node2 }}"
+        diskless: true
+        active: false
+      register: res_deact_idem
+      failed_when: res_deact_idem.changed
+
+    - name: "Resource: read flags after deactivation"
+      linbit.linstor.resource_info:
+        name: test-manual-res
+      register: res_deact_info
+
+    - name: "Resource: verify the copy is INACTIVE"
+      ansible.builtin.assert:
+        that: "'INACTIVE' in res_deact_info.resources[0].flags[_test_node2]"
+        fail_msg: "Expected INACTIVE on {{ _test_node2 }}: {{ res_deact_info.resources[0].flags }}"
+        quiet: true
+
+    - name: "Resource: activate the copy"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: "{{ _test_node2 }}"
+        diskless: true
+        active: true
+      register: res_act
+      failed_when: not res_act.changed
+
+    - name: "Resource: activate idempotent"
+      linbit.linstor.resource:
+        name: test-manual-res
+        mode: manual
+        node: "{{ _test_node2 }}"
+        diskless: true
+        active: true
+      register: res_act_idem
+      failed_when: res_act_idem.changed
+
     - name: "Cleanup: delete manual resource"
       linbit.linstor.resource:
         name: test-manual-res
         state: absent
       register: res_manual_del
       failed_when: not res_manual_del.changed
+
+    - name: "RD: create for INACTIVE placement test"
+      linbit.linstor.resource_definition:
+        name: test-inactive-res
+        volume_definitions:
+          - size: 32M
+
+    - name: "Resource: place one copy INACTIVE in a batch"
+      linbit.linstor.resource:
+        name: test-inactive-res
+        mode: manual
+        nodes:
+          - node: "{{ _test_node }}"
+          - node: "{{ _test_node2 }}"
+            active: false
+        storage_pool: "{{ _test_storage_pool }}"
+      register: res_inactive
+      failed_when: not res_inactive.changed
+
+    - name: "Resource: INACTIVE batch idempotent"
+      linbit.linstor.resource:
+        name: test-inactive-res
+        mode: manual
+        nodes:
+          - node: "{{ _test_node }}"
+          - node: "{{ _test_node2 }}"
+            active: false
+        storage_pool: "{{ _test_storage_pool }}"
+      register: res_inactive_idem
+      failed_when: res_inactive_idem.changed
+
+    - name: "Resource: read flags after INACTIVE placement"
+      linbit.linstor.resource_info:
+        name: test-inactive-res
+      register: res_inactive_info
+
+    - name: "Resource: verify only the second copy is INACTIVE"
+      ansible.builtin.assert:
+        that:
+          - "'INACTIVE' in res_inactive_info.resources[0].flags[_test_node2]"
+          - "'INACTIVE' not in res_inactive_info.resources[0].flags[_test_node]"
+        fail_msg: "Unexpected flags: {{ res_inactive_info.resources[0].flags }}"
+        quiet: true
+
+    - name: "Cleanup: delete INACTIVE resource"
+      linbit.linstor.resource_definition:
+        name: test-inactive-res
+        state: absent
 
     # =================================================================
     # Explicit controllers parameter

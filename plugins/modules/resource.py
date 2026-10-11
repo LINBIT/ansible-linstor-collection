@@ -67,7 +67,8 @@ options:
   nodes:
     description:
       - List of node placement entries for batch manual placement.
-      - Each entry is a dict with C(node) (required) and optional C(diskless) (default false).
+      - Each entry is a dict with C(node) (required) and optional C(diskless) (default false),
+        C(storage_pool), and C(active) (default O(active)).
       - All nodes are placed in a single API call, avoiding TieBreaker race conditions.
       - Mutually exclusive with C(node).
     type: list
@@ -101,6 +102,20 @@ options:
       - If C(false) and the resource exists as diskless, toggles it back to diskful.
     type: bool
     default: false
+  active:
+    description:
+      - Manual mode only. Whether the copy on O(node), or on each entry of O(nodes),
+        is active.
+      - C(false) creates a missing copy C(INACTIVE) and deactivates an active one.
+      - C(true) activates an C(INACTIVE) copy.
+      - When omitted, new copies are created active and existing copies keep their state.
+      - On a diskless copy, also set O(diskless=true), since the default O(diskless=false)
+        toggles the copy to diskful.
+      - Copies that LINSTOR marks C(EVICTED) or C(INACTIVE_PERMANENTLY) are left alone.
+      - LINSTOR refuses to deactivate a copy that is in use, and to activate a second copy
+        of a resource in the same shared storage pool.
+    type: bool
+    version_added: "0.9.11"
   properties:
     description: Dictionary of LINSTOR properties to set on the resource.
     type: dict
@@ -255,6 +270,24 @@ EXAMPLES = r'''
     storage_pool: sp-lvm-thin
   run_once: true  # noqa: run-once[task]
 
+# Shared storage plugins normally do this; useful to reproduce their behavior in tests
+- name: Create a copy INACTIVE, as the second leg of a shared storage pool
+  linbit.linstor.resource:
+    name: res-data
+    mode: manual
+    node: node-2
+    storage_pool: sp-shared
+    active: false
+  run_once: true  # noqa: run-once[task]
+
+- name: Activate the copy
+  linbit.linstor.resource:
+    name: res-data
+    mode: manual
+    node: node-2
+    active: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a resource from a specific node
   linbit.linstor.resource:
     name: res-data
@@ -357,6 +390,71 @@ def is_resource_diskless(resources, node):
     return False
 
 
+def copy_activation(resources, node):
+    """Return 'active' or 'inactive' for the copy on a node.
+
+    None when the node has no copy, or when the copy is INACTIVE_PERMANENTLY or EVICTED:
+    both carry the INACTIVE bit, but activate and deactivate do not apply to them.
+    """
+    for rsc in resources:
+        if rsc.node_name == node:
+            flags = getattr(rsc, 'flags', []) or []
+            if 'INACTIVE_PERMANENTLY' in flags or 'EVICTED' in flags:
+                return None
+            return 'inactive' if 'INACTIVE' in flags else 'active'
+    return None
+
+
+def wanted_activation(node, nodes, active):
+    """List the (node, active) pairs that O(node), O(nodes), and O(active) ask for."""
+    wanted = []
+    if node and active is not None:
+        wanted.append((node, active))
+    for entry in nodes:
+        entry_state = entry_active(entry, active)
+        if entry_state is not None:
+            wanted.append((entry.get('node') or entry.get('name'), entry_state))
+    return wanted
+
+
+def reconcile_activation(module, lin, name, wanted, deployed, want_active):
+    """Activate (want_active=True) or deactivate the wanted copies; True if any changed."""
+    changed = False
+    for n, want in wanted:
+        if want != want_active:
+            continue
+        state = copy_activation(deployed, n)
+        if state is None or state == ('active' if want else 'inactive'):
+            continue
+        if not module.check_mode:
+            if want:
+                replies = lin.resource_activate(n, name)
+            else:
+                replies = lin.resource_deactivate(n, name)
+            check_api_response(
+                module, replies,
+                '%s resource %s on %s' % (
+                    'activate' if want else 'deactivate', name, n))
+        changed = True
+    return changed
+
+
+def resource_data(node, name, diskless=False, storage_pool=None, active=None):
+    """Build the ResourceData for one copy; active=None creates it active."""
+    if diskless:
+        return linstor.ResourceData(
+            node, name, diskless=True, active=active is not False)
+    return linstor.ResourceData(
+        node, name, storage_pool=storage_pool if storage_pool else None,
+        active=active is not False)
+
+
+def entry_active(entry, default):
+    """Per-entry active state in O(nodes), falling back to O(active)."""
+    active = entry.get('active')
+    return default if active is None else active
+
+
 def get_rd_props(rd):
     """Extract properties from a resource definition."""
     if hasattr(rd, 'properties') and rd.properties:
@@ -384,6 +482,7 @@ def main():
         properties=dict(type='dict', default={}),
         delete_properties=dict(type='list', elements='str', default=[]),
         layer_list=dict(type='list', elements='str'),
+        active=dict(type='bool'),
     ))
 
     module = AnsibleModule(
@@ -421,6 +520,7 @@ def main():
     properties = module.params['properties'] or {}
     delete_properties = module.params['delete_properties'] or []
     layer_list = module.params.get('layer_list')
+    active = module.params['active']
 
     lin = get_linstor_connection(module)
     changed = False
@@ -478,6 +578,13 @@ def main():
             deployed = get_resources(lin, name)
             node_list = get_resource_nodes(deployed)
 
+            # toggle-disk fails on an inactive copy, so activate before it and deactivate after
+            wanted = wanted_activation(node, nodes, active) if mode == 'manual' else []
+            if reconcile_activation(module, lin, name, wanted, deployed, True):
+                changed = True
+                if not module.check_mode:
+                    deployed = get_resources(lin, name)
+
             # For manual mode with batch nodes, place any missing nodes
             if mode == 'manual' and nodes:
                 missing = []
@@ -497,16 +604,11 @@ def main():
                     create_data = []
                     for entry in missing:
                         n = entry.get('node') or entry.get('name')
-                        is_diskless = entry.get('diskless', False)
-                        sp = entry.get('storage_pool', storage_pool)
-                        if is_diskless:
-                            create_data.append(
-                                linstor.ResourceData(n, name, diskless=True))
-                        else:
-                            create_data.append(
-                                linstor.ResourceData(
-                                    n, name,
-                                    storage_pool=sp if sp else None))
+                        create_data.append(resource_data(
+                            n, name,
+                            diskless=entry.get('diskless', False),
+                            storage_pool=entry.get('storage_pool', storage_pool),
+                            active=entry_active(entry, active)))
                     replies = lin.resource_create(create_data)
                     placed = ', '.join(
                         e.get('node') or e.get('name') for e in missing)
@@ -526,14 +628,9 @@ def main():
                         nodes=node_list + [node],
                         properties=get_rd_props(existing_rd))
 
-                if diskless:
-                    replies = lin.resource_create([
-                        linstor.ResourceData(node, name, diskless=True)])
-                else:
-                    create_kwargs = [linstor.ResourceData(
-                        node, name,
-                        storage_pool=storage_pool if storage_pool else None)]
-                    replies = lin.resource_create(create_kwargs)
+                replies = lin.resource_create([resource_data(
+                    node, name, diskless=diskless,
+                    storage_pool=storage_pool, active=active)])
                 check_api_response(module, replies,
                                    'place resource %s on %s' % (name, node))
                 changed = True
@@ -570,6 +667,9 @@ def main():
                         deployed = get_resources(lin, name)
                         node_list = get_resource_nodes(deployed)
                     changed = True
+
+            if reconcile_activation(module, lin, name, wanted, deployed, False):
+                changed = True
 
             # Check for property changes
             current_props = get_rd_props(existing_rd)
@@ -678,31 +778,20 @@ def main():
                     if not n:
                         module.fail_json(
                             msg="Each entry in 'nodes' must have a 'node' key")
-                    is_diskless = entry.get('diskless', False)
-                    sp = entry.get('storage_pool', storage_pool)
-                    if is_diskless:
-                        create_data.append(
-                            linstor.ResourceData(n, name, diskless=True))
-                    else:
-                        create_data.append(
-                            linstor.ResourceData(
-                                n, name,
-                                storage_pool=sp if sp else None))
+                    create_data.append(resource_data(
+                        n, name,
+                        diskless=entry.get('diskless', False),
+                        storage_pool=entry.get('storage_pool', storage_pool),
+                        active=entry_active(entry, active)))
                 replies = lin.resource_create(create_data)
                 placed = ', '.join(
                     e.get('node') or e.get('name') for e in nodes)
                 check_api_response(module, replies,
                                    'place resource %s on %s' % (name, placed))
-            elif diskless:
-                replies = lin.resource_create([
-                    linstor.ResourceData(node, name, diskless=True)])
-                check_api_response(module, replies,
-                                   'place resource %s on %s' % (name, node))
             else:
-                create_data = [linstor.ResourceData(
-                    node, name,
-                    storage_pool=storage_pool if storage_pool else None)]
-                replies = lin.resource_create(create_data)
+                replies = lin.resource_create([resource_data(
+                    node, name, diskless=diskless,
+                    storage_pool=storage_pool, active=active)])
                 check_api_response(module, replies,
                                    'place resource %s on %s' % (name, node))
             changed = True
