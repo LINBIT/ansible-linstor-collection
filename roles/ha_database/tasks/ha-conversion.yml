@@ -128,7 +128,7 @@
     enabled: false
   when: inventory_hostname in _ha_db_combined_nodes
 
-- name: Backup original LINSTOR database
+- name: Back up /var/lib/linstor to /var/lib/linstor.orig
   ansible.builtin.command:
     cmd: mv /var/lib/linstor /var/lib/linstor.orig
     removes: /var/lib/linstor
@@ -172,7 +172,7 @@
     state: started
   when: inventory_hostname == _ha_db_primary_node
 
-- name: Copy LINSTOR database to HA storage
+- name: Copy /var/lib/linstor.orig to the HA filesystem
   ansible.builtin.copy:
     src: /var/lib/linstor.orig/
     dest: /var/lib/linstor/

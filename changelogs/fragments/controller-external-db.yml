@@ -18,3 +18,6 @@ minor_changes:
     controller_install - restart a running controller when its database user
     or password changes, and refuse a different database on an installed
     controller unless ``controller_install_db_force`` is set.
+  - >-
+    ha_database - document that the role works with an external database, where the DRBD resource
+    carries the controller's HTTPS keystore and automatic database exports instead of the database.

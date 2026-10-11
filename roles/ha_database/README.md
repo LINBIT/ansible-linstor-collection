@@ -22,6 +22,13 @@ In a 2-node combined setup, LINSTOR auto-quorum adds a diskless TieBreaker on an
 
 DRBD Reactor is installed automatically if not already present via a dynamic `include_role` of `linbit.drbd_reactor.reactor_install`.
 
+## External database
+
+The role also works when `controller_install` connects the controllers to an external MariaDB, MySQL, or PostgreSQL database.
+The DRBD resource then holds no database, but it still carries the rest of `/var/lib/linstor`, such as the controller's HTTPS keystore (`autohttps-keystore.p12`) and its automatic database exports.
+The keystore follows the active controller, so clients that trust its certificate keep working after a failover.
+DRBD quorum and DRBD Reactor decide which node runs the controller, as they do with the built-in database.
+
 ## Role variables
 
 See `defaults/main.yml`.

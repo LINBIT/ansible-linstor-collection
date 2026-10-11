@@ -10,6 +10,9 @@ argument_specs:
         satellite nodes.
       - "Idempotent: checks the C(Aux/ClusterIsHA) controller property and skips if conversion is already completed."
       - Silently skips when fewer than 2 combined nodes or fewer than 3 total satellites exist.
+      - >-
+        With an external database (C(controller_install_db_type) other than C(h2)), the DRBD resource carries
+        the rest of C(/var/lib/linstor), such as the controller's HTTPS keystore, instead of the database.
     options:
       ha_database_pool:
         type: str
