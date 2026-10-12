@@ -110,6 +110,14 @@ options:
       - Only used when C(state=restored).
     type: bool
     default: false
+  skip_online_check:
+    description:
+      - Send the O(state=evicted) or O(state=lost) request for an online node instead of
+        failing before it, so LINSTOR refuses the node itself.
+      - Meant for tests that check the controller's own error for an online node.
+    type: bool
+    default: false
+    version_added: "0.9.11"
 extends_documentation_fragment:
   - linbit.linstor.connection
 requirements:
@@ -275,6 +283,16 @@ EXAMPLES = r'''
     state: lost
   run_once: true  # noqa: run-once[task]
 
+# For testing: the controller, not the module, refuses an online node
+- name: Check that LINSTOR refuses to declare an online node lost
+  linbit.linstor.node:
+    name: node-3
+    state: lost
+    skip_online_check: true
+  register: lost_online
+  failed_when: lost_online is succeeded
+  run_once: true  # noqa: run-once[task]
+
 - name: Remove a node from the cluster
   linbit.linstor.node:
     name: node-3
@@ -422,6 +440,7 @@ def main():
         evacuate_do_not_target=dict(type='list', elements='str'),
         restore_delete_resources=dict(type='bool', default=False),
         restore_delete_snapshots=dict(type='bool', default=False),
+        skip_online_check=dict(type='bool', default=False),
     ))
 
     module = AnsibleModule(
@@ -465,6 +484,7 @@ def main():
             module.exit_json(changed=True, name=name)
 
         if state in ('evicted', 'lost') and existing_node is not None \
+                and not module.params['skip_online_check'] \
                 and get_connection_status(existing_node).upper() == 'ONLINE':
             module.fail_json(
                 msg="Node '%s' is online, LINSTOR only declares an offline node %s" % (
