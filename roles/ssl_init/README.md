@@ -189,6 +189,9 @@ Use `--limit` for staged rollouts: the role detects which nodes still need SSL a
 When adding a node to an existing CA-secured cluster, run the role again.
 The CA key persists on the Ansible control node at `ssl_init_local_dir`.
 The role signs a new certificate for the new node without touching any running cluster node or affecting existing nodes.
+Run the role from the control node that holds the CA key.
+A control node with the CA certificate but without its key cannot sign certificates, so the role stops with instructions instead of generating a key that does not match the certificate.
+A control node that manages more than one cluster needs a separate `ssl_init_local_dir` for each cluster, so the clusters do not share or overwrite each other's CA.
 
 ## License
 
