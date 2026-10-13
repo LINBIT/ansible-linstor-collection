@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-bugfixes:
-  - >-
-    ssl_init - stops with instructions when the control node has the CA
-    certificate in ``ssl_init_local_dir`` but not its ``ca.key``, instead of
-    generating a new key that does not match the certificate and failing later
-    while signing node certificates.

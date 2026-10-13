@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    resource - add ``state=available`` and ``state=unavailable``, which run
-    LINSTOR's ``make-available`` and ``unmake-available`` for one node, with
-    the ``available_diskful``, ``available_dual_primary``, and ``layer_list``
-    options for ``make-available``.

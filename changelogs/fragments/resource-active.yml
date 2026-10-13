@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    resource - add the ``active`` option, which creates a copy ``INACTIVE`` in
-    manual mode and activates or deactivates an existing copy. Entries in
-    ``nodes`` take a per-node ``active`` key.

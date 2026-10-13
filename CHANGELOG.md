@@ -2,27 +2,71 @@
 
 **Topics**
 
-- <a href="#v0-9-10">v0\.9\.10</a>
-    - <a href="#major-changes">Major Changes</a>
+- <a href="#v0-9-11">v0\.9\.11</a>
     - <a href="#minor-changes">Minor Changes</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
     - <a href="#bugfixes">Bugfixes</a>
     - <a href="#new-modules">New Modules</a>
-- <a href="#v0-9-9">v0\.9\.9</a>
+- <a href="#v0-9-10">v0\.9\.10</a>
+    - <a href="#major-changes">Major Changes</a>
     - <a href="#minor-changes-1">Minor Changes</a>
-- <a href="#v0-9-8">v0\.9\.8</a>
-    - <a href="#major-changes-1">Major Changes</a>
-    - <a href="#minor-changes-2">Minor Changes</a>
+    - <a href="#breaking-changes--porting-guide-1">Breaking Changes / Porting Guide</a>
     - <a href="#bugfixes-1">Bugfixes</a>
     - <a href="#new-modules-1">New Modules</a>
-- <a href="#v0-9-7">v0\.9\.7</a>
+- <a href="#v0-9-9">v0\.9\.9</a>
+    - <a href="#minor-changes-2">Minor Changes</a>
+- <a href="#v0-9-8">v0\.9\.8</a>
+    - <a href="#major-changes-1">Major Changes</a>
     - <a href="#minor-changes-3">Minor Changes</a>
-    - <a href="#breaking-changes--porting-guide-1">Breaking Changes / Porting Guide</a>
     - <a href="#bugfixes-2">Bugfixes</a>
+    - <a href="#new-modules-2">New Modules</a>
+- <a href="#v0-9-7">v0\.9\.7</a>
+    - <a href="#minor-changes-4">Minor Changes</a>
+    - <a href="#breaking-changes--porting-guide-2">Breaking Changes / Porting Guide</a>
+    - <a href="#bugfixes-3">Bugfixes</a>
     - <a href="#new-plugins">New Plugins</a>
         - <a href="#lookup">Lookup</a>
 
 This changelog describes changes after version 0\.9\.6\.
+
+<a id="v0-9-11"></a>
+## v0\.9\.11
+
+<a id="minor-changes"></a>
+### Minor Changes
+
+* Support IPv6 addresses for <code>linstor\_ip</code>\, <code>replication\_ip</code>\, <code>ha\_database\_vip</code>\, and <code>ha\_gateway</code> service IPs\. Controller URIs in <code>linstor\-client\.conf</code>\, the LINSTOR Gateway config and the HAProxy backends wrap IPv6 addresses in brackets\, <code>ha\_controller\_proxy</code> listens on IPv6 and IPv4 when a controller address is IPv6\, and <code>ssl\_init</code> adds an IPv6 <code>ansible\_host</code> to the certificate SANs\. For IPv6 service IPs\, <code>ha\_gateway</code> wraps iSCSI portals and NFS client specs in brackets and passes <code>addr\_fam\=ipv6</code> to the NVMe\-oF <code>nvmet\-port</code> agent\, and an NFS export with the default <code>allowed\_ips</code> allows every client\, IPv4 and IPv6\.
+* The collection no longer depends on <code>ansible\.utils</code>\, so the control node no longer needs the <code>netaddr</code> Python library\.
+* controller\_install \- connect the controller to an existing MariaDB\, MySQL\, or PostgreSQL database with <code>controller\_install\_db\_type</code>\, <code>controller\_install\_db\_host</code>\, <code>controller\_install\_db\_port</code>\, <code>controller\_install\_db\_name</code>\, <code>controller\_install\_db\_user</code>\, and <code>controller\_install\_db\_password</code>\. The port and database name default per type\, and the default <code>h2</code> keeps the built\-in database\. On the Debian family\, the role starts only the first controller on a new external database and disables the others\, because controllers that start together on an empty database leave it half\-initialized\. A changed database user or password restarts the controller\, and a different database on an installed controller needs <code>controller\_install\_db\_force</code>\. <code>ha\_database</code> works with an external database\, where the DRBD resource carries the controller\'s HTTPS keystore and automatic database exports\.
+* ha\_gateway \- <code>service\_ips</code> no longer need a prefix\. Without one\, the role reads the subnet mask from each node\'s facts\, so the VIPs fit any subnet\. LINSTOR Gateway still gets <code>cidr\_netmask</code> either way\.
+* node \- add <code>state\=evicted</code>\, which evicts an offline node\, and <code>state\=lost</code>\, which deletes a node without contacting its satellite \(<code>linstor node lost</code>\)\. <code>skip\_online\_check</code> sends either request for an online node\, so a test can check the controller\'s own refusal\. <code>node\_info</code> returns the node <code>flags</code>\, such as <code>EVACUATE</code> and <code>EVICTED</code>\.
+* resource \- add <code>state\=available</code> and <code>state\=unavailable</code>\, which run LINSTOR\'s <code>make\-available</code> and <code>unmake\-available</code> for one node\, with the <code>available\_diskful</code>\, <code>available\_dual\_primary</code>\, and <code>layer\_list</code> options for <code>make\-available</code>\.
+* resource \- add the <code>active</code> option\, which creates a copy <code>INACTIVE</code> in manual mode and activates or deactivates an existing copy\. Entries in <code>nodes</code> take a per\-node <code>active</code> key\.
+* storage\_pool \- refuses to run <code>wipefs</code> on an LVM or ZFS backing disk that has a mounted filesystem\, on the disk\, a partition\, or a device stacked on them such as an LVM volume\, so devices not intended to be wiped stop the play\.
+
+<a id="breaking-changes--porting-guide"></a>
+### Breaking Changes / Porting Guide
+
+* gateway\_satellite \- the role no longer adds the controller\'s auto\-generated HTTPS certificate to the operating system trust store\, which is not meant for internal certificates\. Controller trust for the LINSTOR Gateway daemon moved to <code>gateway\_install</code>\, which runs on every node with the daemon\, controller\-only nodes included\. It installs <code>gateway\_satellite\_ca\_cert</code> or the <code>ssl\_init</code> CA as before\, and otherwise passes the auto\-generated certificate to the daemon alone through golinstor\'s <code>LS\_ROOT\_CA</code> in a systemd drop\-in\. LINSTOR Gateway now works with token authentication and the auto\-generated certificate on every distribution\, not only on Debian and Ubuntu\.
+* ha\_database \- <code>ha\_database\_vip</code> takes an address without a prefix\. IPaddr2 uses the subnet mask of the interface that carries the address\, so the VIP fits any subnet size\. Before conversion\, the readiness check refuses a VIP with a prefix\, such as <code>10\.0\.0\.100/24</code>\, and a VIP outside a subnet that every combined node has an address in\. Remove the prefix from the inventory\.
+* resource \- <code>place\_count</code> no longer defaults to 2\. In <code>autoplace</code> mode\, an omitted <code>place\_count</code> uses the resource group\'s place count\, which LINSTOR sets to 2 when the group has none\. Set <code>place\_count\: 2</code> to keep two copies in a resource group with a different place count\.
+
+<a id="bugfixes"></a>
+### Bugfixes
+
+* gateway\_install \- the LINSTOR GUI\'s Gateway mode is no longer blocked by the browser\. <code>linstor\-gateway</code> derives its allowed CORS origins only from bare controller addresses on port 3370\, which the URLs the role writes in <code>controllers</code> do not match\, so it allowed no origin at all\. The role now writes <code>cors\_allowed\_origins</code> for the GUI on every controller address and on <code>linstor\_ha\_vip</code>\.
+* gateway\_install \- the LINSTOR Gateway daemon uses its own API token instead of the satellite token in <code>/var/lib/linstor\.d/auth\.json</code>\, which the controller replaces every time it starts\. Every LINSTOR Gateway operation failed with <code>Unauthorized</code> after a controller restart or failover\, including the first HA database conversion\. The role now creates the token on every node that runs the daemon\, controller\-only nodes included\, so the LINSTOR GUI\'s Gateway mode works on token\-authenticated clusters\. A deployed cluster picks up the fix on a rerun with <code>gateway\_install\_force\_reconfigure\=true</code>\.
+* gateway\_satellite \- install <code>python3\-curses</code> on SUSE\, which <code>targetcli</code> requires\.
+* ha\_gateway \- a target with <code>resource\_group</code> now works when the group has volume groups\, such as the Proxmox VE resource group\. The role creates the resource in the group and autoplaces it\, as <code>linstor\-gateway</code> does\, instead of spawning it\, which LINSTOR rejects when the target\'s volume count differs from the group\'s volume groups\. Kernel NFS exports in a resource group now also avoid nodes that run another kernel NFS export\.
+* node \- <code>state\=restored</code> restores an evicted node\. It looked only for the <code>EVACUATE</code> flag\, so a node that LINSTOR\'s auto\-evict had evicted reported no change and stayed evicted\.
+* node\, node\_interface \- compare IP addresses by value\, so an IPv6 address in any case or spelling matches the stored address \([https\://github\.com/LINBIT/ansible\-linstor\-collection/issues/3](https\://github\.com/LINBIT/ansible\-linstor\-collection/issues/3)\)\.
+* ssl\_init \- stops with instructions when the control node has the CA certificate in <code>ssl\_init\_local\_dir</code> but not its <code>ca\.key</code>\, instead of generating a new key that does not match the certificate and failing later while signing node certificates\.
+
+<a id="new-modules"></a>
+### New Modules
+
+* linbit\.linstor\.error\_report\_info \- Query LINSTOR error reports\.
+* linbit\.linstor\.sos\_report \- Create and download a LINSTOR SOS report\.
 
 <a id="v0-9-10"></a>
 ## v0\.9\.10
@@ -32,7 +76,7 @@ This changelog describes changes after version 0\.9\.6\.
 
 * Support LINSTOR token authentication \(LINSTOR 1\.34\.0 and later\)\. All LINSTOR API modules authenticate with the <code>auth\-token</code> from <code>linstor\-client\.conf</code> or the <code>auth\_token</code> module parameter\. The <code>auth\_init</code>\, <code>auth\_token</code>\, and <code>auth\_token\_info</code> modules enable authentication and manage tokens\.
 
-<a id="minor-changes"></a>
+<a id="minor-changes-1"></a>
 ### Minor Changes
 
 * Add read\-only <code>\_info</code> modules for every queryable LINSTOR object type\.
@@ -69,7 +113,7 @@ This changelog describes changes after version 0\.9\.6\.
 * storage\_pool \- new <code>vdevs</code> key adds log\, special\, cache\, and extra data vdevs to ZFS pools\.
 * storage\_pool \- support diskless storage pools with <code>driver\: diskless</code> in the module and <code>type\: diskless</code> in the role\. The role only registers the pool and needs no <code>physical\_devices</code> \([https\://github\.com/LINBIT/ansible\-linstor\-collection/issues/1](https\://github\.com/LINBIT/ansible\-linstor\-collection/issues/1)\)\.
 
-<a id="breaking-changes--porting-guide"></a>
+<a id="breaking-changes--porting-guide-1"></a>
 ### Breaking Changes / Porting Guide
 
 * Remove <code>state\: query</code> from the LINSTOR manage modules \(<code>controller</code>\, <code>node</code>\, <code>node\_interface</code>\, <code>storage\_pool</code>\, <code>resource</code>\, <code>resource\_definition</code>\, <code>resource\_group</code>\, <code>volume\_group</code>\, <code>snapshot</code>\, <code>remote</code>\, <code>schedule</code>\, <code>key\_value\_store</code>\, and <code>file</code>\)\. Use the matching <code>\_info</code> module instead\.
@@ -80,7 +124,7 @@ This changelog describes changes after version 0\.9\.6\.
 * ha\_database \- <code>ha\_database\_res</code> is removed and the HA database resource is always named <code>linstor\_db</code>\, the name the LINSTOR User Guide and the linstor\-controller\-ha\-setup script use\.
 * storage\_pool \- a pool without <code>nodes</code> or <code>groups</code> targets every host in <code>linstor\_satellites</code>\. The <code>linstor\_diskful\_satellites</code> and <code>linstor\_diskless\_satellites</code> groups no longer limit pool placement\, so scope pools away from diskless satellites with <code>nodes</code> or <code>groups</code>\.
 
-<a id="bugfixes"></a>
+<a id="bugfixes-1"></a>
 ### Bugfixes
 
 * LINSTOR API modules \- keep privilege escalation when <code>linstor\_api\_delegate</code> points at a remote host\, so the modules can read root\-owned client configuration there\. <code>become</code> is dropped only for <code>delegate\_to\: localhost</code>\.
@@ -108,7 +152,7 @@ This changelog describes changes after version 0\.9\.6\.
 * ssl\_init \- retry the controller status query on transient failures and do not double\-count controllers when the role runs twice in one play\.
 * storage\_pool \- fail when a pool already exists with a different driver or backing pool instead of reporting <code>ok</code>\. LINSTOR cannot change either\, so delete the pool and create it again\.
 
-<a id="new-modules"></a>
+<a id="new-modules-1"></a>
 ### New Modules
 
 * linbit\.linstor\.auth\_init \- Initialize LINSTOR token authentication\.
@@ -134,7 +178,7 @@ This changelog describes changes after version 0\.9\.6\.
 <a id="v0-9-9"></a>
 ## v0\.9\.9
 
-<a id="minor-changes-1"></a>
+<a id="minor-changes-2"></a>
 ### Minor Changes
 
 * plugins/action \- add a shared action\-plugin base that forces <code>become\: false</code> on every LINSTOR API module\, so a parent play\'s <code>become\: true</code> no longer bleeds into the delegated API call\.
@@ -149,7 +193,7 @@ This changelog describes changes after version 0\.9\.6\.
 
 * LINSTOR modules now execute on the Ansible control node and talk directly to the LINSTOR controller\, rather than running on each managed node via that node\'s <code>python\-linstor</code>\. The previous on\-node pattern piggybacked on the <code>python\-linstor</code> that ships transitively with <code>linstor\-client</code>\, which ruled out targeting hosts that cannot host it \(Windows nodes\, Linux nodes with mixed Python environments where Ansible\'s interpreter discovery is unreliable\)\. The Ansible control node now requires <code>python\-linstor</code>\. The collection\'s own roles handle the delegation internally\; user playbook surface is unchanged\.
 
-<a id="minor-changes-2"></a>
+<a id="minor-changes-3"></a>
 ### Minor Changes
 
 * All package\-install tasks now wrap with <code>retries\: 3</code> and <code>delay\: 10</code> so transient mirror/TLS flake during package installation does not abort the role\.
@@ -165,7 +209,7 @@ This changelog describes changes after version 0\.9\.6\.
 * ssl\_init \- convert the controller/satellite restart sequence to handlers notified by change\-producing tasks\. A re\-run with no changes now fires zero restarts\; a partial re\-run only triggers restarts when keystores\, truststores\, or SSL TOML actually changed\.
 * storage\_pool \- support the <code>storagespaces</code> and <code>storagespaces\_thin</code> drivers \(Windows Storage Spaces\)\, including the matching <code>DOCUMENTATION</code> choices on the module\.
 
-<a id="bugfixes-1"></a>
+<a id="bugfixes-2"></a>
 ### Bugfixes
 
 * Roles now gather OS facts defensively at the start of their task lists\, so they can run from standalone playbooks that skip the usual <code>linbit\.internal\.common</code> fact\-gathering play\.
@@ -173,7 +217,7 @@ This changelog describes changes after version 0\.9\.6\.
 * ssl\_init \- assert that any pre\-existing local CA on the control node matches the cluster\'s CA before continuing\. If they differ\, fail with a clear message pointing at the local path to remove rather than silently re\-keying the cluster and breaking trust for every other workstation and consumer\.
 * ssl\_init \- flip satellite netinterfaces to SSL after the controller restart\, not before\, so the SSL connector is up when the modify lands and no longer produces a spurious <code>LinStorRuntimeException</code> ErrorReport per satellite\. The previous <code>failed\_when\: false</code> suppression is replaced with a <code>state\: query</code> gate so fresh installs still skip cleanly\.
 
-<a id="new-modules-1"></a>
+<a id="new-modules-2"></a>
 ### New Modules
 
 * linbit\.linstor\.linstor\_installed \- Detect whether LINSTOR is installed on the target host\.
@@ -181,18 +225,18 @@ This changelog describes changes after version 0\.9\.6\.
 <a id="v0-9-7"></a>
 ## v0\.9\.7
 
-<a id="minor-changes-3"></a>
+<a id="minor-changes-4"></a>
 ### Minor Changes
 
 * New filter plugin <code>linstor\_addr</code> and lookup plugin <code>group\_addresses</code> for resolving LINSTOR\-facing addresses from host vars and group membership\.
 * gateway\_install \- inline the LINSTOR Gateway GitHub download URL rather than templating it\. Simplifies the role and removes a variable from the public surface\.
 
-<a id="breaking-changes--porting-guide-1"></a>
+<a id="breaking-changes--porting-guide-2"></a>
 ### Breaking Changes / Porting Guide
 
 * gateway\_satellite \- role variables have been renamed with a <code>gateway\_satellite\_</code> prefix for namespacing\. Update any overrides in <code>hosts\.yaml</code>\, <code>group\_vars/</code>\, or playbook <code>vars\:</code> blocks\.
 
-<a id="bugfixes-2"></a>
+<a id="bugfixes-3"></a>
 ### Bugfixes
 
 * client\_install \- replace the broken <code>linstor\-client\.j2</code> symlink with the real template so <code>/etc/linstor/linstor\-client\.conf</code> renders correctly\.

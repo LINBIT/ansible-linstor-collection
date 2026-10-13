@@ -77,6 +77,11 @@ plugins:
       name: encryption_info
       namespace: ''
       version_added: 0.9.10
+    error_report_info:
+      description: Query LINSTOR error reports
+      name: error_report_info
+      namespace: ''
+      version_added: 0.9.11
     file:
       description: Manage LINSTOR external files
       name: file
@@ -192,6 +197,11 @@ plugins:
       name: snapshot_info
       namespace: ''
       version_added: 0.9.10
+    sos_report:
+      description: Create and download a LINSTOR SOS report
+      name: sos_report
+      namespace: ''
+      version_added: 0.9.11
     storage_pool:
       description: Manage LINSTOR storage pools
       name: storage_pool
@@ -216,4 +226,4 @@ plugins:
   shell: {}
   strategy: {}
   vars: {}
-version: 0.9.10
+version: 0.9.11

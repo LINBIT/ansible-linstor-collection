@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-minor_changes:
-  - >-
-    node - add ``skip_online_check``, which sends the ``evicted`` or ``lost``
-    request for an online node so LINSTOR refuses it itself, for tests that
-    check the controller's own error.

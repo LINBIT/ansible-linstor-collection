@@ -239,7 +239,8 @@ releases:
           points at a remote host, so the modules can read root-owned client configuration
           there. ``become`` is dropped only for ``delegate_to: localhost``.'
         - cluster_membership - do not restart the controller service after node registration.
-          On multi-controller clusters it started standby controllers that must stay stopped.
+          On multi-controller clusters it started standby controllers that must stay
+          stopped.
         - controller_env lookup - read ``linstor_ssl`` as a boolean, so a string such
           as ``-e linstor_ssl=false`` no longer selects the SSL scheme and breaks
           connections to non-SSL clusters.
@@ -383,8 +384,6 @@ releases:
           the ``ha_controller_proxy`` role after the HA database conversion.
         - ha_database, ha_gateway - find the diskful nodes from the storage pools
           registered in LINSTOR instead of from inventory groups.
-        - host_storage_pools filter - new filter that returns the ``linstor_storage_pools``
-          entries that target a host.
         - ha_gateway - NFS exports accept an ``implementation`` key (``kernel`` or
           ``ganesha``, default from ``ha_gateway_nfs_implementation``). ``ganesha``
           serves the export with NFS-Ganesha and matches ``linstor-gateway nfs create
@@ -392,6 +391,8 @@ releases:
         - ha_gateway - new per-target ``layer_list`` option sets the layer stack of
           iSCSI, NFS, and NVMe-oF targets, for example to add LUKS encryption. Targets
           placed with a resource group take the layers from the group.
+        - host_storage_pools filter - new filter that returns the ``linstor_storage_pools``
+          entries that target a host.
         - physical_storage - new module that creates LVM, LVM thin, ZFS, or SPDK device
           pools from unused block devices on a satellite, with optional VDO or self-encrypting
           drive setup, and can register the result as a storage pool. ``physical_storage_info``
@@ -510,3 +511,127 @@ releases:
         name: volume_group_info
         namespace: ''
     release_date: '2026-09-24'
+  0.9.11:
+    changes:
+      breaking_changes:
+        - gateway_satellite - the role no longer adds the controller's auto-generated
+          HTTPS certificate to the operating system trust store, which is not meant
+          for internal certificates. Controller trust for the LINSTOR Gateway daemon
+          moved to ``gateway_install``, which runs on every node with the daemon,
+          controller-only nodes included. It installs ``gateway_satellite_ca_cert``
+          or the ``ssl_init`` CA as before, and otherwise passes the auto-generated
+          certificate to the daemon alone through golinstor's ``LS_ROOT_CA`` in a
+          systemd drop-in. LINSTOR Gateway now works with token authentication and
+          the auto-generated certificate on every distribution, not only on Debian
+          and Ubuntu.
+        - ha_database - ``ha_database_vip`` takes an address without a prefix. IPaddr2
+          uses the subnet mask of the interface that carries the address, so the VIP
+          fits any subnet size. Before conversion, the readiness check refuses a VIP
+          with a prefix, such as ``10.0.0.100/24``, and a VIP outside a subnet that
+          every combined node has an address in. Remove the prefix from the inventory.
+        - 'resource - ``place_count`` no longer defaults to 2. In ``autoplace`` mode,
+          an omitted ``place_count`` uses the resource group''s place count, which
+          LINSTOR sets to 2 when the group has none. Set ``place_count: 2`` to keep
+          two copies in a resource group with a different place count.'
+      bugfixes:
+        - gateway_install - the LINSTOR GUI's Gateway mode is no longer blocked by
+          the browser. ``linstor-gateway`` derives its allowed CORS origins only from
+          bare controller addresses on port 3370, which the URLs the role writes in
+          ``controllers`` do not match, so it allowed no origin at all. The role now
+          writes ``cors_allowed_origins`` for the GUI on every controller address
+          and on ``linstor_ha_vip``.
+        - gateway_install - the LINSTOR Gateway daemon uses its own API token instead
+          of the satellite token in ``/var/lib/linstor.d/auth.json``, which the controller
+          replaces every time it starts. Every LINSTOR Gateway operation failed with
+          ``Unauthorized`` after a controller restart or failover, including the first
+          HA database conversion. The role now creates the token on every node that
+          runs the daemon, controller-only nodes included, so the LINSTOR GUI's Gateway
+          mode works on token-authenticated clusters. A deployed cluster picks up
+          the fix on a rerun with ``gateway_install_force_reconfigure=true``.
+        - gateway_satellite - install ``python3-curses`` on SUSE, which ``targetcli``
+          requires.
+        - ha_gateway - a target with ``resource_group`` now works when the group has
+          volume groups, such as the Proxmox VE resource group. The role creates the
+          resource in the group and autoplaces it, as ``linstor-gateway`` does, instead
+          of spawning it, which LINSTOR rejects when the target's volume count differs
+          from the group's volume groups. Kernel NFS exports in a resource group now
+          also avoid nodes that run another kernel NFS export.
+        - node - ``state=restored`` restores an evicted node. It looked only for the
+          ``EVACUATE`` flag, so a node that LINSTOR's auto-evict had evicted reported
+          no change and stayed evicted.
+        - node, node_interface - compare IP addresses by value, so an IPv6 address
+          in any case or spelling matches the stored address (https://github.com/LINBIT/ansible-linstor-collection/issues/3).
+        - ssl_init - stops with instructions when the control node has the CA certificate
+          in ``ssl_init_local_dir`` but not its ``ca.key``, instead of generating
+          a new key that does not match the certificate and failing later while signing
+          node certificates.
+      minor_changes:
+        - Support IPv6 addresses for ``linstor_ip``, ``replication_ip``, ``ha_database_vip``,
+          and ``ha_gateway`` service IPs. Controller URIs in ``linstor-client.conf``,
+          the LINSTOR Gateway config and the HAProxy backends wrap IPv6 addresses in
+          brackets, ``ha_controller_proxy`` listens on IPv6 and IPv4 when a controller
+          address is IPv6, and ``ssl_init`` adds an IPv6 ``ansible_host`` to the certificate
+          SANs. For IPv6 service IPs, ``ha_gateway`` wraps iSCSI portals and NFS client
+          specs in brackets and passes ``addr_fam=ipv6`` to the NVMe-oF ``nvmet-port``
+          agent, and an NFS export with the default ``allowed_ips`` allows every client,
+          IPv4 and IPv6.
+        - The collection no longer depends on ``ansible.utils``, so the control node
+          no longer needs the ``netaddr`` Python library.
+        - controller_install - connect the controller to an existing MariaDB, MySQL,
+          or PostgreSQL database with ``controller_install_db_type``, ``controller_install_db_host``,
+          ``controller_install_db_port``, ``controller_install_db_name``, ``controller_install_db_user``,
+          and ``controller_install_db_password``. The port and database name default
+          per type, and the default ``h2`` keeps the built-in database. On the Debian
+          family, the role starts only the first controller on a new external database
+          and disables the others, because controllers that start together on an
+          empty database leave it half-initialized. A changed database user or password
+          restarts the controller, and a different database on an installed controller
+          needs ``controller_install_db_force``. ``ha_database`` works with an external
+          database, where the DRBD resource carries the controller's HTTPS keystore
+          and automatic database exports.
+        - ha_gateway - ``service_ips`` no longer need a prefix. Without one, the role
+          reads the subnet mask from each node's facts, so the VIPs fit any subnet.
+          LINSTOR Gateway still gets ``cidr_netmask`` either way.
+        - node - add ``state=evicted``, which evicts an offline node, and ``state=lost``,
+          which deletes a node without contacting its satellite (``linstor node lost``).
+          ``skip_online_check`` sends either request for an online node, so a test
+          can check the controller's own refusal. ``node_info`` returns the node ``flags``,
+          such as ``EVACUATE`` and ``EVICTED``.
+        - resource - add ``state=available`` and ``state=unavailable``, which run
+          LINSTOR's ``make-available`` and ``unmake-available`` for one node, with
+          the ``available_diskful``, ``available_dual_primary``, and ``layer_list``
+          options for ``make-available``.
+        - resource - add the ``active`` option, which creates a copy ``INACTIVE``
+          in manual mode and activates or deactivates an existing copy. Entries in
+          ``nodes`` take a per-node ``active`` key.
+        - storage_pool - refuses to run ``wipefs`` on an LVM or ZFS backing disk that
+          has a mounted filesystem, on the disk, a partition, or a device stacked
+          on them such as an LVM volume, so devices not intended to be wiped stop
+          the play.
+    fragments:
+      - controller-external-db.yml
+      - drop-ansible-utils.yml
+      - gateway-dedicated-token.yml
+      - gateway-install-cors-origins.yml
+      - gateway-satellite-no-auto-https-trust.yml
+      - gateway-satellite-suse16.yml
+      - ha-database-vip-prefix.yml
+      - ha-database-vip-subnet-check.yml
+      - ha-gateway-rg-volume-groups.yml
+      - ha-gateway-service-ip-prefix.yml
+      - ipv6-address-compare.yml
+      - ipv6-clusters.yml
+      - node-evict-lost.yml
+      - node-skip-online-check.yml
+      - resource-active.yml
+      - resource-make-available.yml
+      - ssl-init-ca-key-guard.yml
+      - storage-pool-wipefs-mount-guard.yml
+    modules:
+      - description: Query LINSTOR error reports.
+        name: error_report_info
+        namespace: ''
+      - description: Create and download a LINSTOR SOS report.
+        name: sos_report
+        namespace: ''
+    release_date: '2026-10-13'
