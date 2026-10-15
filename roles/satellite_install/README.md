@@ -28,14 +28,10 @@ See `defaults/main.yml` and `vars/` for additional variables.
 
 ## Removing a version lock
 
-Setting `linstor_install_version` locks `linstor-satellite` and `linstor-common` against upgrades.
-Clearing the variable alone does not release the lock on a node where the packages are already installed, because the role only touches the lock when it installs.
-Release the lock in one of these ways:
-
-- Move the pin: set `linstor_install_version` to the new version and re-run the role, which unlocks, installs that version, and re-locks at it.
-- Unpin and upgrade to newest: clear `linstor_install_version`, set `satellite_install_package_state: latest`, and re-run the role, which unlocks and does not re-lock.
-
-To release the lock manually, run the command for the node's package manager.
+Setting `linstor_install_version` installs that version and locks `linstor-satellite` and `linstor-common` against upgrades.
+The pin is for bringing up a cluster at a fixed version, for example for testing, not for changing the version later.
+The role does not move or remove the lock, so clearing or changing the variable is not supported on a node where the packages are installed.
+To change the version, release the lock by hand with the command for the node's package manager, then upgrade the packages.
 Release all LINSTOR server packages together, because they must stay in lockstep even though this role manages only its own:
 
 ```bash
