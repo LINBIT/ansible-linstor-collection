@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    physical_storage - a rerun after a create that built the device pool but did not register the
+    storage pool, for example because the satellite connection dropped, now registers
+    ``storage_pool`` on the existing device pool with the driver and backing pool name LINSTOR
+    uses, and sets ``storage_pool_props``. It reported no change and left the storage pool
+    missing before.

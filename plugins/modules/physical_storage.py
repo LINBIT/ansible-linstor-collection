@@ -87,9 +87,17 @@ options:
         by the new device pool.
       - Also the idempotency key. When a storage pool of this name already
         exists on O(node) the module makes no changes.
+      - When the storage pool does not exist but none of O(device_paths) is
+        still unused, for example after a create that failed between building
+        the device pool and registering the storage pool, the module registers
+        the storage pool on the existing device pool, with the driver and
+        backing pool name that LINSTOR sets on a create.
     type: str
   storage_pool_props:
-    description: Properties to set on the storage pool created with O(storage_pool).
+    description:
+      - Properties to set on the storage pool created with O(storage_pool).
+      - Also set when the module registers the storage pool on an existing
+        device pool.
     type: dict
     default: {}
   sed:
@@ -97,6 +105,9 @@ options:
       - Initialize self-encrypting drives (OPAL 2) with a random password that
         LINSTOR stores encrypted on the storage pool.
       - Requires O(storage_pool) and C(sedutil) on the satellite.
+      - LINSTOR keeps the drive passwords only on the storage pool. When the
+        device pool exists but the storage pool does not, the passwords are
+        lost and the module fails instead of registering the storage pool.
     type: bool
     default: false
   pv_create_arguments:
@@ -144,6 +155,9 @@ notes:
     module assumes the device pool exists and reports no change. A device
     that something else consumed also drops off that list, so prefer
     O(storage_pool) as the idempotency key."
+  - "Registering the storage pool on an existing device pool fails when the
+    satellite does not find the backing volume group, thin pool, or zpool.
+    The module then deletes the storage pool again, so a later run retries."
   - A request where only some of O(device_paths) are still unused fails
     rather than guessing.
   - "VDO on the satellite: the C(vdo) package (C(vdoformat)) and the
@@ -246,9 +260,13 @@ device_paths:
   elements: str
   returned: always
 msg:
-  description: Why no change was made, when the module skipped creation.
+  description:
+    - Why no change was made, when the module skipped creation.
+    - Which backing pool the storage pool was registered on, when the device
+      pool already existed.
   type: str
-  returned: when no change was made
+  returned: when no change was made, or when the module registered the storage pool on an
+    existing device pool
 storage_pool:
   description: Name of the LINSTOR storage pool.
   type: str
@@ -278,6 +296,7 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     linstor_argument_spec,
     get_linstor_connection,
     check_api_response,
+    format_api_errors,
     format_linstor_exception,
     parse_size,
 )
@@ -287,6 +306,14 @@ PROVIDER_KIND_MAP = {
     'lvmthin': 'LVMTHIN',
     'zfs': 'ZFS',
     'zfsthin': 'ZFSTHIN',
+    'spdk': 'SPDK',
+}
+
+STORAGE_DRIVER_MAP = {
+    'lvm': 'LVM',
+    'lvmthin': 'LVM_THIN',
+    'zfs': 'ZFS',
+    'zfsthin': 'ZFS_THIN',
     'spdk': 'SPDK',
 }
 
@@ -310,6 +337,66 @@ def unused_devices(lin, node):
         for entry in group.nodes.get(node, []):
             devices.add(entry.device)
     return devices
+
+
+def driver_pool_name(provider_kind, pool_name, vdo):
+    """StorDriver/StorPoolName that LINSTOR sets on a device pool create with a storage pool."""
+    if vdo and provider_kind in ('lvm', 'lvmthin'):
+        return '%s-vdobase/%s' % (pool_name, pool_name)
+    if provider_kind == 'lvmthin':
+        if '/' in pool_name:
+            return pool_name
+        return 'linstor_%s/%s' % (pool_name, pool_name)
+    return pool_name
+
+
+def register_storage_pool(module, lin, result):
+    """Register the storage pool on a device pool that already exists."""
+    node = module.params['node']
+    storage_pool = module.params['storage_pool']
+    provider_kind = module.params['provider_kind']
+    driver_pool = driver_pool_name(provider_kind, module.params['pool_name'], module.params['vdo'])
+    msg = "registered storage pool %s on the existing %s pool %s on %s" % (
+        storage_pool, provider_kind, driver_pool, node)
+
+    if module.params['sed']:
+        module.fail_json(
+            msg="storage pool %s does not exist on %s, but none of %s is unused. With 'sed' "
+                "LINSTOR keeps the drive passwords only on the storage pool, so they cannot be "
+                "recovered. Register the storage pool by hand." % (
+                    storage_pool, node, ', '.join(module.params['device_paths'])),
+            **result)
+    if module.check_mode:
+        module.exit_json(changed=True, storage_pool=storage_pool, driver_pool=driver_pool, msg=msg, **result)
+
+    replies = lin.storage_pool_create(
+        node_name=node,
+        storage_pool_name=storage_pool,
+        storage_driver=STORAGE_DRIVER_MAP[provider_kind],
+        driver_pool_name=driver_pool,
+    )
+    errors = format_api_errors(replies)
+    if errors:
+        # LINSTOR keeps the storage pool registered even when the satellite reports its backing pool missing
+        lin.storage_pool_delete(node, storage_pool)
+        module.fail_json(
+            msg="storage pool %s does not exist on %s and none of %s is unused, but registering "
+                "it on the %s pool %s failed, so the storage pool was deleted again: %s" % (
+                    storage_pool, node, ', '.join(module.params['device_paths']),
+                    provider_kind, driver_pool, errors),
+            **result)
+
+    props = module.params['storage_pool_props'] or {}
+    if props:
+        replies = lin.storage_pool_modify(
+            node, storage_pool, property_dict={k: str(v) for k, v in props.items()})
+        check_api_response(
+            module, replies, 'set properties on storage pool %s/%s' % (node, storage_pool))
+
+    created_pool = get_storage_pool(lin, node, storage_pool)
+    if created_pool is not None:
+        result.update(storage_pool_result(created_pool))
+    module.exit_json(changed=True, storage_pool=storage_pool, msg=msg, **result)
 
 
 def storage_pool_result(pool):
@@ -382,6 +469,8 @@ def main():
         unused = unused_devices(lin, node)
         requested = set(device_paths)
         if not requested & unused:
+            if storage_pool:
+                register_storage_pool(module, lin, result)
             module.exit_json(
                 changed=False,
                 msg="none of %s is listed as unused on %s, assuming the device pool exists" % (
