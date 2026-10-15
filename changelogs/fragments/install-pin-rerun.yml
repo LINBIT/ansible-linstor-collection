@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    controller_install, satellite_install - with ``linstor_install_version`` set, a rerun on a node
+    that already has the pinned version installed no longer removes and re-adds the package lock,
+    so the lock tasks report no changes.

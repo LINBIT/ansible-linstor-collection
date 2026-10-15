@@ -18,6 +18,21 @@
     _satellite_install_packages_list:
       - linstor-satellite
 
+- name: Gather installed package versions
+  ansible.builtin.package_facts:
+  when: linstor_install_version | default('') | length > 0
+
+- name: Check whether the pinned LINSTOR satellite version is installed
+  ansible.builtin.set_fact:
+    _satellite_install_pin_installed: >-
+      {{ linstor_install_version | default('') | length > 0
+         and _satellite_install_evr.startswith(linstor_install_version) }}
+  vars:
+    _satellite_install_pkg: "{{ (ansible_facts['packages'] | default({})).get('linstor-satellite', [{}]) | first }}"
+    _satellite_install_evr: >-
+      {{ _satellite_install_pkg['version'] | default('')
+         ~ ('-' ~ _satellite_install_pkg['release'] if _satellite_install_pkg['release'] is defined else '') }}
+
 - name: Install LINSTOR satellite
   when:
     - "not _satellite_install_check.stat.exists
@@ -39,6 +54,7 @@
 
     - name: Unlock LINSTOR satellite package versions
       ansible.builtin.include_tasks: "unlock-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: not _satellite_install_pin_installed
 
     - name: Pin LINSTOR satellite package versions
       ansible.builtin.include_tasks: "pin-version-{{ ansible_facts['os_family'] | lower }}.yml"

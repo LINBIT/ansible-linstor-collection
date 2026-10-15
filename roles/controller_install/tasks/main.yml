@@ -22,6 +22,21 @@
     path: /usr/lib/systemd/system/linstor-controller.service
   register: _controller_install_check
 
+- name: Gather installed package versions
+  ansible.builtin.package_facts:
+  when: linstor_install_version | default('') | length > 0
+
+- name: Check whether the pinned LINSTOR controller version is installed
+  ansible.builtin.set_fact:
+    _controller_install_pin_installed: >-
+      {{ linstor_install_version | default('') | length > 0
+         and _controller_install_evr.startswith(linstor_install_version) }}
+  vars:
+    _controller_install_pkg: "{{ (ansible_facts['packages'] | default({})).get('linstor-controller', [{}]) | first }}"
+    _controller_install_evr: >-
+      {{ _controller_install_pkg['version'] | default('')
+         ~ ('-' ~ _controller_install_pkg['release'] if _controller_install_pkg['release'] is defined else '') }}
+
 - name: Build LINSTOR controller package list
   ansible.builtin.set_fact:
     _controller_install_packages_list: >-
@@ -41,6 +56,7 @@
   block:
     - name: Unlock LINSTOR controller package versions
       ansible.builtin.include_tasks: "unlock-{{ ansible_facts['os_family'] | lower }}.yml"
+      when: not _controller_install_pin_installed
 
     - name: Pin LINSTOR controller package versions
       ansible.builtin.include_tasks: "pin-version-{{ ansible_facts['os_family'] | lower }}.yml"
