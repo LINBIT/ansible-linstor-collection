@@ -143,24 +143,55 @@ def get_linstor_connection(module, unauthorized_ok=False):
     return lin
 
 
+def format_api_reply(reply):
+    """One line for an error reply, with the cause, correction, details and error report IDs.
+
+    str(reply) in python-linstor is only the message, or "ERRO:NoneType"
+    when the controller sent none.
+    """
+    parts = [str(reply) if reply.message else 'ERRO:no message']
+    for label, value in (
+            ('cause', reply.cause),
+            ('correction', reply.correction),
+            ('details', reply.details)):
+        if value:
+            parts.append('%s: %s' % (label, ' '.join(str(value).split())))
+    if reply.error_report_ids:
+        parts.append('error reports: %s' % ', '.join(reply.error_report_ids))
+    if len(parts) == 1:
+        return parts[0]
+    return '%s (%s)' % (parts[0], '; '.join(parts[1:]))
+
+
+def format_api_errors(replies):
+    """Join the error replies in a python-linstor reply list, nested lists included."""
+    errors = []
+    for reply in replies:
+        items = reply if isinstance(reply, list) else [reply]
+        for item in items:
+            if hasattr(item, 'ret_code') and not linstor.Linstor.all_api_responses_no_error([item]):
+                errors.append(format_api_reply(item))
+    return ' | '.join(errors)
+
+
+def format_linstor_exception(exc):
+    """str(exc), or the formatted error replies of a LinstorApiCallError."""
+    if HAS_LINSTOR and isinstance(exc, linstor.LinstorApiCallError):
+        errors = format_api_errors(exc.all_errors())
+        if errors:
+            return errors
+    return str(exc)
+
+
 def check_api_response(module, replies, action_description):
     """Check python-linstor API responses for errors.
 
     Calls module.fail_json with error details if any response indicates failure.
     """
     if not linstor.Linstor.all_api_responses_no_error(replies):
-        errors = []
-        for reply in replies:
-            if hasattr(reply, 'ret_code'):
-                if not linstor.Linstor.all_api_responses_no_error([reply]):
-                    errors.append(str(reply))
-            elif isinstance(reply, list):
-                for item in reply:
-                    if hasattr(item, 'ret_code') and not linstor.Linstor.all_api_responses_no_error([item]):
-                        errors.append(str(item))
         module.fail_json(
             msg="LINSTOR API error during '%s': %s" % (
-                action_description, '; '.join(errors) if errors else str(replies)))
+                action_description, format_api_errors(replies) or str(replies)))
 
 
 def compute_property_diff(current_props, desired_props, delete_props=None):

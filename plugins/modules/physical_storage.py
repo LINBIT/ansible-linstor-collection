@@ -278,6 +278,7 @@ from ansible_collections.linbit.linstor.plugins.module_utils.linstor_connection 
     linstor_argument_spec,
     get_linstor_connection,
     check_api_response,
+    format_linstor_exception,
     parse_size,
 )
 
@@ -437,7 +438,7 @@ def main():
     except Exception as e:
         module.fail_json(
             msg="Unexpected error creating device pool '%s' on '%s': %s" % (
-                pool_name, node, str(e)),
+                pool_name, node, format_linstor_exception(e)),
             exception=traceback.format_exc())
     finally:
         lin.disconnect()

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    LINSTOR API errors in every module now show the cause, correction, details, and error report
+    IDs of the controller reply, not only its message. A reply with no message read
+    ``ERRO:NoneType`` before, which left no way to find the error report.
