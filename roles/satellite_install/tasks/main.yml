@@ -72,7 +72,9 @@
     # Unlock by hand to change the version, rerunning the role does not move this lock
     - name: Lock LINSTOR satellite package versions
       ansible.builtin.include_tasks: "lock-{{ ansible_facts['os_family'] | lower }}.yml"
-      when: linstor_install_version | default('') | length > 0
+      when:
+        - linstor_install_version | default('') | length > 0
+        - not ansible_check_mode
 
 - name: Configure LINSTOR satellite # noqa: no-handler
   ansible.builtin.include_tasks: configure-satellite.yml
@@ -87,3 +89,4 @@
     name: linstor-satellite.service
     state: started
     enabled: true
+  when: not (ansible_check_mode and _satellite_install_packages | default({}) is changed)

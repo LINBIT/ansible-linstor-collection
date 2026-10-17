@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    cluster_init - check mode on hosts without LINSTOR now stops after the install roles, because
+    the controller it would configure does not exist yet. On an existing cluster the later roles
+    still run in check mode and report their changes.
+  - >-
+    controller_install, satellite_install - check mode on a host without LINSTOR no longer fails
+    starting the services or locking the package versions, and the Zypper version lookup now runs
+    in check mode.
+  - >-
+    gateway_install, ha_controller_proxy - check mode on a host without the package no longer
+    fails starting the service.
+  - >-
+    ha_database - check mode skips the HA conversion, which waits on DRBD states that check mode
+    cannot produce.
+  - >-
+    storage_pool - check mode now detects existing ZFS and Windows Storage Spaces pools, and no
+    longer fails creating an LVM thin pool in a volume group that check mode only simulated.

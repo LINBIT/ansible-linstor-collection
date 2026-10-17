@@ -8,6 +8,9 @@
 
 - name: List mount points on storage pool backing disks
   ansible.builtin.command: lsblk --noheadings --raw --output MOUNTPOINT {{ item.1 }}
+  when:
+    (item.0.vg not in ansible_facts['lvm']['vgs']) or
+    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
   register: _lvm_wipe_mounts
   changed_when: false
   loop: >-
@@ -17,21 +20,21 @@
        | subelements('physical_devices') }}
   loop_control:
     label: "{{ item.0.name }} - {{ item.1 }}"
-  when:
-    (item.0.vg not in ansible_facts['lvm']['vgs']) or
-    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
 
 - name: Refuse to wipe a disk with a mounted filesystem
   ansible.builtin.fail:
     msg: "Refusing to run wipefs on {{ item.item.1 }}: mounted at {{ item.stdout_lines | select | join(', ') }}. Unmount it first, or pick another disk."
+  when: item.stdout_lines | select | list | length > 0
   loop: "{{ _lvm_wipe_mounts.results | selectattr('stdout_lines', 'defined') | list }}"
   loop_control:
     label: "{{ item.item.1 }}"
-  when: item.stdout_lines | select | list | length > 0
 
 # Don't wipe out physical volumes if the volume group is already enumerated
 - name: Run wipefs on storage pool backing disks
   ansible.builtin.command: wipefs -afq {{ item.1 }}
+  when:
+    (item.0.vg not in ansible_facts['lvm']['vgs']) or
+    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
   changed_when: true
   loop: >-
     {{ _pools_to_create
@@ -40,9 +43,6 @@
        | subelements('physical_devices') }}
   loop_control:
     label: "{{ item.0.name }} - {{ item.1 }}"
-  when:
-    (item.0.vg not in ansible_facts['lvm']['vgs']) or
-    (item.0.wipefs_force | default(storage_pool_defaults.wipefs_force) | bool)
 
 - name: Create LVM volume group for LINSTOR
   community.general.lvg:
@@ -72,6 +72,7 @@
     _custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
     _stripe_opts: "{{ ('-i ' ~ (item.physical_devices | length | string) ~ ' -I 64') if item.physical_devices | length > 1 else '' }}"
     _lv_opts: "{{ _custom_opts or _stripe_opts }}"
+  when: not ansible_check_mode or item.vg in ansible_facts['lvm']['vgs']
   loop: >-
     {{ _pools_to_create
        | selectattr('_type', 'equalto', 'lvmthin')

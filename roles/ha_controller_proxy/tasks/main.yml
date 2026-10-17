@@ -72,6 +72,7 @@
         state: started
         enabled: true
         daemon_reload: true
+      when: not ansible_check_mode
 
     - name: Open firewall ports for the LINSTOR controller proxy
       ansible.builtin.include_tasks: open-firewall.yml

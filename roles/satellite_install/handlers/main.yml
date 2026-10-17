@@ -7,6 +7,7 @@
     name: linstor-satellite.service
     state: "{{ 'restarted' if satellite_install_package_state == 'latest' else 'started' }}"
     enabled: true
+  when: not ansible_check_mode
   listen: sat_package_update
 
 - name: Read satellite TOML config

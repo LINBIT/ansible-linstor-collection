@@ -12,6 +12,7 @@
       gsub(/^ +| +$/, "", $4); print $4; exit }'
   register: _satellite_install_suse_version
   changed_when: false
+  check_mode: false
 
 - name: Pin LINSTOR satellite and common to a version (Zypper)
   ansible.builtin.set_fact:

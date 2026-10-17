@@ -6,4 +6,5 @@
     daemon_reload: true
     state: restarted
     enabled: true
+  when: not ansible_check_mode
   listen: restart_linstor_gateway

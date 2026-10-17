@@ -81,6 +81,7 @@
     name: linstor-gateway.service
     state: started
     enabled: true
+  when: not ansible_check_mode
 
 - name: Flush handlers for gateway_install
   ansible.builtin.meta: flush_handlers
