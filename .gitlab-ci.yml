@@ -3,11 +3,13 @@
 stages:
   - lint
   - test
+  - docs
 
 variables:
   COLLECTION_NAMESPACE: linbit
   COLLECTION_NAME: linstor
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCS_PATH: ${COLLECTION_NAMESPACE}.${COLLECTION_NAME}/${CI_COMMIT_REF_SLUG}
 
 # Place the project under ansible_collections/<ns>/<name>/ as ansible-test
 # requires. Symlinks do not work here because ansible-test calls
@@ -109,3 +111,58 @@ sanity:ansible-2.20:
   image: python:3.13-slim
   variables:
     ANSIBLE_CORE_SPEC: ">=2.20,<2.21"
+
+# The docs come only from plugin docs, role argument specs and collection metadata
+.docs_rules: &docs_rules
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "main"'
+    changes:
+      - plugins/**/*
+      - roles/*/meta/argument_specs.yml
+      - galaxy.yml
+      - meta/runtime.yml
+      - .gitlab-ci.yml
+
+docs:build:
+  stage: docs
+  image: python:3.13-slim
+  needs: []
+  before_script:
+    - *collection_path
+    - pip install --quiet 'ansible-core>=2.20,<2.21' antsibull-docs
+  script:
+    - mkdir /tmp/docsite
+    # Pulp serves no page at the server root, where the theme's logo links by default
+    - antsibull-docs sphinx-init --use-current --squash-hierarchy --fail-on-error
+        --project "${COLLECTION_NAMESPACE}.${COLLECTION_NAME}" --copyright LINBIT
+        --extra-html-theme-options "documentation_home_url=$LINBIT_PULP_BASE_URL/pulp/content/file/pages/$DOCS_PATH/index.html"
+        --dest-dir /tmp/docsite ${COLLECTION_NAMESPACE}.${COLLECTION_NAME}
+    - pip install --quiet -r /tmp/docsite/requirements.txt
+    - /tmp/docsite/build.sh
+    - cp -r /tmp/docsite/build/html "$CI_PROJECT_DIR/public"
+  artifacts:
+    paths:
+      - public/
+  rules: *docs_rules
+
+docs:publish:
+  stage: docs
+  image: $LINBIT_DOCKER_REGISTRY/build-helpers:latest
+  needs:
+    - docs:build
+  environment:
+    name: docs/$CI_COMMIT_REF_SLUG
+    url: $LINBIT_PULP_BASE_URL/pulp/content/file/pages/${COLLECTION_NAMESPACE}.${COLLECTION_NAME}/$CI_COMMIT_REF_SLUG/index.html
+  script:
+    - . gitlab-utils.sh
+    - ci_prepare_tools
+    # Fetch and cache the Pulp API schema once before uploading in parallel
+    - pulp status > /dev/null
+    - |
+      set -o pipefail
+      cd public
+      find . -type f -printf '%P\n' \
+        | parallel --halt now,fail=1 --jobs 8 \
+            pulp file content upload --file {} --relative-path "$DOCS_PATH/{}" \
+        | jq --slurp 'map({sha256, relative_path})' > "$CI_PROJECT_DIR/docs-content.json"
+      pulp file repository content modify --repository pages --add-content "@$CI_PROJECT_DIR/docs-content.json"
+  rules: *docs_rules
