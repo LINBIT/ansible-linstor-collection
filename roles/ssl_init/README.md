@@ -36,7 +36,7 @@ Java `keytool` must be available on all cluster nodes (installed by the `linstor
 | `ssl_init_ca_validity_days` | `3650` | Validity period in days for the CA certificate |
 | `ssl_init_cert_validity_days` | `3650` | Validity period in days for node and client certificates |
 | `ssl_init_key_algorithm` | `EC` | Key algorithm: `EC` (ECDSA) or `RSA` |
-| `ssl_init_ca_curve` | `secp384r1` | Elliptic curve for the CA key (EC only) |
+| `ssl_init_ca_curve` | `secp384r1` | Elliptic curve for the CA key (EC only), also selects the RFC 5480 signature digest (SHA-384 for `secp384r1`) |
 | `ssl_init_node_curve` | `prime256v1` | Elliptic curve for node and client keys (EC only) |
 | `ssl_init_rsa_key_size` | `4096` | Key size in bits for RSA keys (RSA only) |
 | `ssl_init_cert_ou` | `{{ inventory_hostname }}` | Organizational unit for the certificate DN |

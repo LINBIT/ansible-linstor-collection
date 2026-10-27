@@ -40,6 +40,7 @@
       -CAcreateserial
       -out {{ ssl_init_local_dir }}/client.pem
       -days {{ ssl_init_cert_validity_days }}
+      -{{ _ssl_init_signature_digest }}
     creates: "{{ ssl_init_local_dir }}/client.pem"
   run_once: true
   delegate_to: localhost

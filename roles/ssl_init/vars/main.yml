@@ -1,2 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+# RFC 5480 section 4 pairs each curve with a digest of matching strength
+_ssl_init_curve_digests:
+  prime256v1: sha256
+  secp384r1: sha384
+  secp521r1: sha512
+_ssl_init_signature_digest: >-
+  {%- if ssl_init_key_algorithm == 'EC' -%}
+    {{ _ssl_init_curve_digests.get(ssl_init_ca_curve, 'sha256') }}
+  {%- else -%}
+    sha256
+  {%- endif -%}

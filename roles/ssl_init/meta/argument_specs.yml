@@ -67,6 +67,9 @@ argument_specs:
         default: secp384r1
         description:
           - Elliptic curve for the CA key. Only used when O(ssl_init_key_algorithm) is C(EC).
+          - Also selects the certificate signature digest as RFC 5480 recommends, SHA-256 for
+            C(prime256v1), SHA-384 for C(secp384r1), and SHA-512 for C(secp521r1). Any other curve,
+            and O(ssl_init_key_algorithm=RSA), signs with SHA-256.
       ssl_init_node_curve:
         type: str
         default: prime256v1
