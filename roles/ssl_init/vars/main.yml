@@ -11,3 +11,6 @@ _ssl_init_signature_digest: >-
   {%- else -%}
     sha256
   {%- endif -%}
+# keyEncipherment is RSA key transport, which an ECDSA key cannot do
+_ssl_init_key_usage: >-
+  {{ 'digitalSignature, keyEncipherment' if ssl_init_key_algorithm == 'RSA' else 'digitalSignature' }}

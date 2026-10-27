@@ -30,6 +30,28 @@
   delegate_to: localhost
   become: false
 
+- name: Check for signed client certificate on control node
+  ansible.builtin.stat:
+    path: "{{ ssl_init_local_dir }}/client.pem"
+  register: _ssl_init_local_client_pem
+  run_once: true  # noqa: run-once[task]
+  delegate_to: localhost
+  become: false
+
+- name: Write client OpenSSL extension file on control node
+  ansible.builtin.copy:
+    content: |
+      [v3_client]
+      basicConstraints = CA:FALSE
+      keyUsage = {{ _ssl_init_key_usage }}
+      extendedKeyUsage = clientAuth
+    dest: "{{ ssl_init_local_dir }}/openssl-client.cnf"
+    mode: '0600'
+  when: not _ssl_init_local_client_pem.stat.exists
+  run_once: true  # noqa: run-once[task]
+  delegate_to: localhost
+  become: false
+
 - name: Sign client certificate with CA on control node
   ansible.builtin.command:
     cmd: >-
@@ -41,16 +63,21 @@
       -out {{ ssl_init_local_dir }}/client.pem
       -days {{ ssl_init_cert_validity_days }}
       -{{ _ssl_init_signature_digest }}
+      -extfile {{ ssl_init_local_dir }}/openssl-client.cnf
+      -extensions v3_client
     creates: "{{ ssl_init_local_dir }}/client.pem"
-  run_once: true
+  run_once: true  # noqa: run-once[task]
   delegate_to: localhost
   become: false
 
-- name: Remove client CSR from control node
+- name: Remove client CSR and extension file from control node
   ansible.builtin.file:
-    path: "{{ ssl_init_local_dir }}/client.csr"
+    path: "{{ ssl_init_local_dir }}/{{ item }}"
     state: absent
-  run_once: true
+  loop:
+    - client.csr
+    - openssl-client.cnf
+  run_once: true  # noqa: run-once[task]
   delegate_to: localhost
   become: false
 
