@@ -13,6 +13,7 @@
 #   4. CA cert is present on the control node
 #   5. LINSTOR controller module reachable over HTTPS (validates delegation)
 #   6. Satellite nodes are idempotent in LINSTOR over HTTPS (validates delegation)
+#   7. Keystore and truststore are mode 0640
 
 - name: Verify per-node SSL artifacts on managed nodes
   hosts: linstor_cluster
@@ -83,6 +84,23 @@
           Cert on disk and cert in keystore diverge on {{ inventory_hostname }}.
           /etc/linstor/ssl/node.crt: {{ _node_cert_fp.stdout | trim }}
           keystore.jks alias {{ inventory_hostname }}: {{ _node_keystore_fp.stdout | trim }}
+        quiet: true
+
+    - name: Read keystore and truststore file modes
+      ansible.builtin.stat:
+        path: "/etc/linstor/ssl/{{ item }}"
+      loop:
+        - keystore.jks
+        - certificates.jks
+      register: _jks_stat
+
+    - name: Assert keystore and truststore are mode 0640
+      ansible.builtin.assert:
+        that:
+          - _jks_stat.results | map(attribute='stat.mode') | reject('eq', '0640') | list | length == 0
+        fail_msg: >-
+          Modes on {{ inventory_hostname }}:
+          {{ _jks_stat.results | map(attribute='stat.mode') | zip(['keystore.jks', 'certificates.jks']) | list }}
         quiet: true
 
 - name: Verify SSL connectivity and configuration
