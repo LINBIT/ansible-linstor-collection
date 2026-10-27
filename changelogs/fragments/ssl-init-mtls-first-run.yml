@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    ssl_init - a first deploy with mTLS no longer fails waiting for the controller, because the
+    client configuration gets the client certificate before the controller restarts.

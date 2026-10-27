@@ -134,17 +134,14 @@
     - ssl_init_satellite | bool
     - inventory_hostname in groups['linstor_satellites']
 
-# Flush so the restart/com-type handler chain completes before the
-# CLI re-template and ONLINE check below.
-- name: Apply pending SSL handlers before verification
-  ansible.builtin.meta: flush_handlers
-
-# Re-template linstor-client.conf after the controller is on HTTPS.
-# Always runs (idempotent template, no-op when content matches), so a
-# clean re-run still ensures the conf is in sync.
+# Before the flush: the handlers reach the restarted controller through this config, and mTLS needs its client certificate
 - name: Update linstor-client.conf for HTTPS
   ansible.builtin.include_tasks: configure-client.yml
   when: ssl_init_https | bool
+
+# Flush so the restart and com-type handlers finish before the ONLINE check below
+- name: Apply pending SSL handlers before verification
+  ansible.builtin.meta: flush_handlers
 
 - name: Verify node is ONLINE over SSL
   linbit.linstor.node_info:
