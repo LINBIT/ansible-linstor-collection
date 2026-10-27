@@ -14,6 +14,9 @@
 #   5. LINSTOR controller module reachable over HTTPS (validates delegation)
 #   6. Satellite nodes are idempotent in LINSTOR over HTTPS (validates delegation)
 #   7. Keystore and truststore are mode 0640
+#   8. With -e cluster_init_ssl_mtls=true, the controller accepts the client
+#      certificate, rejects a request without one, and the client
+#      certificate carries the clientAuth extensions
 
 - name: Verify per-node SSL artifacts on managed nodes
   hosts: linstor_cluster
@@ -171,7 +174,7 @@
     # =================================================================
     - name: Check CA cert on control node
       ansible.builtin.stat:
-        path: "~/.config/linstor/ssl/ca.crt"
+        path: "{{ ssl_init_local_dir | default('~/.config/linstor/ssl') }}/ca.crt"
       register: _ca_crt_stat
 
     - name: Assert CA cert exists on control node
@@ -179,8 +182,7 @@
         that:
           - _ca_crt_stat.stat.exists
         fail_msg: >-
-          CA cert not found at ~/.config/linstor/ssl/ca.crt.
-          Check ssl_init_local_dir if the default was overridden.
+          CA cert not found at {{ ssl_init_local_dir | default('~/.config/linstor/ssl') }}/ca.crt.
         quiet: true
 
     # =================================================================
@@ -209,3 +211,78 @@
       loop: "{{ groups['linstor_satellites'] }}"
       loop_control:
         label: "{{ item }}"
+
+- name: Verify mTLS on the controller HTTPS endpoint
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Skip play when mTLS is off
+      ansible.builtin.meta: end_play
+      when: not (cluster_init_ssl_mtls | default(false) | bool)
+
+    - name: Query controller version with the client certificate
+      ansible.builtin.uri:
+        url: "https://{{ '[' ~ _addr ~ ']' if ':' in _addr else _addr }}:3371/v1/controller/version"
+        ca_path: /etc/linstor/ssl/ca.crt
+        client_cert: /etc/linstor/ssl/client.pem
+        client_key: /etc/linstor/ssl/client.key
+        timeout: 5
+      vars:
+        _addr: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+      register: _mtls_with_cert
+      failed_when: false
+      loop: "{{ groups['linstor_controllers'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Query controller version without a client certificate
+      ansible.builtin.uri:
+        url: "https://{{ '[' ~ _addr ~ ']' if ':' in _addr else _addr }}:3371/v1/controller/version"
+        ca_path: /etc/linstor/ssl/ca.crt
+        timeout: 5
+      vars:
+        _addr: "{{ hostvars[item]['linstor_ip'] | default(hostvars[item]['ansible_host']) }}"
+      register: _mtls_without_cert
+      failed_when: false
+      loop: "{{ _mtls_with_cert.results | selectattr('status', 'eq', 200) | map(attribute='item') | list }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Assert the controller requires the client certificate
+      ansible.builtin.assert:
+        that:
+          - _mtls_with_cert.results | selectattr('status', 'eq', 200) | list | length >= 1
+          - _mtls_without_cert.results | selectattr('status', 'eq', 200) | list | length == 0
+        fail_msg: |
+          With the client certificate: {{ _mtls_with_cert.results | map(attribute='msg') | list }}
+          Without it: {{ _mtls_without_cert.results | map(attribute='msg') | list }}
+        quiet: true
+
+    - name: Read client certificate extensions
+      ansible.builtin.command:
+        cmd: openssl x509 -in /etc/linstor/ssl/client.pem -noout -ext basicConstraints,extendedKeyUsage
+      register: _client_cert_ext
+      changed_when: false
+
+    - name: Assert client certificate carries the clientAuth extensions
+      ansible.builtin.assert:
+        that:
+          - "'CA:FALSE' in _client_cert_ext.stdout"
+          - "'TLS Web Client Authentication' in _client_cert_ext.stdout"
+        fail_msg: "{{ _client_cert_ext.stdout }}"
+        quiet: true
+
+    - name: Read client truststore file mode
+      ansible.builtin.stat:
+        path: /etc/linstor/ssl/truststore_client.jks
+      register: _client_truststore_stat
+
+    - name: Assert client truststore is mode 0640
+      ansible.builtin.assert:
+        that:
+          - _client_truststore_stat.stat.mode | default('') == '0640'
+        fail_msg: "truststore_client.jks mode: {{ _client_truststore_stat.stat.mode | default('missing') }}"
+        quiet: true

@@ -39,7 +39,7 @@
   gather_facts: false
   vars:
     cluster_init_ssl: true
-    _local_dir: "{{ lookup('env', 'HOME') }}/.config/linstor/ssl/{{ inventory_hostname }}"
+    _local_dir: "{{ ssl_init_local_dir | default(lookup('env', 'HOME') ~ '/.config/linstor/ssl') }}/{{ inventory_hostname }}"
     _bogus_ip: "198.51.100.99"
 
   pre_tasks:
@@ -151,6 +151,8 @@
         - name: Re-run ssl_init
           ansible.builtin.import_role:
             name: linbit.linstor.ssl_init
+          vars:
+            ssl_init_https_mtls: "{{ cluster_init_ssl_mtls | default(false) | bool }}"
 
         - name: Read SAN of cert on control node after re-run
           ansible.builtin.command:
@@ -209,7 +211,7 @@
   gather_facts: false
   vars:
     cluster_init_ssl: true
-    _local_dir: "{{ lookup('env', 'HOME') }}/.config/linstor/ssl/{{ inventory_hostname }}"
+    _local_dir: "{{ ssl_init_local_dir | default(lookup('env', 'HOME') ~ '/.config/linstor/ssl') }}/{{ inventory_hostname }}"
 
   pre_tasks:
     - name: Pre-gather controller service facts via delegation
@@ -272,6 +274,8 @@
         - name: Re-run ssl_init
           ansible.builtin.import_role:
             name: linbit.linstor.ssl_init
+          vars:
+            ssl_init_https_mtls: "{{ cluster_init_ssl_mtls | default(false) | bool }}"
 
         - name: Read SHA-256 fingerprint of cert on disk after re-run
           ansible.builtin.shell:
