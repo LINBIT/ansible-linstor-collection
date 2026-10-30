@@ -24,13 +24,15 @@ DOCUMENTATION = '''
     - The C(ha_gateway) role deploys its targets from this output, and the platform integration
       roles in C(linbit.linstor_integrations) read it to attach the targets marked with
       C(use_for_plugin) to the platform, so the two cannot drift.
-    - Each output entry keeps the keys of its input entry and sets C(type), C(name) (without a
-      leading C(nfs-), C(iscsi-) or C(nvmeof-) prefix), C(resource), C(state), C(use_for_plugin)
-      as a boolean, C(service_ips) without prefixes, C(address) (the first service IP) and
-      C(port).
+    - Each output entry keeps the keys of its input entry and sets C(type), C(resource),
+      C(state), C(use_for_plugin) as a boolean, C(service_ips) without prefixes, C(address)
+      (the first service IP) and C(port).
     - An C(iscsi) entry gets C(iqn), an C(nvmeof) entry C(nqn) and C(transport), and each entry
       of an C(nfs) entry's C(exports) list gets C(export), its full path under
       C(/srv/gateway-exports/<resource>).
+    - Names are used as given, like C(linstor-gateway) does. An entry named C(nfs-shared) gets
+      the resource C(nfs-shared), and an C(iscsi) entry named C(iscsi-web) without C(iqn) gets
+      the IQN C(base:iscsi-web) and the resource C(iscsi-web).
   positional: _input, type, base, port
   options:
     _input:
@@ -82,7 +84,7 @@ EXAMPLES = '''
 RETURN = '''
   _value:
     description:
-      - The input entries with C(type), C(name), C(resource), C(state), C(use_for_plugin),
+      - The input entries with C(type), C(resource), C(state), C(use_for_plugin),
         C(service_ips), C(address) and C(port) set, plus C(iqn), or C(nqn) and C(transport), or
         C(export) on each entry of C(exports), by type.
       - For example an entry of C(linstor_nfs_exports) named C(shared) with the exports C(/data)
@@ -93,6 +95,9 @@ RETURN = '''
 '''
 
 EXPORT_ROOT = '/srv/gateway-exports'
+
+# linstor-gateway pkg/iscsi/iqn.go: rtslib rejects '_' in a WWN, which is also the LINSTOR resource name
+ISCSI_WWN = re.compile(r'^[a-z][a-z0-9-]+$')
 
 DEFAULTS = {
     'iscsi': {'base': 'iqn.2026-06.com.linbit', 'port': 3260, 'port_key': 'target_port'},
@@ -119,12 +124,11 @@ def gateway_targets(targets, type, base=None, port=None):
         if not isinstance(entry, dict) or not entry.get('name'):
             raise AnsibleFilterError(
                 "gateway_targets: every %s entry needs a name, got %r" % (type, entry))
-        name = re.sub('^' + type + '[-_]', '', entry['name'])
+        name = entry['name']
         service_ips = [str(ip).partition('/')[0] for ip in (entry.get('service_ips') or [])]
         target = dict(entry)
         target.update({
             'type': type,
-            'name': name,
             'state': entry.get('state') or 'present',
             'use_for_plugin': boolean(_value(entry, 'use_for_plugin', False), strict=False),
             'service_ips': service_ips,
@@ -134,9 +138,20 @@ def gateway_targets(targets, type, base=None, port=None):
         if type == 'iscsi':
             target['iqn'] = _value(entry, 'iqn', base + ':' + name)
             target['resource'] = target['iqn'].split(':')[-1]
+            if not ISCSI_WWN.match(target['resource']):
+                raise AnsibleFilterError(
+                    "gateway_targets: iSCSI target %s has the WWN %r, which LINSTOR Gateway rejects: "
+                    "a lowercase letter, then lowercase letters, digits or '-'"
+                    % (name, target['resource']))
         elif type == 'nvmeof':
             target['nqn'] = _value(entry, 'nqn', base + ':' + name)
-            target['resource'] = target['nqn'].split(':')[-1]
+            parts = target['nqn'].split(':')
+            if len(parts) != 3:
+                raise AnsibleFilterError(
+                    "gateway_targets: NVMe-oF target %s has the NQN %r, which LINSTOR Gateway rejects: "
+                    "it needs exactly three ':' separated parts, <vendor>:nvme:<subsystem>"
+                    % (name, target['nqn']))
+            target['resource'] = parts[2]
             target['transport'] = 'tcp'
         else:
             target['resource'] = name

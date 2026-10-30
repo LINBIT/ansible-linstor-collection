@@ -8,7 +8,7 @@
 ---
 - name: "Remove promoter config external file - {{ _target.name }}"
   linbit.linstor.file:
-    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.resource }}.toml"
     state: absent
   delegate_to: "{{ linstor_api_delegate }}"
   environment:

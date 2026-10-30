@@ -282,7 +282,7 @@
 
 - name: "Push promoter config as LINSTOR external file - {{ _protocol }}"
   linbit.linstor.file:
-    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.resource }}.toml"
     content: "{{ lookup('ansible.builtin.template', _tmpl) }}"
     deploy_to:
       - "{{ _target.resource }}"
@@ -295,7 +295,7 @@
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
+    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.resource }}"
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -303,7 +303,7 @@
 
 - name: "Wait for promoter config to reach satellites - {{ _protocol }}"
   ansible.builtin.wait_for:
-    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
+    path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.resource }}.toml"
     timeout: 60
   when:
     - inventory_hostname in (_gw_satellites | default([]))
@@ -311,7 +311,7 @@
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}"
+    label: "linstor-gateway-{{ _toml_prefix }}-{{ _target.resource }}"
 
 - name: "Tear down absent targets one at a time - {{ _protocol }}"
   ansible.builtin.include_tasks: remove-target.yml

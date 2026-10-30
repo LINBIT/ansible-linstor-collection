@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    ha_gateway - target names are now used as given, matching ``linstor-gateway``. A leading
+    ``nfs-``, ``nfs_``, ``iscsi-``, ``iscsi_``, ``nvmeof-`` or ``nvmeof_`` was dropped, so an NFS
+    export named ``nfs_storage`` became the resource ``storage``, the export root
+    ``/srv/gateway-exports/storage`` and the promoter file ``linstor-gateway-nfs-storage.toml``,
+    which ``linstor-gateway nfs delete nfs_storage`` does not find.
+  - >-
+    ha_gateway - the promoter file of an iSCSI or NVMe-oF target is named after its LINSTOR
+    resource, the WWN of its IQN or the subsystem of its NQN, as ``linstor-gateway`` names it, so
+    ``linstor-gateway iscsi delete`` finds a target whose ``iqn`` ends in another name than
+    ``name``. The role fails on an IQN whose WWN has characters other than lowercase letters,
+    digits and ``-``, which the iSCSI target driver rejects, and on an NQN without exactly three
+    ``:``-separated parts.

@@ -74,10 +74,12 @@ LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI c
 | NVMe-oF | NQN subsystem (last colon-separated part of NQN) | `nqn.2026-06.io.linbit:nvme:fast` → `fast` |
 
 When `iqn` or `nqn` is omitted, defaults `ha_gateway_iscsi_iqn_base:{name}` / `ha_gateway_nvmeof_nqn_base:{name}` are used, so the WWN/subsystem becomes `{name}`.
+A name that starts with the protocol is kept too, as `linstor-gateway nfs create nfs-shared` keeps it: `name: nfs-shared` becomes the resource `nfs-shared`, the export root `/srv/gateway-exports/nfs-shared` and the promoter file `linstor-gateway-nfs-nfs-shared.toml`.
+An iSCSI WWN must start with a lowercase letter and hold only lowercase letters, digits and `-`, since the target driver rejects `_`, and an NQN needs exactly three `:`-separated parts. The role fails on a target that breaks either rule, before it creates anything.
 Because the resource namespace is shared across protocols (no per-protocol prefix), an iSCSI target `name: data` collides with an NFS export `name: data`. The role asserts uniqueness across all targets.
 The `linbit.linstor.gateway_targets` filter applies these rules and defaults, and the role deploys its targets from the filter's output, so another role that reads the same lists through the filter gets the same names.
 
-Promoter config files are stored in LINSTOR as external files with the path pattern `/etc/drbd-reactor.d/linstor-gateway-{protocol}-{name}.toml`. The LINSTOR controller distributes them to every satellite holding a replica of the attached resource definition. This filename pattern is what makes the resources visible to `linstor-gateway <protocol> list`.
+Promoter config files are stored in LINSTOR as external files with the path pattern `/etc/drbd-reactor.d/linstor-gateway-{protocol}-{resource}.toml`, where `{resource}` is the LINSTOR resource name from the table, as `linstor-gateway` names them. The LINSTOR controller distributes them to every satellite holding a replica of the attached resource definition. This filename pattern is what makes the resources visible to `linstor-gateway <protocol> list`.
 
 DRBD device paths follow the resource name, for example `/dev/drbd/by-res/shared/0`.
 

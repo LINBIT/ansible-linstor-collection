@@ -10,5 +10,5 @@ minor_changes:
 bugfixes:
   - >-
     ha_gateway - the duplicate resource name check now compares the resource names the role
-    creates. An entry name with a leading ``iscsi-``, ``nfs-`` or ``nvmeof-`` prefix was compared
-    with the prefix the role strips.
+    creates, the WWN of an explicit ``iqn`` and the subsystem of an explicit ``nqn`` included,
+    instead of the entry names.

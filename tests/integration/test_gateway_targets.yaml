@@ -6,20 +6,22 @@
 #   ansible-playbook ./test_gateway_targets.yaml
 #
 # Tests:
-#   1. iSCSI: the type prefix is stripped, the default IQN uses the stripped
-#      name, an explicit IQN names the resource, target_port wins over the
-#      default port, service IPs lose their prefix
-#   2. NFS: one export path per exports entry under /srv/gateway-exports,
-#      without a trailing slash for /
+#   1. iSCSI: the name is kept as given, the default IQN uses it, an
+#      explicit IQN names the resource, target_port wins over the default
+#      port, service IPs lose their prefix
+#   2. NFS: a name starting with the protocol stays as given, like
+#      linstor-gateway nfs create, one export path per exports entry under
+#      /srv/gateway-exports, without a trailing slash for /
 #   3. NVMe-oF: the default NQN and port
 #   4. state defaults to present and use_for_plugin becomes a real boolean
+#   5. An iSCSI WWN with '_' and an NQN without three parts fail
 
 - name: Test the gateway_targets filter
   hosts: localhost
   gather_facts: false
   vars:
     iscsi:
-      - name: iscsi-web
+      - name: web
         service_ips: [192.168.222.240/24]
         volumes: [{size: 1G}]
         use_for_plugin: 'yes'
@@ -51,17 +53,19 @@
           - iscsi_out[0].iqn == 'iqn.2026-06.com.linbit:web'
           - iscsi_out[0].port == 3260
           - iscsi_out[0].address == '192.168.222.240'
+          - iscsi_out[1].name == 'database'
           - iscsi_out[1].resource == 'db'
           - iscsi_out[1].port == 3261
           - iscsi_out[1].service_ips == ['192.168.222.241', '10.0.0.241']
 
-    - name: Test 2 - NFS export paths
+    - name: Test 2 - NFS names and export paths
       ansible.builtin.assert:
         that:
-          - nfs_out[0].resource == 'shared'
+          - nfs_out[0].name == 'nfs-shared'
+          - nfs_out[0].resource == 'nfs-shared'
           - nfs_out[0].port == 2049
           - nfs_out[0].exports | map(attribute='export') | list
-            == ['/srv/gateway-exports/shared', '/srv/gateway-exports/shared/data']
+            == ['/srv/gateway-exports/nfs-shared', '/srv/gateway-exports/nfs-shared/data']
 
     - name: Test 3 - NVMe-oF NQN and port
       ansible.builtin.assert:
@@ -77,3 +81,31 @@
           - iscsi_out[1].state == 'absent'
           - iscsi_out[0].use_for_plugin is true
           - nfs_out[0].use_for_plugin is false
+
+    - name: Test 5 - iSCSI WWN with an underscore fails
+      block:
+        - name: Normalize an iSCSI target whose WWN has an underscore
+          ansible.builtin.set_fact:
+            _bad_wwn: "{{ [{'name': 'iscsi_web'}] | linbit.linstor.gateway_targets('iscsi') }}"
+
+        - name: Fail when the WWN was accepted
+          ansible.builtin.fail:
+            msg: The filter accepted the WWN iscsi_web
+      rescue:
+        - name: Confirm the WWN message
+          ansible.builtin.assert:
+            that: "'which LINSTOR Gateway rejects' in ansible_failed_result.msg"
+
+    - name: Test 5 - NQN without three parts fails
+      block:
+        - name: Normalize an NVMe-oF target with a two-part NQN
+          ansible.builtin.set_fact:
+            _bad_nqn: "{{ [{'name': 'fast', 'nqn': 'nqn.2026-06.io.linbit:fast'}] | linbit.linstor.gateway_targets('nvmeof') }}"
+
+        - name: Fail when the NQN was accepted
+          ansible.builtin.fail:
+            msg: The filter accepted the NQN nqn.2026-06.io.linbit:fast
+      rescue:
+        - name: Confirm the NQN message
+          ansible.builtin.assert:
+            that: "'three' in ansible_failed_result.msg"
