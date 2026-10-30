@@ -78,6 +78,9 @@ options:
     description:
       - Maximum number of peer slots for DRBD resources.
       - LINSTOR defaults to 7 if not specified.
+      - LINSTOR does not report the peer slots of an existing resource group, so the module
+        applies this option when it creates the group and leaves an existing group's value
+        alone.
     type: int
   properties:
     description:
@@ -269,6 +272,41 @@ DRBD_CATEGORY_MAP = {
     'peer_device': 'PeerDevice',
 }
 
+# The names LINSTOR accepts for a layer or provider kind, as it reports the kind
+LAYER_KIND_ALIASES = {
+    'CRYPT': 'LUKS',
+    'CRYPT_SETUP': 'LUKS',
+    'LVM': 'STORAGE',
+    'SPDK': 'STORAGE',
+    'ZFS': 'STORAGE',
+}
+PROVIDER_KIND_ALIASES = {
+    'DRBD_DISKLESS': 'DISKLESS',
+    'DRBDDISKLESS': 'DISKLESS',
+    'LVMTHIN': 'LVM_THIN',
+    'ZFSTHIN': 'ZFS_THIN',
+}
+
+
+def normalize_layer_list(layer_list):
+    """Return a layer list as LINSTOR reports it, with the implicit STORAGE layer at the bottom."""
+    layers = []
+    for layer in layer_list or []:
+        kind = str(layer).upper()
+        layers.append(LAYER_KIND_ALIASES.get(kind, kind))
+    if not layers or layers[-1] != 'STORAGE':
+        layers.append('STORAGE')
+    return layers
+
+
+def normalize_provider_list(provider_list):
+    """Return the provider kinds as LINSTOR reports them. The list has no order."""
+    kinds = set()
+    for provider in provider_list or []:
+        kind = str(provider).upper()
+        kinds.add(PROVIDER_KIND_ALIASES.get(kind, kind))
+    return kinds
+
 
 def flatten_drbd_options(drbd_options):
     """Convert nested drbd_options dict to flat DrbdOptions/ properties."""
@@ -332,37 +370,53 @@ def build_modify_kwargs(module, existing_rg):
         if existing_sp != storage_pool:
             kwargs['storage_pool'] = storage_pool
 
+    # The select filter is a fresh object; its properties default to None or False when unset
+    sf = existing_rg.select_filter
+
     diskless_on_remaining = module.params.get('diskless_on_remaining')
     if diskless_on_remaining is not None:
-        kwargs['diskless_on_remaining'] = diskless_on_remaining
+        if bool(sf.diskless_on_remaining) != diskless_on_remaining:
+            kwargs['diskless_on_remaining'] = diskless_on_remaining
 
+    # Resource names are case-insensitive in LINSTOR
     do_not_place_with = module.params.get('do_not_place_with')
     if do_not_place_with:
-        kwargs['do_not_place_with'] = do_not_place_with
+        existing = set(name.upper() for name in sf.not_place_with_rsc or [])
+        if set(name.upper() for name in do_not_place_with) != existing:
+            kwargs['do_not_place_with'] = do_not_place_with
 
     do_not_place_with_regex = module.params.get('do_not_place_with_regex')
     if do_not_place_with_regex is not None:
-        kwargs['do_not_place_with_regex'] = do_not_place_with_regex
+        if (sf.not_place_with_rsc_regex or '') != do_not_place_with_regex:
+            kwargs['do_not_place_with_regex'] = do_not_place_with_regex
 
     replicas_on_same = module.params.get('replicas_on_same')
     if replicas_on_same:
-        kwargs['replicas_on_same'] = replicas_on_same
+        if set(replicas_on_same) != set(sf.replicas_on_same or []):
+            kwargs['replicas_on_same'] = replicas_on_same
 
     replicas_on_different = module.params.get('replicas_on_different')
     if replicas_on_different:
-        kwargs['replicas_on_different'] = replicas_on_different
+        if set(replicas_on_different) != set(sf.replicas_on_different or []):
+            kwargs['replicas_on_different'] = replicas_on_different
 
     layer_list = module.params.get('layer_list')
     if layer_list:
-        kwargs['layer_list'] = layer_list
+        if not sf.layer_stack or normalize_layer_list(layer_list) != normalize_layer_list(sf.layer_stack):
+            kwargs['layer_list'] = layer_list
 
     provider_list = module.params.get('provider_list')
     if provider_list:
-        kwargs['provider_list'] = provider_list
+        if normalize_provider_list(provider_list) != normalize_provider_list(sf.provider_list):
+            kwargs['provider_list'] = provider_list
 
+    # LINSTOR leaves peer_slots out of its resource group listing, so without a reported value
+    # the module cannot tell a change from the existing setting and leaves it alone
     peer_slots = module.params.get('peer_slots')
     if peer_slots is not None:
-        kwargs['peer_slots'] = peer_slots
+        existing_peer_slots = existing_rg.data_v1.get('peer_slots')
+        if existing_peer_slots is not None and existing_peer_slots != peer_slots:
+            kwargs['peer_slots'] = peer_slots
 
     return kwargs
 

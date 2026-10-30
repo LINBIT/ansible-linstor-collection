@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+bugfixes:
+  - >-
+    resource_group - compare ``diskless_on_remaining``, ``do_not_place_with``,
+    ``do_not_place_with_regex``, ``replicas_on_same``, ``replicas_on_different``, ``layer_list``,
+    ``provider_list`` and ``peer_slots`` with the existing resource group instead of sending them
+    on every run, so a task that sets them no longer reports a change on each rerun. Layer and
+    provider names compare the way LINSTOR reports them, in any case and with the implicit
+    ``STORAGE`` layer. LINSTOR does not report the peer slots of a resource group, so
+    ``peer_slots`` applies when the module creates the group and leaves an existing group alone.

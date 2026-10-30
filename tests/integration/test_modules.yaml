@@ -72,6 +72,7 @@
         - test-mod-rg
         - test-rg-existing
         - test-rg-simple
+        - test-rg-placement
         - test-rg
         - test-rg-drbd
       failed_when: false
@@ -426,6 +427,41 @@
     - name: "Cleanup: delete test-rg-simple"
       linbit.linstor.resource_group:
         name: test-rg-simple
+        state: absent
+
+    - name: "RG: create with layer list and placement options"
+      linbit.linstor.resource_group:
+        name: test-rg-placement
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        layer_list: [drbd, storage]
+        provider_list: ["{{ _test_sp.storage_pools[0].provider_kind | lower }}"]
+        do_not_place_with: [test-mod-res]
+        do_not_place_with_regex: "^test-.*"
+        replicas_on_different: [Aux/site]
+        diskless_on_remaining: true
+        peer_slots: 3
+      register: rg_placement
+      failed_when: not rg_placement.changed
+
+    - name: "RG: layer list and placement options idempotent"
+      linbit.linstor.resource_group:
+        name: test-rg-placement
+        storage_pool: "{{ _test_storage_pool }}"
+        place_count: 2
+        layer_list: [drbd, storage]
+        provider_list: ["{{ _test_sp.storage_pools[0].provider_kind | lower }}"]
+        do_not_place_with: [test-mod-res]
+        do_not_place_with_regex: "^test-.*"
+        replicas_on_different: [Aux/site]
+        diskless_on_remaining: true
+        peer_slots: 3
+      register: rg_placement_idem
+      failed_when: rg_placement_idem.changed
+
+    - name: "Cleanup: delete test-rg-placement"
+      linbit.linstor.resource_group:
+        name: test-rg-placement
         state: absent
 
     - name: "RG: create with DRBD options"
