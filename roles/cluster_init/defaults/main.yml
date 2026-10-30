@@ -6,6 +6,9 @@
 # Auto-skips when no pool targets a host, so it is safe to leave enabled
 cluster_init_deploy_storage: true
 
+# Create resource groups from linstor_resource_groups inventory variable
+cluster_init_deploy_resource_groups: true
+
 # Convert LINSTOR database to HA (auto-skips unless 2+ combined nodes and 3+ satellites)
 cluster_init_ha_database: true
 

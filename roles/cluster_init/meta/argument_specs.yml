@@ -7,7 +7,8 @@ argument_specs:
       - Convenience role that deploys a complete LINSTOR cluster with a single role call.
       - >-
         Includes the following roles in order: repo configuration, satellite_install, controller_install,
-        cluster_membership, and optionally gateway_install, storage_pool, and ha_database.
+        cluster_membership, and optionally gateway_install, storage_pool, resource_group, and
+        ha_database.
     options:
       cluster_init_repo_access:
         type: str
@@ -31,6 +32,11 @@ argument_specs:
         description:
           - Create storage pools from C(linstor_storage_pools) inventory variable.
           - Auto-skips when no pool targets a host, so it is safe to leave enabled.
+      cluster_init_deploy_resource_groups:
+        type: bool
+        default: true
+        description:
+          - Create resource groups from the C(linstor_resource_groups) inventory variable.
       cluster_init_ha_database:
         type: bool
         default: true

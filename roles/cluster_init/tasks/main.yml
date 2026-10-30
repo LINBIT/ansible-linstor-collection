@@ -134,6 +134,20 @@
     - cluster_init_deploy_storage | bool
     - not _cluster_init_no_controller
 
+- name: Create LINSTOR resource groups
+  tags:
+    - linstor
+    - linstor_resource_group
+  ansible.builtin.include_role:
+    name: linbit.linstor.resource_group
+    apply:
+      tags:
+        - linstor
+        - linstor_resource_group
+  when:
+    - cluster_init_deploy_resource_groups | bool
+    - not _cluster_init_no_controller
+
 # Requires storage pools to already exist in the cluster
 # The role self-detects diskful nodes from a live query and skips when they are absent
 - name: Convert LINSTOR database to HA

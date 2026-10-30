@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    cluster_init - new ``cluster_init_deploy_resource_groups`` variable (default ``true``) runs
+    the ``resource_group`` role after the storage pools and before the HA database conversion.
+    With ``linstor_resource_groups`` empty or undefined, nothing changes.

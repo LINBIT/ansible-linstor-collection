@@ -11,9 +11,10 @@ The role includes the following roles in order:
 6. `linbit.linstor.auth_init` (when `cluster_init_token_auth: true`)
 7. `linbit.linstor.gateway_install` (when `cluster_init_linstor_gateway: true`)
 8. `linbit.linstor.storage_pool` (when `cluster_init_deploy_storage: true`)
-9. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
+9. `linbit.linstor.resource_group` (when `cluster_init_deploy_resource_groups: true`)
+10. `linbit.linstor.ha_database` (when `cluster_init_ha_database: true`)
 
-Steps 1, 4, 6, 7, 8, and 9 are optional and controlled by role variables.
+Steps 1, 4, 6, 7, 8, 9, and 10 are optional and controlled by role variables.
 Steps 2, 3, and 5 always run.
 
 ## Requirements
@@ -33,6 +34,7 @@ The following inventory groups are used:
 | `cluster_init_repo_access` | `customer` | Repo access type: `customer` (LINBIT portal), `public` (Proxmox and open-source), or `none` (self-managed repos) |
 | `cluster_init_linstor_gateway` | `false` | Also install LINSTOR Gateway on the cluster |
 | `cluster_init_deploy_storage` | `true` | Create storage pools from `linstor_storage_pools` inventory variable. Auto-skips when no pool targets a host |
+| `cluster_init_deploy_resource_groups` | `true` | Create resource groups from the `linstor_resource_groups` inventory variable |
 | `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA. Auto-skips unless at least 2 combined controller+satellite nodes and at least 3 total satellites exist |
 | `cluster_init_ssl` | `false` | Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL) |
 | `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl`) |
@@ -40,6 +42,9 @@ The following inventory groups are used:
 
 When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor.storage_pool` which reads the `linstor_storage_pools` inventory variable.
 See the `storage_pool` role README for the full variable reference.
+
+When `cluster_init_deploy_resource_groups` is enabled, the role includes `linbit.linstor.resource_group` which reads the `linstor_resource_groups` inventory variable.
+See the `resource_group` role README for the entry keys.
 
 When `cluster_init_ha_database` is enabled, the role includes `linbit.linstor.ha_database`.
 Set `ha_database_pool` in the playbook vars to specify which storage pool to use; when omitted, the role auto-selects from the diskful pools on the combined nodes.
@@ -51,7 +56,7 @@ See also `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`
 
 `linbit.linstor.satellite_install`, `linbit.linstor.controller_install`, `linbit.linstor.cluster_membership`
 
-Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.ssl_init`, `linbit.linstor.auth_init`, `linbit.linstor.gateway_install`, `linbit.linstor.storage_pool`, `linbit.linstor.ha_database` (included dynamically based on variables)
+Optional: `linbit.common.customer_repo`, `linbit.common.public_repo`, `linbit.linstor.ssl_init`, `linbit.linstor.auth_init`, `linbit.linstor.gateway_install`, `linbit.linstor.storage_pool`, `linbit.linstor.resource_group`, `linbit.linstor.ha_database` (included dynamically based on variables)
 
 ## Example playbook
 
@@ -169,6 +174,7 @@ For everyday deployments, prefer `cluster_init`.
   become: true
   vars:
     cluster_init_deploy_storage: true    # cluster_init default
+    cluster_init_deploy_resource_groups: true  # cluster_init default
     cluster_init_ha_database: true       # cluster_init default
     cluster_init_linstor_gateway: false  # cluster_init default
     cluster_init_repo_access: customer   # cluster_init default
@@ -288,6 +294,18 @@ For everyday deployments, prefer `cluster_init`.
             - linstor
             - linstor_storage_pool
       when: cluster_init_deploy_storage | bool
+
+    - name: Create LINSTOR resource groups
+      tags:
+        - linstor
+        - linstor_resource_group
+      ansible.builtin.include_role:
+        name: linbit.linstor.resource_group
+        apply:
+          tags:
+            - linstor
+            - linstor_resource_group
+      when: cluster_init_deploy_resource_groups | bool
 
     # Requires storage pools to already exist in the cluster
     # The role self-detects diskful nodes from a live query and skips when they are absent
