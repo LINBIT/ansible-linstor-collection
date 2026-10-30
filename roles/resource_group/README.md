@@ -40,9 +40,10 @@ Each item supports the following keys:
 | `peer_slots` | no |  | Maximum number of DRBD peer slots |
 | `properties` | no |  | LINSTOR properties to set on the resource group |
 | `drbd_options` | no |  | DRBD options by category (`resource`, `net`, `disk`, `peer_device`) |
+| `use_for_plugin` | no | `false` | Adds the `Aux/UseForPlugin=True` property, which marks the resource group for the platform's LINSTOR plugin |
 | `volume_groups` | no | `[{volume_nr: 0}]` | Volume groups of the resource group, see below |
 
-The role passes every key other than `name` and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
+The role passes every key other than `name`, `use_for_plugin`, and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
 An omitted key takes that module's default, so the module documentation is the reference for each value.
 
 > [!NOTE]
@@ -90,7 +91,7 @@ The role reads `linstor_resource_groups` directly from inventory.
 
 ## Inventory examples
 
-A resource group per platform storage entry, both on the same storage pool, with a third replica for the database volumes:
+Two resource groups for the platform's LINSTOR plugin, both on the same storage pool, with a third replica for the database volumes:
 
 ```yaml
 all:
@@ -99,9 +100,11 @@ all:
       - name: rg-vm
         storage_pool: sp-lvm-thin
         place_count: 2
+        use_for_plugin: true
       - name: rg-db
         storage_pool: sp-lvm-thin
         place_count: 3
+        use_for_plugin: true
         drbd_options:
           resource:
             quorum: majority

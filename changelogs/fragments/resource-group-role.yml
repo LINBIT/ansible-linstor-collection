@@ -5,3 +5,5 @@ minor_changes:
     resource_group - new role that creates LINSTOR resource groups and their volume groups from
     the ``linstor_resource_groups`` inventory variable, the way ``storage_pool`` creates storage
     pools from ``linstor_storage_pools``, to bootstrap the resource groups of a new cluster.
+    The ``use_for_plugin`` key marks a resource group for the platform's LINSTOR plugin with the
+    ``Aux/UseForPlugin=True`` property.

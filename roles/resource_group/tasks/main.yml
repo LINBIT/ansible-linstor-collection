@@ -33,8 +33,12 @@
     layer_list: "{{ item.layer_list | default(omit) }}"
     provider_list: "{{ item.provider_list | default(omit) }}"
     peer_slots: "{{ item.peer_slots | default(omit) }}"
-    properties: "{{ item.properties | default(omit) }}"
+    properties: "{{ _resource_group_properties if _resource_group_properties | length > 0 else omit }}"
     drbd_options: "{{ item.drbd_options | default(omit) }}"
+  vars:
+    _resource_group_properties: >-
+      {{ item.properties | default({})
+         | combine({'Aux/UseForPlugin': 'True'} if item.use_for_plugin | default(false) | bool else {}) }}
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

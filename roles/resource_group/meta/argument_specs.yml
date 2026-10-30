@@ -28,9 +28,12 @@ argument_specs:
             Each item supports C(name) (required), C(description), C(place_count), C(storage_pool),
             C(diskless_on_remaining), C(do_not_place_with), C(do_not_place_with_regex),
             C(replicas_on_same), C(replicas_on_different), C(layer_list), C(provider_list),
-            C(peer_slots), C(properties), C(drbd_options), and C(volume_groups).
+            C(peer_slots), C(properties), C(drbd_options), C(use_for_plugin), and C(volume_groups).
           - >-
-            Every key other than C(name) and C(volume_groups) is passed to the
+            C(use_for_plugin) set to true adds the C(Aux/UseForPlugin=True) property, which marks the
+            resource groups that the platform's LINSTOR plugin uses.
+          - >-
+            Every key other than C(name), C(use_for_plugin), and C(volume_groups) is passed to the
             M(linbit.linstor.resource_group) module option of the same name, and an omitted key
             takes that module's default, for example two replicas for C(place_count).
           - >-
