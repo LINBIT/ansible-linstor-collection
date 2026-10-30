@@ -6,27 +6,15 @@ _ra_base_dir: >-
      if ansible_facts['os_family'] | lower == 'suse'
      else '/lib/ocf/resource.d/heartbeat' }}
 
-_ha_gw_iscsi_names: >-
-  {%- set result = [] -%}
-  {%- for t in linstor_iscsi_targets | default([]) -%}
-    {%- set ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ t.name) -%}
-    {%- set _ = result.append(ident.split(':') | last) -%}
-  {%- endfor -%}
-  {{ result }}
+_ha_gw_targets: >-
+  {{ linstor_iscsi_targets | default([])
+     | linbit.linstor.gateway_targets('iscsi', ha_gateway_iscsi_iqn_base, ha_gateway_iscsi_port)
+     + linstor_nfs_exports | default([])
+     | linbit.linstor.gateway_targets('nfs', port=ha_gateway_nfs_port)
+     + linstor_nvmeof_targets | default([])
+     | linbit.linstor.gateway_targets('nvmeof', ha_gateway_nvmeof_nqn_base, ha_gateway_nvmeof_port) }}
 
-_ha_gw_nfs_names: >-
-  {{ linstor_nfs_exports | default([]) | map(attribute='name') | list }}
-
-_ha_gw_nvmeof_names: >-
-  {%- set result = [] -%}
-  {%- for t in linstor_nvmeof_targets | default([]) -%}
-    {%- set ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ t.name) -%}
-    {%- set _ = result.append(ident.split(':') | last) -%}
-  {%- endfor -%}
-  {{ result }}
-
-_ha_gw_all_resource_names: >-
-  {{ _ha_gw_iscsi_names + _ha_gw_nfs_names + _ha_gw_nvmeof_names }}
+_ha_gw_all_resource_names: "{{ _ha_gw_targets | map(attribute='resource') | list }}"
 
 _ha_gw_mkfs_opts: >-
   {%- if ha_gateway_fstype == 'ext4' -%}

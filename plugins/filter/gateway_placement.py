@@ -80,7 +80,7 @@ def gateway_placement(explicit, place_count_default, storage_pool_default,
             })
 
         result.append({
-            'resource_name': t['_rd_name'],
+            'resource_name': t['resource'],
             'nodes': node_entries,
             'sizes': vol_sizes,
             'layer_list': t.get('layer_list'),

@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify the names, addresses, IQNs, NQNs and export paths the
+# linbit.linstor.gateway_targets filter gives ha_gateway targets.
+# Runs on the control node only, no cluster needed:
+#   ansible-playbook ./test_gateway_targets.yaml
+#
+# Tests:
+#   1. iSCSI: the type prefix is stripped, the default IQN uses the stripped
+#      name, an explicit IQN names the resource, target_port wins over the
+#      default port, service IPs lose their prefix
+#   2. NFS: one export path per exports entry under /srv/gateway-exports,
+#      without a trailing slash for /
+#   3. NVMe-oF: the default NQN and port
+#   4. state defaults to present and use_for_plugin becomes a real boolean
+
+- name: Test the gateway_targets filter
+  hosts: localhost
+  gather_facts: false
+  vars:
+    iscsi:
+      - name: iscsi-web
+        service_ips: [192.168.222.240/24]
+        volumes: [{size: 1G}]
+        use_for_plugin: 'yes'
+      - name: database
+        iqn: iqn.2026-06.com.example:db
+        target_port: 3261
+        service_ips: [192.168.222.241, 10.0.0.241/8]
+        volumes: [{size: 1G}]
+        state: absent
+    nfs:
+      - name: nfs-shared
+        service_ips: [192.168.222.242/24]
+        exports:
+          - {size: 1G}
+          - {size: 1G, path: /data}
+    nvmeof:
+      - name: fast
+        service_ips: [192.168.222.243/24]
+        volumes: [{size: 1G}]
+    iscsi_out: "{{ iscsi | linbit.linstor.gateway_targets('iscsi') }}"
+    nfs_out: "{{ nfs | linbit.linstor.gateway_targets('nfs') }}"
+    nvmeof_out: "{{ nvmeof | linbit.linstor.gateway_targets('nvmeof') }}"
+  tasks:
+    - name: Test 1 - iSCSI names, IQNs, ports and addresses
+      ansible.builtin.assert:
+        that:
+          - iscsi_out[0].name == 'web'
+          - iscsi_out[0].resource == 'web'
+          - iscsi_out[0].iqn == 'iqn.2026-06.com.linbit:web'
+          - iscsi_out[0].port == 3260
+          - iscsi_out[0].address == '192.168.222.240'
+          - iscsi_out[1].resource == 'db'
+          - iscsi_out[1].port == 3261
+          - iscsi_out[1].service_ips == ['192.168.222.241', '10.0.0.241']
+
+    - name: Test 2 - NFS export paths
+      ansible.builtin.assert:
+        that:
+          - nfs_out[0].resource == 'shared'
+          - nfs_out[0].port == 2049
+          - nfs_out[0].exports | map(attribute='export') | list
+            == ['/srv/gateway-exports/shared', '/srv/gateway-exports/shared/data']
+
+    - name: Test 3 - NVMe-oF NQN and port
+      ansible.builtin.assert:
+        that:
+          - nvmeof_out[0].nqn == 'nqn.2026-06.io.linbit:nvme:fast'
+          - nvmeof_out[0].resource == 'fast'
+          - nvmeof_out[0].port == 4420
+
+    - name: Test 4 - state and use_for_plugin
+      ansible.builtin.assert:
+        that:
+          - iscsi_out[0].state == 'present'
+          - iscsi_out[1].state == 'absent'
+          - iscsi_out[0].use_for_plugin is true
+          - nfs_out[0].use_for_plugin is false

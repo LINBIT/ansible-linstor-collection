@@ -1,9 +1,9 @@
 {# SPDX-License-Identifier: MIT #}
 # {{ ansible_managed }}
-{% set _resource = _target._rd_name %}
-{% set _ips = _target.service_ips | map('regex_replace', '/.*$', '') | list %}
-{% set _port = _target.target_port | default(ha_gateway_iscsi_port) | string %}
-{% set _iqn = _target.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ _target.name) %}
+{% set _resource = _target.resource %}
+{% set _ips = _target.service_ips %}
+{% set _port = _target.port | string %}
+{% set _iqn = _target.iqn %}
 {% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
 {% set _implementation = _target.implementation | default('') %}
 {% set _allowed_initiators = _target.allowed_initiators | default([]) | join(' ') %}

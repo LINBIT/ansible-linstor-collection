@@ -15,9 +15,9 @@
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
 
-- name: "Remove LINSTOR resource once no longer in use - {{ _target._rd_name }}"
+- name: "Remove LINSTOR resource once no longer in use - {{ _target.resource }}"
   linbit.linstor.resource_definition:
-    name: "{{ _target._rd_name }}"
+    name: "{{ _target.resource }}"
     state: absent
   delegate_to: "{{ linstor_api_delegate }}"
   environment:

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    gateway_targets - new filter that normalizes an entry list of ``ha_gateway`` into the targets
+    clients connect to, with the LINSTOR resource name, the IQN or NQN, the port, the full path of
+    each NFS export and ``use_for_plugin`` as a boolean. ``ha_gateway`` deploys from its output, so
+    the platform integration roles that attach the targets marked with ``use_for_plugin`` read the
+    same names.
+bugfixes:
+  - >-
+    ha_gateway - the duplicate resource name check now compares the resource names the role
+    creates. An entry name with a leading ``iscsi-``, ``nfs-`` or ``nvmeof-`` prefix was compared
+    with the prefix the role strips.

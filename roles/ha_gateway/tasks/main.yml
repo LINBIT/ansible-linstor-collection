@@ -24,26 +24,16 @@
       {{ _all_ips | difference(_all_ips | unique) | join(', ') }}
     quiet: true
   vars:
-    _all_targets: >-
-      {{ (linstor_iscsi_targets | default([]))
-         + (linstor_nfs_exports | default([]))
-         + (linstor_nvmeof_targets | default([])) }}
     _all_ips: >-
-      {{ _all_targets
-         | selectattr('state', 'undefined') | list
-         + _all_targets
-         | selectattr('state', 'defined')
-         | selectattr('state', 'eq', 'present') | list
-         | map(attribute='service_ips', default=[])
-         | flatten
-         | map('regex_replace', '/.*$', '') | list }}
+      {{ _ha_gw_targets | selectattr('state', 'eq', 'present')
+         | map(attribute='service_ips') | flatten }}
   run_once: true  # noqa: run-once[task]
 
 - name: Deploy iSCSI targets
   ansible.builtin.include_tasks: prepare-target.yml
   vars:
     _protocol: iSCSI
-    _targets: "{{ linstor_iscsi_targets | default([]) }}"
+    _targets: "{{ _ha_gw_targets | selectattr('type', 'eq', 'iscsi') | list }}"
     _toml_template: promoter-iscsi.toml.j2
     _toml_prefix: iscsi
     _sizes_key: volumes
@@ -53,7 +43,7 @@
   ansible.builtin.include_tasks: prepare-target.yml
   vars:
     _protocol: NFS
-    _targets: "{{ linstor_nfs_exports | default([]) }}"
+    _targets: "{{ _ha_gw_targets | selectattr('type', 'eq', 'nfs') | list }}"
     _toml_template: promoter-nfs.toml.j2
     _toml_prefix: nfs
     _sizes_key: exports
@@ -63,7 +53,7 @@
   ansible.builtin.include_tasks: prepare-target.yml
   vars:
     _protocol: NVMe-oF
-    _targets: "{{ linstor_nvmeof_targets | default([]) }}"
+    _targets: "{{ _ha_gw_targets | selectattr('type', 'eq', 'nvmeof') | list }}"
     _toml_template: promoter-nvmeof.toml.j2
     _toml_prefix: nvmeof
     _sizes_key: volumes

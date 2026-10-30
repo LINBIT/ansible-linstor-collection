@@ -15,6 +15,7 @@ Targets with explicit `nodes` use manual placement; targets without `nodes` use 
 A `resource_group` drives autoplace and is mutually exclusive with `nodes`.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
+`use_for_plugin: true` on a target marks it for the platform integration roles in `linbit.linstor_integrations`, which build the platform's storage from it, and this role ignores the key.
 
 ## Requirements
 
@@ -74,6 +75,7 @@ LINSTOR resource definition names follow the LINSTOR Gateway scheme so the CLI c
 
 When `iqn` or `nqn` is omitted, defaults `ha_gateway_iscsi_iqn_base:{name}` / `ha_gateway_nvmeof_nqn_base:{name}` are used, so the WWN/subsystem becomes `{name}`.
 Because the resource namespace is shared across protocols (no per-protocol prefix), an iSCSI target `name: data` collides with an NFS export `name: data`. The role asserts uniqueness across all targets.
+The `linbit.linstor.gateway_targets` filter applies these rules and defaults, and the role deploys its targets from the filter's output, so another role that reads the same lists through the filter gets the same names.
 
 Promoter config files are stored in LINSTOR as external files with the path pattern `/etc/drbd-reactor.d/linstor-gateway-{protocol}-{name}.toml`. The LINSTOR controller distributes them to every satellite holding a replica of the attached resource definition. This filename pattern is what makes the resources visible to `linstor-gateway <protocol> list`.
 

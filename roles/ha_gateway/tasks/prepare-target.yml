@@ -18,42 +18,8 @@
 
 - name: "Build present and absent target lists - {{ _protocol }}"
   ansible.builtin.set_fact:
-    _gw_present: >-
-      {%- set result = [] -%}
-      {%- for t in _targets -%}
-        {%- if t.state is not defined or t.state == 'present' -%}
-          {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
-          {%- if _protocol == 'iSCSI' -%}
-            {%- set _ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ clean) -%}
-            {%- set rd = _ident.split(':') | last -%}
-          {%- elif _protocol == 'NVMe-oF' -%}
-            {%- set _ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ clean) -%}
-            {%- set rd = _ident.split(':') | last -%}
-          {%- else -%}
-            {%- set rd = clean -%}
-          {%- endif -%}
-          {%- set _ = result.append(t | combine({'name': clean, '_rd_name': rd})) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ result }}
-    _gw_absent: >-
-      {%- set result = [] -%}
-      {%- for t in _targets -%}
-        {%- if t.state is defined and t.state == 'absent' -%}
-          {%- set clean = t.name | regex_replace('^' ~ _toml_prefix ~ '[-_]', '') -%}
-          {%- if _protocol == 'iSCSI' -%}
-            {%- set _ident = t.iqn | default(ha_gateway_iscsi_iqn_base ~ ':' ~ clean) -%}
-            {%- set rd = _ident.split(':') | last -%}
-          {%- elif _protocol == 'NVMe-oF' -%}
-            {%- set _ident = t.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ clean) -%}
-            {%- set rd = _ident.split(':') | last -%}
-          {%- else -%}
-            {%- set rd = clean -%}
-          {%- endif -%}
-          {%- set _ = result.append(t | combine({'name': clean, '_rd_name': rd})) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ result }}
+    _gw_present: "{{ _targets | selectattr('state', 'eq', 'present') | list }}"
+    _gw_absent: "{{ _targets | selectattr('state', 'eq', 'absent') | list }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Split present targets into explicit-node and autoplace - {{ _protocol }}"
@@ -155,7 +121,7 @@
 # Anti-affinity applies to kernel NFS exports only - ganesha exports may colocate
 - name: "Autoplace LINSTOR resources - {{ _protocol }}"
   linbit.linstor.resource:
-    name: "{{ _target._rd_name }}"
+    name: "{{ _target.resource }}"
     mode: autoplace
     resource_group: "{{ _target.resource_group | default(omit) }}"
     sizes: >-
@@ -180,14 +146,14 @@
       {%- set ns = [] -%}
       {%- for t in _gw_present -%}
         {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel' -%}
-          {%- set _ = ns.append(t._rd_name) -%}
+          {%- set _ = ns.append(t.resource) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ ns }}
   loop: "{{ _gw_autoplace }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -198,12 +164,12 @@
 
 - name: "Query resource placement - {{ _protocol }}"
   linbit.linstor.resource_info:
-    name: "{{ _target._rd_name }}"
+    name: "{{ _target.resource }}"
   when: _gw_present | length > 0
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -253,21 +219,21 @@
 
 - name: "Wait for DRBD devices - {{ _protocol }}"
   ansible.builtin.wait_for:
-    path: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
+    path: "/dev/drbd/by-res/{{ _target.resource }}/0"
   when: >-
     _gw_manual_place is changed
     or _gw_spawn_auto is changed
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Format portblock tickle_dir partition - {{ _protocol }}"
   community.general.filesystem:
     fstype: "{{ _target.fstype | default(ha_gateway_fstype) }}"
-    dev: "/dev/drbd/by-res/{{ _target._rd_name }}/0"
+    dev: "/dev/drbd/by-res/{{ _target.resource }}/0"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
     _gw_manual_place is changed
@@ -275,14 +241,14 @@
   loop: "{{ _gw_resolved | default([]) }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   delegate_to: "{{ _target.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: Format NFS export partitions
   community.general.filesystem:
     fstype: "{{ _export.1.fstype | default(_export.0.fstype | default(ha_gateway_fstype)) }}"
-    dev: "/dev/drbd/by-res/{{ _export.0._rd_name }}/{{ _export.0.exports.index(_export.1) + 1 }}"
+    dev: "/dev/drbd/by-res/{{ _export.0.resource }}/{{ _export.0.exports.index(_export.1) + 1 }}"
     opts: "{{ _ha_gw_mkfs_opts | default('') }}"
   when: >-
     _gw_manual_place is changed
@@ -290,19 +256,19 @@
   loop: "{{ _gw_resolved | default([]) | subelements('exports') if _sizes_key == 'exports' else [] }}"
   loop_control:
     loop_var: _export
-    label: "{{ _export.0._rd_name }}:{{ _export.1.path | default('/') }}"
+    label: "{{ _export.0.resource }}:{{ _export.1.path | default('/') }}"
   delegate_to: "{{ _export.0.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
 
 - name: "Set DRBD resource options - {{ _protocol }}"
   linbit.linstor.resource_definition:
-    name: "{{ _target._rd_name }}"
+    name: "{{ _target.resource }}"
     drbd_options:
       resource: "{{ ha_gateway_drbd_options }}"
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -319,7 +285,7 @@
     path: "/etc/drbd-reactor.d/linstor-gateway-{{ _toml_prefix }}-{{ _target.name }}.toml"
     content: "{{ lookup('ansible.builtin.template', _tmpl) }}"
     deploy_to:
-      - "{{ _target._rd_name }}"
+      - "{{ _target.resource }}"
   vars:
     _tmpl: >-
       {{ 'promoter-nfs-ganesha.toml.j2'
@@ -352,5 +318,5 @@
   loop: "{{ _gw_absent }}"
   loop_control:
     loop_var: _target
-    label: "{{ _target._rd_name }}"
+    label: "{{ _target.resource }}"
   run_once: true  # noqa: run-once[task]

@@ -114,6 +114,10 @@ argument_specs:
           - Each entry requires C(name), C(service_ips), and C(volumes).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
+          - >-
+            C(use_for_plugin) set to true marks the target for the platform integration roles in
+            C(linbit.linstor_integrations), which build the platform's storage from it. This role
+            ignores the key.
       linstor_nfs_exports:
         type: list
         elements: dict
@@ -124,6 +128,10 @@ argument_specs:
           - Optional C(implementation) per entry (C(kernel) or C(ganesha)) overrides O(ha_gateway_nfs_implementation).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
+          - >-
+            C(use_for_plugin) set to true marks the export for the platform integration roles in
+            C(linbit.linstor_integrations), which build the platform's storage from it. This role
+            ignores the key.
       linstor_nvmeof_targets:
         type: list
         elements: dict
@@ -135,6 +143,10 @@ argument_specs:
             C(ha_gateway_nvmeof_nqn_base:name).
           - When C(nodes) is omitted or empty, LINSTOR autoplace selects nodes based on C(place_count).
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
+          - >-
+            C(use_for_plugin) set to true marks the target for the platform integration roles in
+            C(linbit.linstor_integrations), which build the platform's storage from it. This role
+            ignores the key.
       linstor_api_delegate:
         type: str
         required: false

@@ -1,9 +1,9 @@
 {# SPDX-License-Identifier: MIT #}
 # {{ ansible_managed }}
-{% set _resource = _target._rd_name %}
-{% set _ips = _target.service_ips | map('regex_replace', '/.*$', '') | list %}
+{% set _resource = _target.resource %}
+{% set _ips = _target.service_ips %}
 {% set _primary_ip = _ips[0] %}
-{% set _port = _target.port | default(ha_gateway_nfs_port) | string %}
+{% set _port = _target.port | string %}
 {% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
 {% set _exports = _target.exports | default([]) %}
 {# Ganesha applies one client allowlist per server, so the per-export allowed_ips collapse into a single clients list #}

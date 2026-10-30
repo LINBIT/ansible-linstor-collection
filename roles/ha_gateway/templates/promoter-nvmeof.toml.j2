@@ -1,9 +1,9 @@
 {# SPDX-License-Identifier: MIT #}
 # {{ ansible_managed }}
-{% set _resource = _target._rd_name %}
-{% set _ips = _target.service_ips | map('regex_replace', '/.*$', '') | list %}
-{% set _port = _target.target_port | default(ha_gateway_nvmeof_port) | string %}
-{% set _nqn = _target.nqn | default(ha_gateway_nvmeof_nqn_base ~ ':' ~ _target.name) %}
+{% set _resource = _target.resource %}
+{% set _ips = _target.service_ips %}
+{% set _port = _target.port | string %}
+{% set _nqn = _target.nqn %}
 {% set _fstype = _target.fstype | default(ha_gateway_fstype) %}
 {% set _serial = _nqn | hash('sha256') %}
 {% set _volumes = _target.volumes %}

@@ -51,7 +51,7 @@
       {%- set ns = [] -%}
       {%- for t in _gw_present -%}
         {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'kernel' -%}
-          {%- set _ = ns.append(t._rd_name) -%}
+          {%- set _ = ns.append(t.resource) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ ns }}
@@ -59,7 +59,7 @@
       {%- set ns = [] -%}
       {%- for t in _gw_present -%}
         {%- if (t.implementation | default(ha_gateway_nfs_implementation)) == 'ganesha' -%}
-          {%- set _ = ns.append(t._rd_name) -%}
+          {%- set _ = ns.append(t.resource) -%}
         {%- endif -%}
       {%- endfor -%}
       {{ ns }}
