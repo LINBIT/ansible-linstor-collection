@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+security_fixes:
+  - >-
+    controller_install, ssl_init - write ``/etc/linstor/linstor.toml`` with mode ``0640`` instead
+    of ``0644``. The file holds the external database password and the keystore passwords, and
+    only root and the controller unit, which reads it in the ``linstor`` group, need it. An
+    existing file changes mode on the next run.

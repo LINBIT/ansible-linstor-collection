@@ -29,10 +29,34 @@ The following inventory group must be defined:
 | `controller_install_db_password` | `""` | Database password |
 | `controller_install_db_wait_timeout` | `30` | Seconds to wait for a MariaDB, MySQL, or PostgreSQL database to accept connections |
 | `controller_install_db_force` | `false` | Switch an installed controller to a different database URL and restart it there if it is running; the target must already hold the cluster's data; a first install does not need it |
+| `linstor_master_passphrase` | `""` | LINSTOR master passphrase for the LUKS layer, written to `[encrypt]` in `linstor.toml` on every controller; empty writes nothing |
+| `controller_install_passphrase_force` | `false` | Replace a different `[encrypt]` passphrase in `linstor.toml` after `linstor encryption modify-passphrase` |
 
 On an installed controller, a changed database user or password restarts the running controller.
 A changed URL fails unless `controller_install_db_force` is set, because the role does not move the cluster's data.
 Move it first with `linstor-database export-db` and `import-db`.
+
+`linstor.toml` holds the database password, the keystore passwords of `ssl_init`, and the master passphrase, so the role writes it with mode `0640`.
+The controller unit reads it in the `linstor` group and sets that group on `/etc/linstor` at every start.
+
+## Master passphrase
+
+Resource groups with `LUKS` in their `layer_list` need the LINSTOR master passphrase.
+With `linstor_master_passphrase` set, the controller creates the passphrase on a new cluster and unlocks it on every start, so nobody has to enter it after a restart or failover.
+
+```yaml
+all:
+  vars:
+    linstor_master_passphrase: "{{ vault_linstor_master_passphrase }}"
+```
+
+> [!TIP]
+> Keep the value in Ansible Vault, as in the example, so it is encrypted in the inventory.
+
+> [!WARNING]
+> The variable sets the passphrase when the cluster is bootstrapped.
+> To change it later, run `linstor encryption modify-passphrase` first, then update `linstor_master_passphrase` and run the role with `controller_install_passphrase_force: true`.
+> A controller does not start when its `linstor.toml` holds a passphrase other than the cluster's.
 
 Several controllers share one external database, and controllers that start together on an empty database leave it half-initialized.
 On the Debian family, where the package starts the controller on install, a first install with more than one controller keeps the package from starting them.

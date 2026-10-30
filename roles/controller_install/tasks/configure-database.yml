@@ -72,7 +72,7 @@
     section: db
     option: "{{ item.key }}"
     value: '"{{ item.value }}"'
-    mode: '0644'
+    mode: '0640'
   vars:
     _controller_install_db_settings:
       connection_url: "{{ _controller_install_db_url }}"

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    controller_install - new ``linstor_master_passphrase`` inventory variable writes the LINSTOR
+    master passphrase to ``/etc/linstor/linstor.toml`` on every controller, so the controller
+    creates it on a new cluster and unlocks it on every start.

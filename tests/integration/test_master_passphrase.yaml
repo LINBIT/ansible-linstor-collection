@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify the LINSTOR master passphrase of a cluster deployed with
+# linstor_master_passphrase set in inventory.
+# Expects standard LINSTOR inventory groups (linstor_cluster,
+# linstor_controllers, linstor_satellites).
+# Run after deploying with cluster_init:
+#   ansible-playbook ./test_master_passphrase.yaml
+#
+# Tests:
+#   1. Every controller holds the passphrase in the [encrypt] section of
+#      /etc/linstor/linstor.toml, readable by root and the controller only
+#   2. The master passphrase is unlocked
+#   3. It is unlocked again after a controller restart, with nothing entered
+#      by hand
+#
+# Test 3 restarts only a standalone controller.
+
+- name: Verify the passphrase in linstor.toml on every controller
+  hosts: linstor_controllers
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Assert linstor_master_passphrase is set in inventory
+      ansible.builtin.assert:
+        that: linstor_master_passphrase | default('') | length > 0
+        fail_msg: This test needs linstor_master_passphrase in the inventory
+        quiet: true
+
+    - name: Stat linstor.toml
+      ansible.builtin.stat:
+        path: /etc/linstor/linstor.toml
+      register: _toml_stat
+
+    - name: Read linstor.toml
+      ansible.builtin.slurp:
+        src: /etc/linstor/linstor.toml
+      register: _toml
+      no_log: true
+
+    - name: Assert linstor.toml holds the passphrase and is readable by root and the controller only
+      ansible.builtin.assert:
+        that:
+          - _toml_stat.stat.mode == '0640'
+          - "'[encrypt]' in (_toml.content | b64decode)"
+          - "('passphrase = \"' ~ linstor_master_passphrase ~ '\"') in (_toml.content | b64decode)"
+        fail_msg: >-
+          /etc/linstor/linstor.toml on {{ inventory_hostname }} has mode {{ _toml_stat.stat.mode }}
+          or does not hold linstor_master_passphrase in its [encrypt] section
+        quiet: true
+
+- name: Verify the master passphrase is unlocked
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+  tasks:
+    - name: Read the encryption status
+      linbit.linstor.encryption_info:
+      register: _crypt
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Assert the master passphrase is unlocked
+      ansible.builtin.assert:
+        that: _crypt.status == 'unlocked'
+        fail_msg: >-
+          The master passphrase is {{ _crypt.status }}. The controller should
+          have created and unlocked it from linstor.toml.
+        quiet: true
+
+- name: Restart the controller, which locks a passphrase it does not read from linstor.toml
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    # An HA controller runs under DRBD Reactor, where a plain restart fails over instead
+    - name: Restart the standalone controller
+      ansible.builtin.systemd_service:
+        name: linstor-controller.service
+        state: restarted
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].status == 'enabled'
+
+    - name: Wait for the controller API after the restart
+      ansible.builtin.command: linstor --no-color node list
+      register: _ctrl_up
+      changed_when: false
+      until: _ctrl_up.rc == 0
+      retries: 24
+      delay: 5
+
+- name: Verify the master passphrase is unlocked after the restart
+  hosts: linstor_controllers[0]
+  any_errors_fatal: true
+  gather_facts: false
+  connection: local
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+  tasks:
+    - name: Read the encryption status after the restart
+      linbit.linstor.encryption_info:
+      register: _crypt_after
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+
+    - name: Assert the master passphrase is unlocked after the restart
+      ansible.builtin.assert:
+        that: _crypt_after.status == 'unlocked'
+        fail_msg: >-
+          The master passphrase is {{ _crypt_after.status }} after the controller
+          restart. The controller should have unlocked it from linstor.toml.
+        quiet: true

@@ -157,3 +157,24 @@ argument_specs:
             example moved there with C(linstor-database export-db) and
             C(import-db). On an empty database the controller starts with
             no nodes or resources.
+      linstor_master_passphrase:
+        type: str
+        default: ""
+        no_log: true
+        description:
+          - >-
+            LINSTOR master passphrase for the LUKS layer, written to the C([encrypt]) section
+            of C(/etc/linstor/linstor.toml) on every controller.
+          - The controller creates the passphrase on a new cluster and unlocks it on every start.
+          - Empty writes nothing. Keep the value in Ansible Vault.
+          - >-
+            To change it later, run C(linstor encryption modify-passphrase) first, then set
+            O(controller_install_passphrase_force).
+      controller_install_passphrase_force:
+        type: bool
+        default: false
+        description:
+          - >-
+            Replace a different C([encrypt]) passphrase in C(/etc/linstor/linstor.toml) and
+            restart a running controller.
+          - Set it after C(linstor encryption modify-passphrase) changed the cluster's passphrase.

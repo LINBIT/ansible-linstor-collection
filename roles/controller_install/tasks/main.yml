@@ -48,6 +48,11 @@
   ansible.builtin.include_tasks: configure-database.yml
   when: controller_install_db_type | lower != 'h2'
 
+# The controller creates the master passphrase on first start when linstor.toml holds one
+- name: Configure the LINSTOR master passphrase
+  ansible.builtin.include_tasks: configure-passphrase.yml
+  when: linstor_master_passphrase | default('') | length > 0
+
 - name: Install LINSTOR controller
   when:
     - not _controller_install_check.stat.exists

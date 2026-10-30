@@ -26,3 +26,6 @@ controller_install_db_user: ""
 controller_install_db_password: ""
 controller_install_db_wait_timeout: 30
 controller_install_db_force: false
+
+# Replace a different [encrypt] passphrase in linstor.toml after linstor encryption modify-passphrase
+controller_install_passphrase_force: false

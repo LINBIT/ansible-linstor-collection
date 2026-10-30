@@ -17,7 +17,7 @@
     section: https
     option: keystore
     value: '"{{ ssl_init_dir }}/keystore.jks"'
-    mode: '0644'
+    mode: '0640'
   notify: ssl_controller_changed
 
 - name: Set HTTPS keystore password in linstor.toml
@@ -26,7 +26,7 @@
     section: https
     option: keystore_password
     value: '"{{ ssl_init_keystore_password }}"'
-    mode: '0644'
+    mode: '0640'
   notify: ssl_controller_changed
 
 - name: Set HTTPS truststore path in linstor.toml
@@ -35,7 +35,7 @@
     section: https
     option: truststore
     value: '"{{ ssl_init_dir }}/truststore_client.jks"'
-    mode: '0644'
+    mode: '0640'
   when: ssl_init_https_mtls | bool
   notify: ssl_controller_changed
 
@@ -45,6 +45,6 @@
     section: https
     option: truststore_password
     value: '"{{ ssl_init_truststore_password }}"'
-    mode: '0644'
+    mode: '0640'
   when: ssl_init_https_mtls | bool
   notify: ssl_controller_changed

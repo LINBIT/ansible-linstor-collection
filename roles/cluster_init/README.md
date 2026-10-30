@@ -46,6 +46,10 @@ See the `storage_pool` role README for the full variable reference.
 When `cluster_init_deploy_resource_groups` is enabled, the role includes `linbit.linstor.resource_group` which reads the `linstor_resource_groups` inventory variable.
 See the `resource_group` role README for the entry keys.
 
+When the `linstor_master_passphrase` inventory variable is set, `linbit.linstor.controller_install` writes it to `linstor.toml` on every controller, and the controller creates and unlocks the LINSTOR master passphrase by itself.
+Resource groups with `LUKS` in their `layer_list` need it.
+See the `controller_install` role README for the variable and the rules for changing it.
+
 When `cluster_init_ha_database` is enabled, the role includes `linbit.linstor.ha_database`.
 Set `ha_database_pool` in the playbook vars to specify which storage pool to use; when omitted, the role auto-selects from the diskful pools on the combined nodes.
 See the `ha_database` role README for additional variables.
@@ -181,6 +185,8 @@ For everyday deployments, prefer `cluster_init`.
     cluster_init_ssl: false              # cluster_init default
     cluster_init_ssl_mtls: false         # cluster_init default
     cluster_init_token_auth: true        # cluster_init default
+    # Inventory variable that controller_install reads itself, shown here for completeness
+    linstor_master_passphrase: "{{ vault_linstor_master_passphrase }}"
   tasks:
     - name: Configure LINBIT public repo
       tags:

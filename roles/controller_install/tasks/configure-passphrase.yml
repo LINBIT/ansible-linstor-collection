@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Read the current LINSTOR controller configuration
+  ansible.builtin.slurp:
+    src: /etc/linstor/linstor.toml
+  when: _controller_install_check.stat.exists
+  register: _controller_install_passphrase_toml
+  failed_when: false
+  no_log: true
+
+- name: Refuse to replace the master passphrase of an installed LINSTOR controller
+  ansible.builtin.assert:
+    that: >-
+      _controller_install_passphrase_current | length == 0
+      or _controller_install_passphrase_current == linstor_master_passphrase
+      or controller_install_passphrase_force | bool
+    fail_msg: >-
+      linstor.toml on this controller holds a different [encrypt] passphrase than
+      linstor_master_passphrase, and the controller does not start with a passphrase that
+      differs from the cluster's. Change the cluster's passphrase first with
+      linstor encryption modify-passphrase, then set controller_install_passphrase_force
+      to true to write the new one.
+    quiet: true
+  vars:
+    _controller_install_passphrase_current: >-
+      {{ _controller_install_passphrase_toml.content | default('') | b64decode
+         | regex_findall('(?m)^passphrase *= *"([^"]*)"') | first | default('') }}
+
+- name: Create the LINSTOR configuration directory
+  ansible.builtin.file:
+    path: /etc/linstor
+    state: directory
+    mode: '0755'
+
+- name: Set the LINSTOR master passphrase in linstor.toml
+  community.general.ini_file:
+    path: /etc/linstor/linstor.toml
+    section: encrypt
+    option: passphrase
+    value: '"{{ linstor_master_passphrase }}"'
+    mode: '0640'
+  register: _controller_install_passphrase_written
+  no_log: true
+
+- name: Restart a running LINSTOR controller on the new master passphrase # noqa: no-handler
+  when: _controller_install_passphrase_written is changed
+  block:
+    - name: Read the LINSTOR controller service state
+      ansible.builtin.service_facts:
+
+    - name: Restart the LINSTOR controller
+      ansible.builtin.systemd_service:
+        name: linstor-controller.service
+        state: restarted
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].state == 'running'
+
+    - name: Wait for the LINSTOR controller to respond
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ controller_port }}"
+        timeout: 60
+      when:
+        - ansible_facts.services['linstor-controller.service'] is defined
+        - ansible_facts.services['linstor-controller.service'].state == 'running'
