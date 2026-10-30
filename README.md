@@ -56,6 +56,7 @@ See [using Ansible collections](https://docs.ansible.com/ansible/latest/collecti
 | [`gateway_install`](roles/gateway_install/README.md) | Install the LINSTOR Gateway binary and service, with satellite components on satellite nodes |
 | [`gateway_satellite`](roles/gateway_satellite/README.md) | Install LINSTOR Gateway satellite-side components (NFS/iSCSI resource agents, DRBD Reactor), optionally installing the SCST iSCSI target through `linbit.drbd_reactor.scst_install` when `gateway_satellite_scst=true` |
 | [`storage_pool`](roles/storage_pool/README.md) | Create LINSTOR storage pools (LVM, LVM thin, ZFS, or filethin) from inventory-defined backing devices |
+| [`resource_group`](roles/resource_group/README.md) | Create LINSTOR resource groups and their volume groups from inventory-defined entries |
 | [`ha_database`](roles/ha_database/README.md) | Configure highly available LINSTOR database storage for new deployments and existing production clusters |
 | [`ha_gateway`](roles/ha_gateway/README.md) | Ansible-driven alternative to `linstor-gateway` CLI: create HA NFS/iSCSI resources via DRBD Reactor promoter configs |
 

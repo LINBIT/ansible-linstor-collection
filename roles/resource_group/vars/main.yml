@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+_resource_group_entries: "{{ linstor_resource_groups | default([]) }}"
+_resource_group_volume_groups: >-
+  {%- set result = [] -%}
+  {%- for rg in _resource_group_entries -%}
+    {%- for vg in rg.volume_groups | default(resource_group_defaults.volume_groups) -%}
+      {%- set _ = result.append({'resource_group': rg.name, 'volume_group': vg}) -%}
+    {%- endfor -%}
+  {%- endfor -%}
+  {{ result }}

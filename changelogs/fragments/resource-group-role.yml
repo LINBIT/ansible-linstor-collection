@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    resource_group - new role that creates LINSTOR resource groups and their volume groups from
+    the ``linstor_resource_groups`` inventory variable, the way ``storage_pool`` creates storage
+    pools from ``linstor_storage_pools``, to bootstrap the resource groups of a new cluster.

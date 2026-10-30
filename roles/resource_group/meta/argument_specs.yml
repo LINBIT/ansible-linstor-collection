@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: Create LINSTOR resource groups and their volume groups
+    description:
+      - Create LINSTOR resource groups, each with its volume groups.
+      - >-
+        The role loops over the O(linstor_resource_groups) inventory variable and creates each
+        listed resource group through the M(linbit.linstor.resource_group) and
+        M(linbit.linstor.volume_group) modules.
+      - >-
+        Resource groups are cluster-wide objects, so the role runs its API calls once per play, from
+        O(linstor_api_delegate).
+      - >-
+        The role is for bootstrapping a cluster and creates only. Change or remove resource groups
+        later with the M(linbit.linstor.resource_group) and M(linbit.linstor.volume_group) modules or
+        the C(linstor) CLI.
+    options:
+      linstor_resource_groups:
+        type: list
+        elements: dict
+        default: []
+        description:
+          - List of resource group definitions, typically defined in inventory.
+          - Empty or undefined, the role does nothing.
+          - >-
+            Each item supports C(name) (required), C(description), C(place_count), C(storage_pool),
+            C(diskless_on_remaining), C(do_not_place_with), C(do_not_place_with_regex),
+            C(replicas_on_same), C(replicas_on_different), C(layer_list), C(provider_list),
+            C(peer_slots), C(properties), C(drbd_options), and C(volume_groups).
+          - >-
+            Every key other than C(name) and C(volume_groups) is passed to the
+            M(linbit.linstor.resource_group) module option of the same name, and an omitted key
+            takes that module's default, for example two replicas for C(place_count).
+          - >-
+            C(volume_groups) is a list of volume group definitions, each with C(volume_nr) (default
+            C(0)), C(gross), and C(properties), passed to the M(linbit.linstor.volume_group) module.
+            Omitted, the resource group gets volume group C(0) from O(resource_group_defaults).
+      resource_group_defaults:
+        type: dict
+        description:
+          - Dict providing fallback values for omitted keys in each resource group item.
+          - Holds C(volume_groups), the volume groups of an entry that defines none.
+          - See C(defaults/main.yml) for the full default dict.
+      linstor_api_delegate:
+        type: str
+        required: false
+        default: localhost
+        description:
+          - Delegation target for LINSTOR API tasks (python-linstor module calls).
+          - Default C(localhost) runs the calls on the Ansible control node.
+          - Override to a cluster node when the Ansible control node cannot directly reach the
+            LINSTOR controller API endpoint (for example an SSH jump host
+            or a segmented management network).
+          - "Common override: the first host in the C(linstor_controllers) inventory group."
+          - The delegated node must have C(python-linstor) installed.
+            Cluster nodes have it via LINSTOR package dependencies.

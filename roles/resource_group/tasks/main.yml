@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Verify every resource group has a name
+  ansible.builtin.assert:
+    that: item.name is defined and item.name | length > 0
+    fail_msg: "Each resource group must have a 'name' key"
+    quiet: true
+  loop: "{{ _resource_group_entries }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Query existing LINSTOR resource groups
+  linbit.linstor.resource_group_info:
+  when: _resource_group_entries | length > 0
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  run_once: true  # noqa: run-once[task]
+  register: _resource_group_query
+
+- name: Create LINSTOR resource groups
+  linbit.linstor.resource_group:
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    place_count: "{{ item.place_count | default(omit) }}"
+    storage_pool: "{{ item.storage_pool | default(omit) }}"
+    diskless_on_remaining: "{{ item.diskless_on_remaining | default(omit) }}"
+    do_not_place_with: "{{ item.do_not_place_with | default(omit) }}"
+    do_not_place_with_regex: "{{ item.do_not_place_with_regex | default(omit) }}"
+    replicas_on_same: "{{ item.replicas_on_same | default(omit) }}"
+    replicas_on_different: "{{ item.replicas_on_different | default(omit) }}"
+    layer_list: "{{ item.layer_list | default(omit) }}"
+    provider_list: "{{ item.provider_list | default(omit) }}"
+    peer_slots: "{{ item.peer_slots | default(omit) }}"
+    properties: "{{ item.properties | default(omit) }}"
+    drbd_options: "{{ item.drbd_options | default(omit) }}"
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  loop: "{{ _resource_group_entries }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true  # noqa: run-once[task]
+
+- name: Create LINSTOR volume groups
+  linbit.linstor.volume_group:
+    resource_group: "{{ item.resource_group }}"
+    volume_nr: "{{ item.volume_group.volume_nr | default(0) }}"
+    gross: "{{ item.volume_group.gross | default(omit) }}"
+    properties: "{{ item.volume_group.properties | default(omit) }}"
+  vars:
+    _resource_group_existing: >-
+      {{ _resource_group_query.resource_groups | default([]) | map(attribute='name') | list }}
+  when: not (ansible_check_mode and item.resource_group not in _resource_group_existing)
+  delegate_to: "{{ linstor_api_delegate }}"
+  environment:
+    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  loop: "{{ _resource_group_volume_groups }}"
+  loop_control:
+    label: "{{ item.resource_group }}/{{ item.volume_group.volume_nr | default(0) }}"
+  run_once: true  # noqa: run-once[task]
