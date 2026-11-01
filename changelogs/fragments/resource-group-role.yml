@@ -11,4 +11,5 @@ minor_changes:
     ``false`` removes those properties, and an entry without the key leaves them alone.
   - >-
     platform_storage_properties - new filter that turns a ``platform_storage`` value into the
-    ``Aux/PlatformStorage`` properties that store it, used by the ``resource_group`` role.
+    ``Aux/PlatformStorage`` properties that store it, used by the ``resource_group`` and
+    ``ha_gateway`` roles.

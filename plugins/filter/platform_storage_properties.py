@@ -16,8 +16,8 @@ DOCUMENTATION = '''
   version_added: "0.9.12"
   description:
     - Returns the C(Aux/PlatformStorage) properties for the C(platform_storage) key of a
-      C(linstor_resource_groups) entry, which names the platform storage objects that the
-      resource group backs.
+      C(linstor_resource_groups) entry or an C(ha_gateway) target, which names the platform
+      storage objects that the resource group or target backs.
     - C(true) returns C(Aux/PlatformStorage=True), for the platform's defaults. C(false) or
       null returns no properties.
     - A list of purposes, or a dict of purpose to name, returns C(Aux/PlatformStorage) with the
@@ -27,7 +27,10 @@ DOCUMENTATION = '''
     - Purposes are free strings that the platform integration roles interpret. Each must be a
       non-empty string without C(/), C(,) or whitespace that does not read as a boolean, such
       as C(yes) or C(1), and the filter fails on any other value.
-    - The C(resource_group) role sets these properties on each resource group.
+    - The C(platform_storage) value returned by P(linbit.linstor.gateway_targets#filter) is a
+      valid input too.
+    - The C(resource_group) role sets these properties on each resource group and the
+      C(ha_gateway) role on the resource definition of each target.
   positional: _input, owner
   options:
     _input:

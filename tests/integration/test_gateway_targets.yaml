@@ -13,8 +13,12 @@
 #      linstor-gateway nfs create, one export path per exports entry under
 #      /srv/gateway-exports, without a trailing slash for /
 #   3. NVMe-oF: the default NQN and port
-#   4. state defaults to present and use_for_plugin becomes a real boolean
+#   4. state defaults to present
 #   5. An iSCSI WWN with '_' and an NQN without three parts fail
+#   6. platform_storage: true, a list and a dict come out in normal form,
+#      false stays false, absent becomes null, a whitespace-only name
+#      means the default name, and each form yields its Aux properties
+#   7. Invalid platform_storage values fail
 
 - name: Test the gateway_targets filter
   hosts: localhost
@@ -24,22 +28,28 @@
       - name: web
         service_ips: [192.168.222.240/24]
         volumes: [{size: 1G}]
-        use_for_plugin: 'yes'
+        platform_storage: 'yes'
       - name: database
         iqn: iqn.2026-06.com.example:db
         target_port: 3261
         service_ips: [192.168.222.241, 10.0.0.241/8]
         volumes: [{size: 1G}]
         state: absent
+        platform_storage: false
     nfs:
       - name: nfs-shared
         service_ips: [192.168.222.242/24]
         exports:
           - {size: 1G}
           - {size: 1G, path: /data}
+        platform_storage: [system, image]
     nvmeof:
       - name: fast
         service_ips: [192.168.222.243/24]
+        volumes: [{size: 1G}]
+        platform_storage: {system: fast_vms, image: '  ', backup: null}
+      - name: slow
+        service_ips: [192.168.222.244/24]
         volumes: [{size: 1G}]
     iscsi_out: "{{ iscsi | linbit.linstor.gateway_targets('iscsi') }}"
     nfs_out: "{{ nfs | linbit.linstor.gateway_targets('nfs') }}"
@@ -74,13 +84,11 @@
           - nvmeof_out[0].resource == 'fast'
           - nvmeof_out[0].port == 4420
 
-    - name: Test 4 - state and use_for_plugin
+    - name: Test 4 - state
       ansible.builtin.assert:
         that:
           - iscsi_out[0].state == 'present'
           - iscsi_out[1].state == 'absent'
-          - iscsi_out[0].use_for_plugin is true
-          - nfs_out[0].use_for_plugin is false
 
     - name: Test 5 - iSCSI WWN with an underscore fails
       block:
@@ -109,3 +117,70 @@
         - name: Confirm the NQN message
           ansible.builtin.assert:
             that: "'three' in ansible_failed_result.msg"
+
+    - name: Test 6 - platform_storage in normal form
+      ansible.builtin.assert:
+        that:
+          - iscsi_out[0].platform_storage is true
+          - iscsi_out[1].platform_storage is false
+          - "nfs_out[0].platform_storage == {'system': '', 'image': ''}"
+          - nfs_out[0].platform_storage | list == ['system', 'image']
+          - "nvmeof_out[0].platform_storage == {'system': 'fast_vms', 'image': '', 'backup': ''}"
+          - nvmeof_out[1].platform_storage is none
+          - (iscsi_out + nfs_out + nvmeof_out) | selectattr('platform_storage') | map(attribute='name') | list
+            == ['web', 'nfs-shared', 'fast']
+
+    - name: Test 6 - platform_storage properties
+      ansible.builtin.assert:
+        that:
+          - "iscsi_out[0].platform_storage | linbit.linstor.platform_storage_properties
+            == {'Aux/PlatformStorage': 'True'}"
+          - iscsi_out[1].platform_storage | linbit.linstor.platform_storage_properties == {}
+          - "nfs_out[0].platform_storage | linbit.linstor.platform_storage_properties
+            == {'Aux/PlatformStorage': 'system,image'}"
+          - "nvmeof_out[0].platform_storage | linbit.linstor.platform_storage_properties
+            == {'Aux/PlatformStorage': 'system,image,backup', 'Aux/PlatformStorage/system/Name': 'fast_vms'}"
+          - "{'image': 'golden', 'system': none} | linbit.linstor.platform_storage_properties
+            == {'Aux/PlatformStorage': 'image,system', 'Aux/PlatformStorage/image/Name': 'golden'}"
+          - "['system'] | linbit.linstor.platform_storage_properties == {'Aux/PlatformStorage': 'system'}"
+          - none | linbit.linstor.platform_storage_properties == {}
+          - false | linbit.linstor.platform_storage_properties == {}
+
+    - name: Test 7 - invalid platform_storage values fail
+      ansible.builtin.include_tasks: platform-storage-invalid.yml
+      loop:
+        - value: system
+          message: is the string
+        - value: 1
+          message: 'is 1'
+        - value: []
+          message: names no purpose
+        - value: {}
+          message: names no purpose
+        - value: ['sys/tem']
+          message: "without '/'"
+        - value: ['sys,tem']
+          message: "without '/'"
+        - value: ['sys tem']
+          message: "without '/'"
+        - value: ['']
+          message: "without '/'"
+        - value: [1]
+          message: "without '/'"
+        - value: {system: 5}
+          message: must be a string
+        - value: {system: [a]}
+          message: must be a string
+        - value: ['True']
+          message: reads as a boolean
+        - value: ['yes']
+          message: reads as a boolean
+        - value: ['1']
+          message: reads as a boolean
+        - value: {'on': fast_vms}
+          message: reads as a boolean
+        - value: ["system\n"]
+          message: "without '/'"
+      loop_control:
+        loop_var: invalid
+        label: "{{ invalid.value }}"

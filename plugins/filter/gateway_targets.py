@@ -11,7 +11,8 @@ __metaclass__ = type
 import re
 
 from ansible.errors import AnsibleFilterError
-from ansible.module_utils.parsing.convert_bool import boolean
+
+from ansible_collections.linbit.linstor.plugins.plugin_utils.platform_storage import normalize
 
 DOCUMENTATION = '''
   name: gateway_targets
@@ -22,11 +23,13 @@ DOCUMENTATION = '''
       C(linstor_nvmeof_targets), in order, with the LINSTOR resource name, the IQN or NQN, the
       port and the export paths that the C(ha_gateway) role creates for it.
     - The C(ha_gateway) role deploys its targets from this output, and the platform integration
-      roles in C(linbit.linstor_integrations) read it to attach the targets marked with
-      C(use_for_plugin) to the platform, so the two cannot drift.
+      roles in C(linbit.linstor_integrations) read it to attach the targets with a
+      C(platform_storage) key to the platform, so the two cannot drift.
     - Each output entry keeps the keys of its input entry and sets C(type), C(resource),
-      C(state), C(use_for_plugin) as a boolean, C(service_ips) without prefixes, C(address)
+      C(state), C(platform_storage) in normal form, C(service_ips) without prefixes, C(address)
       (the first service IP) and C(port).
+    - The filter fails on a C(platform_storage) value that breaks the rules of
+      P(linbit.linstor.platform_storage_properties#filter).
     - An C(iscsi) entry gets C(iqn), an C(nvmeof) entry C(nqn) and C(transport), and each entry
       of an C(nfs) entry's C(exports) list gets C(export), its full path under
       C(/srv/gateway-exports/<resource>).
@@ -73,20 +76,26 @@ EXAMPLES = '''
          | linbit.linstor.gateway_targets('iscsi', ha_gateway_iscsi_iqn_base,
                                           ha_gateway_iscsi_port) }}
 
-- name: The NFS exports and iSCSI targets marked for the platform plugin
+- name: The NFS exports and iSCSI targets that back platform storage
   ansible.builtin.set_fact:
-    plugin_targets: >-
+    platform_targets: >-
       {{ (linstor_nfs_exports | default([]) | linbit.linstor.gateway_targets('nfs')
           + linstor_iscsi_targets | default([]) | linbit.linstor.gateway_targets('iscsi'))
-         | selectattr('use_for_plugin') | selectattr('state', 'eq', 'present') | list }}
+         | selectattr('platform_storage') | selectattr('state', 'eq', 'present') | list }}
 '''
 
 RETURN = '''
   _value:
     description:
-      - The input entries with C(type), C(resource), C(state), C(use_for_plugin),
+      - The input entries with C(type), C(resource), C(state), C(platform_storage),
         C(service_ips), C(address) and C(port) set, plus C(iqn), or C(nqn) and C(transport), or
         C(export) on each entry of C(exports), by type.
+      - "C(platform_storage) is null when the entry does not set it, C(false), C(true) for the
+        platform's defaults, or a dict of purpose to name with an empty name for a default name,
+        for example C({system: '', image: ''}) for the input C([system, image]). Selecting on
+        C(platform_storage) keeps the targets that back platform storage, the C(mapping) test
+        tells named purposes from the platform's defaults, and null tells an entry without the
+        key from one that sets C(false)."
       - For example an entry of C(linstor_nfs_exports) named C(shared) with the exports C(/data)
         and C(/home) returns C(resource=shared), C(port=2049) and the exports with
         C(export=/srv/gateway-exports/shared/data) and C(export=/srv/gateway-exports/shared/home).
@@ -130,7 +139,8 @@ def gateway_targets(targets, type, base=None, port=None):
         target.update({
             'type': type,
             'state': entry.get('state') or 'present',
-            'use_for_plugin': boolean(_value(entry, 'use_for_plugin', False), strict=False),
+            'platform_storage': normalize(entry.get('platform_storage'),
+                                          '%s target %s' % (type, name)),
             'service_ips': service_ips,
             'address': service_ips[0] if service_ips else None,
             'port': int(_value(entry, defaults['port_key'], port)),

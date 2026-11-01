@@ -15,7 +15,10 @@ Targets with explicit `nodes` use manual placement; targets without `nodes` use 
 A `resource_group` drives autoplace and is mutually exclusive with `nodes`.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
-`use_for_plugin: true` on a target marks it for the platform integration roles in `linbit.linstor_integrations`, which build the platform's storage from it, and this role ignores the key.
+`platform_storage` on a target names the platform storage objects that it backs, for the platform integration roles in `linbit.linstor_integrations`.
+It takes the same three forms as `platform_storage` on a `linstor_resource_groups` entry of the `resource_group` role: `true` for the platform's defaults, a list of purposes, or a dict of purpose to name.
+The role stores it in the `Aux/PlatformStorage` properties of the target's resource definition and removes the ones the value no longer yields.
+`false` removes them all, and a target without `platform_storage`, or with null, leaves them alone.
 
 ## Requirements
 

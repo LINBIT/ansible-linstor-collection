@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: MIT
+# Included from test_gateway_targets.yaml with the loop var invalid: value, message
+---
+- name: Invalid platform_storage fails in gateway_targets
+  block:
+    - name: Normalize an iSCSI target with an invalid platform_storage
+      ansible.builtin.set_fact:
+        _bad_platform_storage: >-
+          {{ [{'name': 'web', 'platform_storage': invalid.value}] | linbit.linstor.gateway_targets('iscsi') }}
+
+    - name: Fail when the value was accepted
+      ansible.builtin.fail:
+        msg: "The filter accepted platform_storage {{ invalid.value }}"
+  rescue:
+    - name: Confirm the platform_storage message
+      ansible.builtin.assert:
+        that:
+          - "'platform_storage of iscsi target web' in ansible_failed_result.msg"
+          - invalid.message in ansible_failed_result.msg
+        quiet: true
+
+- name: Invalid platform_storage fails in platform_storage_properties
+  block:
+    - name: Build the properties of an invalid platform_storage
+      ansible.builtin.set_fact:
+        _bad_platform_storage: >-
+          {{ invalid.value | linbit.linstor.platform_storage_properties('resource group rg-vm') }}
+
+    - name: Fail when the value was accepted
+      ansible.builtin.fail:
+        msg: "The filter accepted platform_storage {{ invalid.value }}"
+  rescue:
+    - name: Confirm the platform_storage message
+      ansible.builtin.assert:
+        that:
+          - "'platform_storage of resource group rg-vm' in ansible_failed_result.msg"
+          - invalid.message in ansible_failed_result.msg
+        quiet: true
