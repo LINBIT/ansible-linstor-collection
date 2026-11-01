@@ -18,76 +18,76 @@ from ansible.module_utils.parsing.convert_bool import boolean
 
 PROPERTY = 'Aux/PlatformStorage'
 
-# A purpose becomes a property key path element and an entry of a comma-separated value
-PURPOSE = re.compile(r'[^/,\s]+')
+# A key becomes a property key path element and an entry of a comma-separated value
+KEY = re.compile(r'[^/,\s]+')
 
 
 def _fail(owner, message):
     raise AnsibleFilterError('platform_storage of %s %s' % (owner, message))
 
 
-def _check_purpose(owner, purpose):
-    if not isinstance(purpose, str) or not PURPOSE.fullmatch(purpose):
-        _fail(owner, "has the purpose %r, which must be a non-empty string without '/', ',' "
-                     "or whitespace" % (purpose,))
+def _check_key(owner, key):
+    if not isinstance(key, str) or not KEY.fullmatch(key):
+        _fail(owner, "has the invalid key %r: use a non-empty string without '/', ',' or "
+                     "whitespace" % (key,))
     try:
-        boolean(purpose, strict=True)
+        boolean(key, strict=True)
     except TypeError:
-        return purpose
-    _fail(owner, "has the purpose %r, which reads as a boolean: set true for the platform's "
-                 "defaults" % (purpose,))
+        return key
+    _fail(owner, "has the key %r, which reads as a boolean: set platform_storage to true for "
+                 "the platform's defaults, or use a key the platform accepts" % (key,))
 
 
 def normalize(value, owner):
-    """Return None, False, True, or a dict of purpose to name, with '' for a default name."""
+    """Return None, False, True, or a dict that maps each key to a name, '' for a default name."""
     if value is None or isinstance(value, bool):
         return value
     if isinstance(value, str):
         try:
             return boolean(value, strict=True)
         except TypeError:
-            _fail(owner, "is the string %r: set true, false, a list of purposes or a dict of "
-                         "purpose to name" % (value,))
+            _fail(owner, "is the string %r: use true, false, a list of keys, or a dict that maps "
+                         "keys to names" % (value,))
     if isinstance(value, Mapping):
-        purposes = {}
-        for purpose, name in value.items():
-            purpose = _check_purpose(owner, purpose)
+        keys = {}
+        for key, name in value.items():
+            key = _check_key(owner, key)
             if name is not None and not isinstance(name, str):
-                _fail(owner, "gives the purpose %s the name %r, which must be a string, or empty "
-                             "for the platform's default name" % (purpose, name))
-            purposes[purpose] = (name or '').strip()
+                _fail(owner, "has the invalid name %r for the key %s: use a string, or null or "
+                             "empty for the platform's default name" % (name, key))
+            keys[key] = (name or '').strip()
     elif is_sequence(value):
-        purposes = {}
-        for purpose in value:
-            purposes[_check_purpose(owner, purpose)] = ''
+        keys = {}
+        for key in value:
+            keys[_check_key(owner, key)] = ''
     else:
-        _fail(owner, "is %r: set true, false, a list of purposes or a dict of purpose to name"
+        _fail(owner, "is %r: use true, false, a list of keys, or a dict that maps keys to names"
                      % (value,))
-    if not purposes:
-        _fail(owner, "names no purpose: set true for the platform's defaults or false for none")
-    return purposes
+    if not keys:
+        _fail(owner, "has no keys: set true for the platform's defaults, or false for none")
+    return keys
 
 
 def properties(value, owner='the entry'):
     """Return the Aux properties that tag a LINSTOR object with a platform_storage value."""
-    purposes = normalize(value, owner)
-    if not purposes:
+    keys = normalize(value, owner)
+    if not keys:
         return {}
-    if purposes is True:
+    if keys is True:
         return {PROPERTY: 'True'}
-    result = {PROPERTY: ','.join(purposes)}
-    for purpose, name in purposes.items():
+    result = {PROPERTY: ','.join(keys)}
+    for key, name in keys.items():
         if name:
-            result['%s/%s/Name' % (PROPERTY, purpose)] = name
+            result['%s/%s/Name' % (PROPERTY, key)] = name
     return result
 
 
 def from_properties(props, owner='the entry'):
-    """Return the normal form of the value that the Aux/PlatformStorage properties store.
+    """Read a platform_storage value back from the Aux/PlatformStorage properties.
 
     The reverse of properties(): None without the property, True or False for a boolean value,
-    or a dict of each purpose of the comma-separated value, in order, to its
-    Aux/PlatformStorage/<purpose>/Name property, '' when that is missing or blank.
+    or a dict that maps each key of the comma-separated value, in order, to its
+    Aux/PlatformStorage/<key>/Name property, '' when that is missing or blank.
     """
     props = props or {}
     value = props.get(PROPERTY)
@@ -98,11 +98,11 @@ def from_properties(props, owner='the entry'):
         return boolean(value, strict=True)
     except TypeError:
         pass
-    purposes = {}
-    for purpose in value.split(','):
-        purpose = purpose.strip()
-        if purpose:
-            purposes[purpose] = str(props.get('%s/%s/Name' % (PROPERTY, purpose)) or '').strip()
-    if not purposes:
-        _fail(owner, "is the property %s=%r, which names no purpose" % (PROPERTY, value))
-    return purposes
+    keys = {}
+    for key in value.split(','):
+        key = key.strip()
+        if key:
+            keys[key] = str(props.get('%s/%s/Name' % (PROPERTY, key)) or '').strip()
+    if not keys:
+        _fail(owner, "is the property %s=%r, which has no keys" % (PROPERTY, value))
+    return keys

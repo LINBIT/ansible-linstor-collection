@@ -15,7 +15,7 @@
 #   3. NVMe-oF: the default NQN and port
 #   4. state defaults to present
 #   5. An iSCSI WWN with '_' and an NQN without three parts fail
-#   6. platform_storage: true, a list and a dict come out in normal form,
+#   6. platform_storage: true stays true, a list and a dict become a dict,
 #      false stays false, absent becomes null, a whitespace-only name
 #      means the default name, and each form yields its Aux properties
 #   7. Invalid platform_storage values fail
@@ -118,7 +118,7 @@
           ansible.builtin.assert:
             that: "'three' in ansible_failed_result.msg"
 
-    - name: Test 6 - platform_storage in normal form
+    - name: Test 6 - platform_storage as null, a boolean, or a dict
       ansible.builtin.assert:
         that:
           - iscsi_out[0].platform_storage is true
@@ -154,9 +154,9 @@
         - value: 1
           message: 'is 1'
         - value: []
-          message: names no purpose
+          message: has no keys
         - value: {}
-          message: names no purpose
+          message: has no keys
         - value: ['sys/tem']
           message: "without '/'"
         - value: ['sys,tem']
@@ -168,9 +168,9 @@
         - value: [1]
           message: "without '/'"
         - value: {system: 5}
-          message: must be a string
+          message: has the invalid name
         - value: {system: [a]}
-          message: must be a string
+          message: has the invalid name
         - value: ['True']
           message: reads as a boolean
         - value: ['yes']

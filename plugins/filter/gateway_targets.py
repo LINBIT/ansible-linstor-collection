@@ -26,8 +26,8 @@ DOCUMENTATION = '''
       roles in C(linbit.linstor_integrations) read it to attach the targets with a
       C(platform_storage) key to the platform, so the two cannot drift.
     - Each output entry keeps the keys of its input entry and sets C(type), C(resource),
-      C(state), C(platform_storage) in normal form, C(service_ips) without prefixes, C(address)
-      (the first service IP) and C(port).
+      C(state), C(platform_storage) as null, a boolean, or a dict that maps keys to names,
+      C(service_ips) without prefixes, C(address) (the first service IP) and C(port).
     - The filter fails on a C(platform_storage) value that breaks the rules of
       P(linbit.linstor.platform_storage_properties#filter).
     - An C(iscsi) entry gets C(iqn), an C(nvmeof) entry C(nqn) and C(transport), and each entry
@@ -91,11 +91,12 @@ RETURN = '''
         C(service_ips), C(address) and C(port) set, plus C(iqn), or C(nqn) and C(transport), or
         C(export) on each entry of C(exports), by type.
       - "C(platform_storage) is null when the entry does not set it, C(false), C(true) for the
-        platform's defaults, or a dict of purpose to name with an empty name for a default name,
-        for example C({system: '', image: ''}) for the input C([system, image]). Selecting on
-        C(platform_storage) keeps the targets that back platform storage, the C(mapping) test
-        tells named purposes from the platform's defaults, and null tells an entry without the
-        key from one that sets C(false)."
+        platform's defaults, or a dict that maps each key to a name, with an empty name for the
+        default name. For example, the input C([system, image]) returns
+        C({system: '', image: ''})."
+      - "Select on C(platform_storage) to keep the targets that back platform storage. The
+        C(mapping) test separates explicit keys from C(true), and null separates an entry
+        without the key from one that sets C(false)."
       - For example an entry of C(linstor_nfs_exports) named C(shared) with the exports C(/data)
         and C(/home) returns C(resource=shared), C(port=2049) and the exports with
         C(export=/srv/gateway-exports/shared/data) and C(export=/srv/gateway-exports/shared/home).

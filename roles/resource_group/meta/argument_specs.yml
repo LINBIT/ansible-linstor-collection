@@ -30,16 +30,17 @@ argument_specs:
             C(replicas_on_same), C(replicas_on_different), C(layer_list), C(provider_list),
             C(peer_slots), C(properties), C(drbd_options), C(platform_storage), and C(volume_groups).
           - >-
-            C(platform_storage) names the platform storage objects that the resource group backs, for
-            the platform integration roles. C(true) takes the platform's defaults, a list of purposes
-            such as C([system, image]) takes those purposes with their default names, and a dict such
-            as C({system: fast_vms, image: golden_images}) names them. A purpose with an empty name
-            keeps its default name.
+            C(platform_storage) selects the storage that the platform integration roles create on
+            the resource group, such as a Proxmox VE storage or OpenNebula datastores. C(true)
+            selects the platform's defaults. A list of keys such as C([system, image]) selects an
+            OpenNebula system and image datastore with their default names, and a dict such as
+            C({system: fast_vms, image: golden_images}) also names them. An empty name selects the
+            default name.
           - >-
             The role stores C(platform_storage) in the C(Aux/PlatformStorage) properties of the
             resource group, as P(linbit.linstor.platform_storage_properties#filter) builds them, and
-            removes the C(Aux/PlatformStorage) properties that the value no longer yields. C(false)
-            removes them all. An entry without C(platform_storage), or with null, leaves them alone.
+            removes the C(Aux/PlatformStorage) properties that the value no longer sets. C(false)
+            removes them all. An entry without C(platform_storage), or with null, keeps them.
           - >-
             Every key other than C(name), C(platform_storage), and C(volume_groups) is passed to the
             M(linbit.linstor.resource_group) module option of the same name, and an omitted key

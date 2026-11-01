@@ -56,24 +56,25 @@ Each entry accepts `volume_nr` (default `0`), `gross`, and `properties`, which t
 If an entry omits `volume_groups`, the role creates volume group `0` from `resource_group_defaults`.
 `linstor resource-group spawn-resources` and the platform plugins need that volume group.
 
-`platform_storage` names the platform storage objects that the resource group backs, for the platform integration roles in `linbit.linstor_integrations`.
-It takes one of three forms:
+`platform_storage` selects the storage that the platform integration roles in `linbit.linstor_integrations` create on the resource group, such as a Proxmox VE storage or OpenNebula datastores.
+The keys come from the platform, and the README of each integration role lists them.
+These examples use the OpenNebula keys `system` and `image`:
 
-| Value | Meaning | Properties on the resource group |
+| Value | OpenNebula creates | Properties on the resource group |
 |---|---|---|
-| `true` | The platform's default storage objects | `Aux/PlatformStorage=True` |
-| `[system, image]` | These purposes, with their default names | `Aux/PlatformStorage=system,image` |
-| `{system: fast_vms, image: golden_images}` | These purposes, with these names | `Aux/PlatformStorage=system,image`, `Aux/PlatformStorage/system/Name=fast_vms`, `Aux/PlatformStorage/image/Name=golden_images` |
+| `true` | The default datastores, a system and an image datastore | `Aux/PlatformStorage=True` |
+| `[system, image]` | A system and an image datastore with their default names | `Aux/PlatformStorage=system,image` |
+| `{system: fast_vms, image: golden_images}` | The system datastore `fast_vms` and the image datastore `golden_images` | `Aux/PlatformStorage=system,image`, `Aux/PlatformStorage/system/Name=fast_vms`, `Aux/PlatformStorage/image/Name=golden_images` |
 
-A purpose with an empty, whitespace-only, or null name in the dict keeps its default name.
-The integration role of each platform decides which purposes it accepts.
-This role checks only the form: each purpose must be a non-empty string without `/`, `,`, or whitespace that does not read as a boolean, such as `yes` or `1`.
+An empty, whitespace-only, or null name in the dict selects the default name.
+This role checks only that each key is a non-empty string without `/`, `,`, or whitespace that does not read as a boolean, such as `yes` or `1`.
+The integration role of each platform fails on a key its platform does not use.
 
-On a rerun, the role converges the `Aux/PlatformStorage` properties of a listed resource group only when its entry carries the key:
+On a rerun, the role updates the `Aux/PlatformStorage` properties of a listed resource group only when its entry sets the key:
 
-- `true`, a list, or a dict: the role writes the properties and removes the ones the value no longer yields, so dropping a purpose or a name also clears it in LINSTOR.
+- `true`, a list, or a dict: the role writes the properties and removes the ones the value no longer sets, so removing a key or a name also clears it in LINSTOR.
 - `false`: the role removes every `Aux/PlatformStorage` property of the resource group.
-- No `platform_storage` key, or null: the role leaves the `Aux/PlatformStorage` properties alone, including ones set by hand or by another inventory.
+- No `platform_storage` key, or null: the role keeps the `Aux/PlatformStorage` properties, including ones set by hand or by another inventory.
 
 ### `resource_group_defaults` (role default)
 
@@ -111,7 +112,7 @@ The role reads `linstor_resource_groups` directly from inventory.
 ## Inventory examples
 
 Two resource groups that back platform storage, both on the same storage pool, with a third replica for the database volumes.
-The first takes the platform's defaults, and the second backs the platform's system storage under the name `databases`:
+The first takes the platform's defaults, and on OpenNebula the second becomes the system datastore `databases`:
 
 ```yaml
 all:

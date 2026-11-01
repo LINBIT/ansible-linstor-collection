@@ -5,11 +5,11 @@ minor_changes:
     resource_group - new role that creates LINSTOR resource groups and their volume groups from
     the ``linstor_resource_groups`` inventory variable, the way ``storage_pool`` creates storage
     pools from ``linstor_storage_pools``, to bootstrap the resource groups of a new cluster.
-    The ``platform_storage`` key names the platform storage objects that a resource group backs,
-    as ``true`` for the platform's defaults, a list of purposes, or a dict of purpose to name, and
-    the role stores it in the ``Aux/PlatformStorage`` properties of the resource group.
-    ``false`` removes those properties, and an entry without the key leaves them alone.
+    The ``platform_storage`` key selects the storage that the platform integration roles create
+    on a resource group, as ``true`` for the platform's defaults, a list of keys such as
+    ``[system, image]``, or a dict that maps keys to names, and the role stores it in the
+    ``Aux/PlatformStorage`` properties of the resource group. ``false`` removes those
+    properties, and an entry without the key keeps them.
   - >-
-    platform_storage_properties - new filter that turns a ``platform_storage`` value into the
-    ``Aux/PlatformStorage`` properties that store it, used by the ``resource_group`` and
-    ``ha_gateway`` roles.
+    platform_storage_properties - new filter that builds the ``Aux/PlatformStorage`` properties
+    for a ``platform_storage`` value, used by the ``resource_group`` and ``ha_gateway`` roles.
