@@ -35,7 +35,7 @@ def _check_key(owner, key):
     except TypeError:
         return key
     _fail(owner, "has the key %r, which reads as a boolean: set platform_storage to true for "
-                 "the platform's defaults, or use a key the platform accepts" % (key,))
+                 "the defaults of the platform, or use a key the platform accepts" % (key,))
 
 
 def normalize(value, owner):
@@ -54,7 +54,7 @@ def normalize(value, owner):
             key = _check_key(owner, key)
             if name is not None and not isinstance(name, str):
                 _fail(owner, "has the invalid name %r for the key %s: use a string, or null or "
-                             "empty for the platform's default name" % (name, key))
+                             "empty for the default name of the platform" % (name, key))
             keys[key] = (name or '').strip()
     elif is_sequence(value):
         keys = {}
@@ -64,7 +64,7 @@ def normalize(value, owner):
         _fail(owner, "is %r: use true, false, a list of keys, or a dict that maps keys to names"
                      % (value,))
     if not keys:
-        _fail(owner, "has no keys: set true for the platform's defaults, or false for none")
+        _fail(owner, "has no keys: set true for the defaults of the platform, or false for none")
     return keys
 
 

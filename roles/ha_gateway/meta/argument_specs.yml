@@ -116,8 +116,8 @@ argument_specs:
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
-            C(linbit.linstor_integrations) create on the target: C(true) for the platform's
-            defaults, a list of keys, or a dict that maps keys to names. The role stores it in the
+            C(linbit.linstor_integrations) create on the target: C(true) for the defaults of
+            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
             C(Aux/PlatformStorage) properties of the resource definition and removes the
             properties that the value no longer sets. C(false) removes them all, and an entry
             without the key keeps them.
@@ -133,8 +133,8 @@ argument_specs:
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
-            C(linbit.linstor_integrations) create on the export: C(true) for the platform's
-            defaults, a list of keys, or a dict that maps keys to names. The role stores it in the
+            C(linbit.linstor_integrations) create on the export: C(true) for the defaults of
+            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
             C(Aux/PlatformStorage) properties of the resource definition and removes the
             properties that the value no longer sets. C(false) removes them all, and an entry
             without the key keeps them.
@@ -151,8 +151,8 @@ argument_specs:
           - Set either C(nodes) for manual placement or C(resource_group) for autoplace, not both.
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
-            C(linbit.linstor_integrations) create on the target: C(true) for the platform's
-            defaults, a list of keys, or a dict that maps keys to names. The role stores it in the
+            C(linbit.linstor_integrations) create on the target: C(true) for the defaults of
+            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
             C(Aux/PlatformStorage) properties of the resource definition and removes the
             properties that the value no longer sets. C(false) removes them all, and an entry
             without the key keeps them.

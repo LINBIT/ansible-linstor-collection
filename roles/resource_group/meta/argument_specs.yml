@@ -32,7 +32,7 @@ argument_specs:
           - >-
             C(platform_storage) selects the storage that the platform integration roles create on
             the resource group, such as a Proxmox VE storage or OpenNebula datastores. C(true)
-            selects the platform's defaults. A list of keys such as C([system, image]) selects an
+            selects the defaults of the platform. A list of keys such as C([system, image]) selects an
             OpenNebula system and image datastore with their default names, and a dict such as
             C({system: fast_vms, image: golden_images}) also names them. An empty name selects the
             default name.

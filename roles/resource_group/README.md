@@ -112,7 +112,7 @@ The role reads `linstor_resource_groups` directly from inventory.
 ## Inventory examples
 
 Two resource groups that back platform storage, both on the same storage pool, with a third replica for the database volumes.
-The first takes the platform's defaults, and on OpenNebula the second becomes the system datastore `databases`:
+The first takes the defaults of the platform, and on OpenNebula the second becomes the system datastore `databases`:
 
 ```yaml
 all:

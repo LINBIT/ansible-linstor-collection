@@ -6,7 +6,7 @@ minor_changes:
     the ``linstor_resource_groups`` inventory variable, the way ``storage_pool`` creates storage
     pools from ``linstor_storage_pools``, to bootstrap the resource groups of a new cluster.
     The ``platform_storage`` key selects the storage that the platform integration roles create
-    on a resource group, as ``true`` for the platform's defaults, a list of keys such as
+    on a resource group, as ``true`` for the defaults of the platform, a list of keys such as
     ``[system, image]``, or a dict that maps keys to names, and the role stores it in the
     ``Aux/PlatformStorage`` properties of the resource group. ``false`` removes those
     properties, and an entry without the key keeps them.

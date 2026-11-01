@@ -91,7 +91,7 @@ RETURN = '''
         C(service_ips), C(address) and C(port) set, plus C(iqn), or C(nqn) and C(transport), or
         C(export) on each entry of C(exports), by type.
       - "C(platform_storage) is null when the entry does not set it, C(false), C(true) for the
-        platform's defaults, or a dict that maps each key to a name, with an empty name for the
+        defaults of the platform, or a dict that maps each key to a name, with an empty name for the
         default name. For example, the input C([system, image]) returns
         C({system: '', image: ''})."
       - "Select on C(platform_storage) to keep the targets that back platform storage. The

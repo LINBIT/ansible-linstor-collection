@@ -19,12 +19,12 @@ DOCUMENTATION = '''
       C(linstor_resource_groups) entry or an C(ha_gateway) target. The key selects the storage
       that the platform integration roles create on the resource group or target, such as a
       Proxmox VE storage or an OpenNebula datastore.
-    - C(true) returns C(Aux/PlatformStorage=True), for the platform's defaults. C(false) or
+    - C(true) returns C(Aux/PlatformStorage=True), for the defaults of the platform. C(false) or
       null returns no properties.
     - "A list of keys such as C([system, image]), or a dict that maps keys to names such as
       C({system: fast_vms}), returns C(Aux/PlatformStorage) with the keys joined by commas in
       the order given, plus C(Aux/PlatformStorage/<key>/Name) for each key with a name. An
-      empty, whitespace-only or null name selects the platform's default name."
+      empty, whitespace-only or null name selects the default name of the platform."
     - The platform integration roles decide which keys they accept. This filter fails on a key
       that is empty, contains C(/), C(,) or whitespace, or reads as a boolean, such as C(yes)
       or C(1), and on any value of another type.
@@ -55,7 +55,7 @@ EXAMPLES = '''
   # => {'Aux/PlatformStorage': 'system,image',
   #     'Aux/PlatformStorage/system/Name': 'fast_vms'}
 
-- name: The properties of an entry that takes the platform's defaults
+- name: The properties of an entry that takes the defaults of the platform
   ansible.builtin.set_fact:
     rg_properties: "{{ true | linbit.linstor.platform_storage_properties }}"
   # => {'Aux/PlatformStorage': 'True'}
