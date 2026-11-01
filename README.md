@@ -115,6 +115,7 @@ Most module tasks should use `run_once: true` or a single-host play. See [Using 
 | `gateway_placement` | Build the manual placement list for `resource` in `manual` mode (used internally by `ha_gateway`) |
 | `gateway_resolve_satellites` | Split LINSTOR-reported nodes per target into diskful and diskless lists (used internally by `ha_gateway`) |
 | `gateway_targets` | Normalize an `ha_gateway` target list into the targets clients connect to: resource name, IQN or NQN, port, export paths, `use_for_plugin` as a boolean (used by `ha_gateway` and the `linbit.linstor_integrations` roles) |
+| `platform_storage_properties` | Turn a `platform_storage` value into the `Aux/PlatformStorage` properties that store it (used by `resource_group`) |
 | `host_storage_pools` | Select the `linstor_storage_pools` entries that target a host (via `nodes`/`groups`, or generic to the diskful satellites); used by `storage_pool` to build `_my_pools` |
 
 ## Lookup plugins

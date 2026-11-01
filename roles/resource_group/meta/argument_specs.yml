@@ -28,12 +28,20 @@ argument_specs:
             Each item supports C(name) (required), C(description), C(place_count), C(storage_pool),
             C(diskless_on_remaining), C(do_not_place_with), C(do_not_place_with_regex),
             C(replicas_on_same), C(replicas_on_different), C(layer_list), C(provider_list),
-            C(peer_slots), C(properties), C(drbd_options), C(use_for_plugin), and C(volume_groups).
+            C(peer_slots), C(properties), C(drbd_options), C(platform_storage), and C(volume_groups).
           - >-
-            C(use_for_plugin) set to true adds the C(Aux/UseForPlugin=True) property, which marks the
-            resource groups that the platform's LINSTOR plugin uses.
+            C(platform_storage) names the platform storage objects that the resource group backs, for
+            the platform integration roles. C(true) takes the platform's defaults, a list of purposes
+            such as C([system, image]) takes those purposes with their default names, and a dict such
+            as C({system: fast_vms, image: golden_images}) names them. A purpose with an empty name
+            keeps its default name.
           - >-
-            Every key other than C(name), C(use_for_plugin), and C(volume_groups) is passed to the
+            The role stores C(platform_storage) in the C(Aux/PlatformStorage) properties of the
+            resource group, as P(linbit.linstor.platform_storage_properties#filter) builds them, and
+            removes the C(Aux/PlatformStorage) properties that the value no longer yields. C(false)
+            removes them all. An entry without C(platform_storage), or with null, leaves them alone.
+          - >-
+            Every key other than C(name), C(platform_storage), and C(volume_groups) is passed to the
             M(linbit.linstor.resource_group) module option of the same name, and an omitted key
             takes that module's default, for example two replicas for C(place_count).
           - >-

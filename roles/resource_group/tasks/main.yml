@@ -10,6 +10,17 @@
     label: "{{ item.name | default('unnamed') }}"
   run_once: true  # noqa: run-once[task]
 
+- name: Verify the platform_storage key of every resource group
+  ansible.builtin.assert:
+    that: >-
+      item.platform_storage | default(none)
+      | linbit.linstor.platform_storage_properties('resource group ' ~ item.name) is mapping
+    quiet: true
+  loop: "{{ _resource_group_entries }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true  # noqa: run-once[task]
+
 - name: Query existing LINSTOR resource groups
   linbit.linstor.resource_group_info:
   when: _resource_group_entries | length > 0
@@ -34,11 +45,20 @@
     provider_list: "{{ item.provider_list | default(omit) }}"
     peer_slots: "{{ item.peer_slots | default(omit) }}"
     properties: "{{ _resource_group_properties if _resource_group_properties | length > 0 else omit }}"
+    delete_properties: "{{ _resource_group_stale if _resource_group_stale | length > 0 else omit }}"
     drbd_options: "{{ item.drbd_options | default(omit) }}"
   vars:
     _resource_group_properties: >-
       {{ item.properties | default({})
-         | combine({'Aux/UseForPlugin': 'True'} if item.use_for_plugin | default(false) | bool else {}) }}
+         | combine(item.platform_storage | default(none)
+                   | linbit.linstor.platform_storage_properties('resource group ' ~ item.name)) }}
+    _resource_group_current: >-
+      {{ _resource_group_query.resource_groups | default([])
+         | selectattr('name', 'eq', item.name) | map(attribute='properties') | first | default({}, true) }}
+    _resource_group_stale: >-
+      {{ _resource_group_current | list | select('match', '^Aux/PlatformStorage(/|$)')
+         | reject('in', _resource_group_properties) | list
+         if item.platform_storage | default(none) is not none else [] }}
   delegate_to: "{{ linstor_api_delegate }}"
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"

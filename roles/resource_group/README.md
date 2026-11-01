@@ -40,10 +40,10 @@ Each item supports the following keys:
 | `peer_slots` | no |  | Maximum number of DRBD peer slots |
 | `properties` | no |  | LINSTOR properties to set on the resource group |
 | `drbd_options` | no |  | DRBD options by category (`resource`, `net`, `disk`, `peer_device`) |
-| `use_for_plugin` | no | `false` | Adds the `Aux/UseForPlugin=True` property, which marks the resource group for the platform's LINSTOR plugin |
+| `platform_storage` | no |  | The platform storage objects that the resource group backs, see below |
 | `volume_groups` | no | `[{volume_nr: 0}]` | Volume groups of the resource group, see below |
 
-The role passes every key other than `name`, `use_for_plugin`, and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
+The role passes every key other than `name`, `platform_storage`, and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
 An omitted key takes that module's default, so the module documentation is the reference for each value.
 
 > [!NOTE]
@@ -55,6 +55,25 @@ An omitted key takes that module's default, so the module documentation is the r
 Each entry accepts `volume_nr` (default `0`), `gross`, and `properties`, which the role passes to the `linbit.linstor.volume_group` module.
 If an entry omits `volume_groups`, the role creates volume group `0` from `resource_group_defaults`.
 `linstor resource-group spawn-resources` and the platform plugins need that volume group.
+
+`platform_storage` names the platform storage objects that the resource group backs, for the platform integration roles in `linbit.linstor_integrations`.
+It takes one of three forms:
+
+| Value | Meaning | Properties on the resource group |
+|---|---|---|
+| `true` | The platform's default storage objects | `Aux/PlatformStorage=True` |
+| `[system, image]` | These purposes, with their default names | `Aux/PlatformStorage=system,image` |
+| `{system: fast_vms, image: golden_images}` | These purposes, with these names | `Aux/PlatformStorage=system,image`, `Aux/PlatformStorage/system/Name=fast_vms`, `Aux/PlatformStorage/image/Name=golden_images` |
+
+A purpose with an empty, whitespace-only, or null name in the dict keeps its default name.
+The integration role of each platform decides which purposes it accepts.
+This role checks only the form: each purpose must be a non-empty string without `/`, `,`, or whitespace that does not read as a boolean, such as `yes` or `1`.
+
+On a rerun, the role converges the `Aux/PlatformStorage` properties of a listed resource group only when its entry carries the key:
+
+- `true`, a list, or a dict: the role writes the properties and removes the ones the value no longer yields, so dropping a purpose or a name also clears it in LINSTOR.
+- `false`: the role removes every `Aux/PlatformStorage` property of the resource group.
+- No `platform_storage` key, or null: the role leaves the `Aux/PlatformStorage` properties alone, including ones set by hand or by another inventory.
 
 ### `resource_group_defaults` (role default)
 
@@ -91,7 +110,8 @@ The role reads `linstor_resource_groups` directly from inventory.
 
 ## Inventory examples
 
-Two resource groups for the platform's LINSTOR plugin, both on the same storage pool, with a third replica for the database volumes:
+Two resource groups that back platform storage, both on the same storage pool, with a third replica for the database volumes.
+The first takes the platform's defaults, and the second backs the platform's system storage under the name `databases`:
 
 ```yaml
 all:
@@ -100,11 +120,12 @@ all:
       - name: rg-vm
         storage_pool: sp-lvm-thin
         place_count: 2
-        use_for_plugin: true
+        platform_storage: true
       - name: rg-db
         storage_pool: sp-lvm-thin
         place_count: 3
-        use_for_plugin: true
+        platform_storage:
+          system: databases
         drbd_options:
           resource:
             quorum: majority
