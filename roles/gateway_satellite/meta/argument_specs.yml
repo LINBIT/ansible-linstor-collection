@@ -69,6 +69,19 @@ argument_specs:
           - Compile and install SCST iSCSI target from source as a LIO alternative.
           - Delegates to C(linbit.drbd_reactor.scst_install).
           - Pin the SCST git reference with C(scst_install_version) when needed.
+      gateway_satellite_resource_agents:
+        type: str
+        default: upstream
+        choices:
+          - upstream
+          - distro
+        description:
+          - Where the OCF resource agents come from, passed to C(linbit.drbd_reactor.reactor_install).
+          - C(upstream) installs the agents from GitHub with C(linbit.drbd_reactor.resource_agents_upstream), the same version on every distribution.
+          - >-
+            C(distro) installs the distribution C(resource-agents) package with C(linbit.drbd_reactor.resource_agents_distro),
+            which enables the High Availability repository of the distribution where needed. The packaged agents can be older.
+          - C(distro) does not work with O(gateway_satellite_ganesha), since only upstream C(main) has the C(ganesha-nfs) agent.
       gateway_satellite_ganesha:
         type: bool
         default: false

@@ -25,6 +25,7 @@ No group definition is needed for smaller clusters.
 | `gateway_satellite_firewall_ports` | NFS + iSCSI ports | Ports to open in firewalld or UFW (111/tcp, 2049/tcp, 3260/tcp) |
 | `gateway_satellite_nfsv4_only` | `false` | Skip NFSv3-only ports (rpcbind 111, mountd 20048); matches the `ha_gateway_nfsv4_only` default |
 | `gateway_satellite_scst` | `false` | LIO alternative; compile and install [SCST](https://github.com/SCST-project/scst) iSCSI target from source |
+| `gateway_satellite_resource_agents` | `upstream` | Where the OCF resource agents come from: `upstream` from GitHub, or `distro` from the distribution `resource-agents` package |
 | `gateway_satellite_ganesha` | `false` | Kernel NFS alternative; install the [NFS-Ganesha](https://github.com/nfs-ganesha/nfs-ganesha) userspace NFS server |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 | `gateway_satellite_token_auth` | auto-detect | Read by [`gateway_install`](../gateway_install/README.md): whether the daemon authenticates with a bearer token; empty auto-detects from the controller, or force with `true` or `false` |
@@ -43,9 +44,19 @@ See [that role's README](https://github.com/LINBIT/ansible-drbd_reactor-collecti
 NFS-Ganesha installation is delegated to the [`linbit.drbd_reactor.ganesha_install`](https://github.com/LINBIT/ansible-drbd_reactor-collection/blob/main/roles/ganesha_install/README.md) role.
 The `ganesha-nfs` OCF resource agent that drives the daemon is not part of any `resource-agents` release yet, so set `resource_agents_upstream_version` to `main` when enabling `gateway_satellite_ganesha`.
 
+`gateway_satellite_resource_agents` chooses where the OCF resource agents come from.
+`upstream`, the default, adds the agents missing on each node from GitHub with [`linbit.drbd_reactor.resource_agents_upstream`](https://github.com/LINBIT/ansible-drbd_reactor-collection/blob/main/roles/resource_agents_upstream/README.md), with no extra repository, but the control node fetches from GitHub and each node compiles small C helpers.
+It is additive: an agent that a distribution package already installed stays as it is, and only the missing ones come from upstream.
+`distro` installs the distribution `resource-agents` package with [`linbit.drbd_reactor.resource_agents_distro`](https://github.com/LINBIT/ansible-drbd_reactor-collection/blob/main/roles/resource_agents_distro/README.md), which enables the High Availability repository of the distribution where needed.
+Pick `distro` when the nodes should install only packages, or when the cluster already runs Pacemaker from the distribution.
+The packaged agents can be older than upstream, see the IPv6 note in the [`ha_gateway` README](../ha_gateway/README.md), and `ha_gateway` checks for each agent it needs before it deploys a target.
+`distro` does not work with `gateway_satellite_ganesha`, since only upstream `main` has the `ganesha-nfs` agent, and the role fails on that combination.
+NVMe-oF targets need `upstream` on the Red Hat family, whose `resource-agents` package leaves out the `nvmet-*` agents.
+Set `gateway_satellite_resource_agents` once for the cluster, in the inventory or with `-e`, not per role call: Ansible installs DRBD Reactor once per host per play, with the value of the first call.
+
 ## Dependencies
 
-`linbit.drbd_reactor.reactor_install` (hard dependency via `meta/main.yml`), invoked with `reactor_install_drbd: false` and `reactor_install_resource_agents_upstream: true` so that the `drbd-reactor` package, the `drbd-reactor.service` enable state, and the OCF resource agents DRBD Reactor uses are always present before `gateway_satellite`'s tasks run.
+`linbit.drbd_reactor.reactor_install` (hard dependency via `meta/main.yml`), invoked with `reactor_install_drbd: false` and `reactor_install_resource_agents` set to `gateway_satellite_resource_agents`, so that the `drbd-reactor` package, the `drbd-reactor.service` enable state, and the OCF resource agents DRBD Reactor uses are always present before `gateway_satellite`'s tasks run.
 
 ## Example playbook
 

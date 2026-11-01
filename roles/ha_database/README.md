@@ -50,6 +50,7 @@ See `defaults/main.yml`.
 `ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100`.
 The IP is stored as the `Aux/ha_database_vip` controller property so `client_install` discovers it on subsequent runs.
 When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present.
+Where the distribution `resource-agents` package is installed, for example with `gateway_satellite_resource_agents: distro`, `IPaddr2` is already there and this step is only a check.
 
 ## HA controller proxy
 

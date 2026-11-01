@@ -51,7 +51,7 @@ dependencies:
   - role: linbit.drbd_reactor.reactor_install
     vars:
       reactor_install_drbd: false
-      reactor_install_resource_agents_upstream: true
+      reactor_install_resource_agents: "{{ gateway_satellite_resource_agents }}"
       # SCST and NFS-Ganesha are delegated from tasks/main.yml; keep the
       # meta dependency from installing them a second time
       reactor_install_scst: false

@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Assert NFS-Ganesha uses the upstream resource agents
+  ansible.builtin.assert:
+    that: not (gateway_satellite_ganesha | bool and gateway_satellite_resource_agents == 'distro')
+    fail_msg: >-
+      gateway_satellite_ganesha needs the ganesha-nfs resource agent, which only upstream main has:
+      set gateway_satellite_resource_agents to upstream and resource_agents_upstream_version to main
+    quiet: true
+
 - name: Gather OS facts for OS-specific vars
   ansible.builtin.setup:
     gather_subset:

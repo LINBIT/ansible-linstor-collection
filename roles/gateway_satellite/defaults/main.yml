@@ -29,6 +29,9 @@ gateway_satellite_scst: false
 # Pin the EL repository version with ganesha_install_sig_version when needed
 gateway_satellite_ganesha: false
 
+# OCF resource agents from GitHub (upstream) or from the distribution package (distro)
+gateway_satellite_resource_agents: upstream
+
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint
 linstor_api_delegate: localhost
