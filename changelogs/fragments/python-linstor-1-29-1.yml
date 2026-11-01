@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - The collection now requires ``python-linstor`` 1.29.1 or newer on the hosts that run its modules.
