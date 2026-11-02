@@ -2,8 +2,8 @@
 [[promoter]]
 [promoter.resources.{{ _ha_db_res }}]
 start = [
-{% if ha_database_vip | default('') != '' %}
-  "ocf:heartbeat:IPaddr2 ha_db_vip ip={{ ha_database_vip }}",
+{% if linstor_ha_vip | default('') != '' %}
+  "ocf:heartbeat:IPaddr2 ha_db_vip ip={{ linstor_ha_vip }}",
 {% endif %}
   "var-lib-linstor.mount",
   "linstor-controller.service",

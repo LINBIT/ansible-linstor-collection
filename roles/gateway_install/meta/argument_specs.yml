@@ -61,6 +61,13 @@ argument_specs:
             C(linbit.drbd_reactor.reactor_install).
           - Use for drift correction after manual C(systemctl disable) or
             out-of-band config edits.
+      linstor_ha_vip:
+        type: str
+        required: false
+        default: ""
+        description:
+          - Virtual IP of the HA controller, which C(linbit.linstor.ha_database) floats with the active controller.
+          - Allowed as an origin of the LINSTOR GUI, for a GUI opened through the VIP.
       linstor_api_delegate:
         type: str
         required: false

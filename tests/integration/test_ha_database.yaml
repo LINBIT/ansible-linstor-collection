@@ -19,8 +19,17 @@
 #   4. root's linstor-client.conf on the controllers lists every controller too
 #   5. root's linstor client reaches the active controller from every combined node
 #   6. The control node reaches the active controller through the API modules
+#   7. With SSL and linstor_ha_vip, the controller answers on the VIP with a certificate
+#      the cluster CA verifies
 # The failover evicts linstor_db from the active node with drbd-reactorctl, and
 # another combined node must take over.
+#
+# Supported cases, each with the HA VIP set:
+#   security: token authentication alone, ssl_init with token authentication,
+#             ssl_init with mTLS instead of token authentication
+#   topology: every controller in the first deploy; one controller first, then
+#             all of them and a cluster_init run; one controller first, then all
+#             of them and the ha_database role alone
 
 - name: Verify the HA database before the failover
   ansible.builtin.import_playbook: ha-database-checks.yml

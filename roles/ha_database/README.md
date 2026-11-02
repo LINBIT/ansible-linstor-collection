@@ -40,15 +40,17 @@ See `defaults/main.yml`.
 | `ha_database_res_size` | `200M` | Size of the HA database resource |
 | `ha_database_max_controllers` | `3` | Maximum number of combined controller nodes allowed |
 | `ha_database_allow_2_replica` | `false` | Allow 2-combined + tiebreaker topology when 3+ diskful satellites exist; the role otherwise fails and asks for a third combined node (ignored with only 2 diskful satellites) |
-| `ha_database_vip` | `""` | Virtual IP for the HA controller, for example `10.0.0.100` (see [HA controller VIP](#ha-controller-vip)) |
-| `ha_database_haproxy` | `false` | Deploy the `ha_controller_proxy` role on the controllers after conversion, an HAProxy alternative to `ha_database_vip` (see [HA controller proxy](#ha-controller-proxy)) |
+| `ha_database_haproxy` | `false` | Deploy the `ha_controller_proxy` role on the controllers after conversion, an HAProxy alternative to `linstor_ha_vip` (see [HA controller proxy](#ha-controller-proxy)) |
 | `ha_database_drbd_options` | *(see defaults)* | DRBD options applied to the resource group |
+| `linstor_ha_vip` | `""` | Virtual IP for the HA controller, for example `10.0.0.100`, shared with `ssl_init` and `gateway_install` (see [HA controller VIP](#ha-controller-vip)) |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 ## HA controller VIP
 
-`ha_database_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100`.
-The IP is stored as the `Aux/ha_database_vip` controller property so `client_install` discovers it on subsequent runs.
+`linstor_ha_vip` floats an IPaddr2 resource with the active controller, for example `10.0.0.100`.
+Set it once in the inventory: `ssl_init` adds it to the controller certificates, and `gateway_install` allows the LINSTOR GUI on it.
+LINSTOR clients do not use it, since every client config lists all controllers and the client fails over across them on its own.
+The VIP serves the LINSTOR GUI and storage plugins that take a single controller address.
 When set, the role installs the IPaddr2 OCF resource agent through `linbit.drbd_reactor.resource_agents_upstream` (narrowed to just `IPaddr2`) on combined nodes where it is not already present.
 Where the distribution `resource-agents` package is installed, for example with `gateway_satellite_resource_agents: distro`, `IPaddr2` is already there and this step is only a check.
 
@@ -56,7 +58,18 @@ Where the distribution `resource-agents` package is installed, for example with 
 
 `ha_database_haproxy` deploys the [`ha_controller_proxy`](../ha_controller_proxy/README.md) role on the controller nodes after the conversion.
 It runs a TCP-passthrough HAProxy instance that forwards client traffic to the active controller, so clients reach the controller from any controller node.
-This is an alternative to `ha_database_vip`: the VIP floats a single address with the active node, while the proxy needs no floating address and works across routed and cloud networks.
+This is an alternative to `linstor_ha_vip`: the VIP floats a single address with the active node, while the proxy needs no floating address and works across routed and cloud networks.
+
+## Converting a running cluster
+
+The role converts a cluster that started with one controller, after more combined nodes join the `linstor_controllers` group, whether `cluster_init` runs again or the role runs alone.
+Before the conversion, it prepares each combined node that was a satellite only:
+
+- It installs the controller through `controller_install` where the package is missing.
+- It copies `/etc/linstor/linstor.toml` and root's `linstor-client.conf` from the running controller, so the new controllers get its HTTPS settings, master passphrase and auth token.
+- When the running controller serves HTTPS with `ssl_init` certificates, it includes `ssl_init`, which gives each new controller a certificate that covers every controller address and `linstor_ha_vip`.
+
+After the conversion, it lists every controller in `/etc/linstor/linstor-client.conf` on each node, in root's client config on the controllers, and in the control node client config.
 
 ## Dependencies
 
@@ -93,7 +106,7 @@ With a floating VIP for the controller:
         name: linbit.linstor.ha_database
       vars:
         ha_database_pool: my-pool
-        ha_database_vip: "10.0.0.100"
+        linstor_ha_vip: "10.0.0.100"
 ```
 
 ## License

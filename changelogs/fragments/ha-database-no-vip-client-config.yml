@@ -1,7 +1,37 @@
 ---
+breaking_changes:
+  - >-
+    ha_database - the HA controller VIP is now ``linstor_ha_vip``, which ``ssl_init`` and
+    ``gateway_install`` already read, instead of ``ha_database_vip``. Set it once in the inventory.
 bugfixes:
   - >-
     ha_database - no longer overwrites ``/etc/linstor/linstor-client.conf`` with the HA controller
     VIP alone, which dropped the HTTPS scheme and certificate paths ``ssl_init`` had written. The
-    file keeps the list of every LINSTOR controller that ``client_install`` writes, and the client
-    fails over across it on its own.
+    conversion lists every LINSTOR controller in that file on each node, in root's
+    ``linstor-client.conf`` on the controllers, and in the control node client config, in the
+    scheme each file already uses, and the client fails over across the list on its own.
+  - >-
+    ha_database - converts an existing single-controller cluster to HA once more combined nodes
+    join ``linstor_controllers``, whether ``cluster_init`` runs again or the role runs alone. It
+    installs the controller where it is missing, copies ``linstor.toml`` and root's client config
+    from the running controller, includes ``ssl_init`` when that controller uses its
+    certificates, so a new controller serves HTTPS after a failover, and registers the new
+    controllers in LINSTOR as ``Combined`` nodes.
+  - >-
+    ssl_init - a rerun gives a node a new certificate when its certificate no longer covers the
+    names and addresses the inventory gives it, such as a satellite that became a controller, and
+    writes the HTTPS settings on a new controller. Before, the role skipped every node whose
+    satellite already used SSL.
+  - >-
+    ssl_init - compares IP addresses in certificates as addresses, so a rerun on an IPv6 cluster no
+    longer reissues every certificate and restarts the controller and satellites.
+  - >-
+    ssl_init - the restart after an HTTPS change disables and enables DRBD Reactor on every
+    controller, also when only one controller changed.
+minor_changes:
+  - >-
+    node - changes the type of an existing node when ``node_type`` differs, such as a satellite
+    that joins the controllers as a ``Combined`` node, instead of warning that it cannot.
+  - >-
+    san_missing - new filter that lists the subject alternative names a certificate lacks,
+    comparing IP addresses as addresses.

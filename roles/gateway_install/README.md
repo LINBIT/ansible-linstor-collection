@@ -30,6 +30,7 @@ The following inventory groups must be defined:
 | `gateway_install_firewalld_zone` | `""` | firewalld zone to open the LINSTOR Gateway ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `gateway_install_firewall_ports` | `8337/tcp` | Ports to open in firewalld or UFW for LINSTOR Gateway |
 | `gateway_install_force_reconfigure` | `false` | Force the configure phase to re-run even when the package install is unchanged; also re-runs `gateway_satellite` on satellites (drift correction) |
+| `linstor_ha_vip` | `""` | Virtual IP of the HA controller, allowed as an origin of the LINSTOR GUI |
 | `linstor_api_delegate` | `localhost` | Delegation target for LINSTOR API tasks; override to a cluster node (for example `{{ groups['linstor_controllers'][0] }}`) when the Ansible control node cannot directly reach the LINSTOR controller API endpoint |
 
 ## Controller REST endpoint

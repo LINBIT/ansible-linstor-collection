@@ -13,7 +13,7 @@ _ha_db_mkfs_opts: >-
     -b size={{ ha_database_filesystem_blocksize }}
   {%- endif -%}
 
-# OCF IPaddr2 path for ha_database_vip; SUSE uses /usr/lib, others /lib
+# OCF IPaddr2 path for linstor_ha_vip; SUSE uses /usr/lib, others /lib
 _ha_db_ipaddr2_path: >-
   {%- if ansible_facts['os_family'] | lower == 'suse' -%}
     /usr/lib/ocf/resource.d/heartbeat/IPaddr2
@@ -73,10 +73,55 @@ _ha_db_host_cidrs: >-
       + ifaces | selectattr('ipv6', 'defined') | map(attribute='ipv6') | flatten | select('mapping') | list -%}
   {{ addrs | map(attribute='address') | zip(addrs | map(attribute='prefix')) | map('join', '/') | list }}
 
-# The node's subnets that contain ha_database_vip
+# The node's subnets that contain linstor_ha_vip
 _ha_db_vip_subnets: >-
   {%- set result = [] -%}
-  {%- for cidr in _ha_db_host_cidrs if [ha_database_vip] | linbit.common.in_network(cidr) -%}
+  {%- for cidr in _ha_db_host_cidrs if [linstor_ha_vip] | linbit.common.in_network(cidr) -%}
     {%- set _ = result.append(cidr) -%}
   {%- endfor -%}
   {{ result }}
+
+# Every controller, in the scheme the client config already uses
+_ha_db_client_controllers: >-
+  {%- set result = [] -%}
+  {%- for a in query('linbit.linstor.group_addresses', 'linstor_controllers') -%}
+    {%- set _ = result.append(_ha_db_client_scheme | default('') ~ ('[' ~ a ~ ']' if ':' in a else a)) -%}
+  {%- endfor -%}
+  {{ result | join(',') }}
+
+_ha_db_client_configs:
+  - /etc/linstor/linstor-client.conf
+  - /root/.config/linstor/linstor-client.conf
+
+_ha_db_control_node_config: >-
+  {{ linstor_client_config_file | default(lookup('env', 'HOME') ~ '/.config/linstor/linstor-client.conf') }}
+
+_ha_db_control_node_controllers: >-
+  {{ lookup('ansible.builtin.ini', 'controllers', section='global',
+            file=_ha_db_control_node_config, default='', errors='ignore') }}
+
+_ha_db_controller_configs:
+  - /etc/linstor/linstor.toml
+  - /root/.config/linstor/linstor-client.conf
+
+# Files the configuration of the running controller names, such as its keystore and CA
+_ha_db_config_files: >-
+  {%- set result = [] -%}
+  {%- for f in _ha_db_primary_configs.results | default([]) | selectattr('content', 'defined') -%}
+    {%- for line in (f.content | b64decode).splitlines() | select('match', ' *(keystore|truststore|cafile|certfile|keyfile) *=') -%}
+      {%- set _ = result.append({'key': line.split('=', 1)[0] | trim,
+                                 'path': line.split('=', 1)[1] | trim | replace('"', '')}) -%}
+    {%- endfor -%}
+  {%- endfor -%}
+  {{ result | unique }}
+
+_ha_db_missing_files: >-
+  {{ _ha_db_config_file_stat.results | default([]) | selectattr('stat', 'defined')
+     | rejectattr('stat.exists') | map(attribute='item') | list }}
+
+_ha_db_primary_toml: >-
+  {{ _ha_db_primary_configs.results | default([]) | selectattr('content', 'defined')
+     | selectattr('item', 'eq', '/etc/linstor/linstor.toml') | map(attribute='content')
+     | first | default('') | b64decode }}
+
+_ha_db_primary_satellite_toml: "{{ _ha_db_primary_satellite_config.content | default('') | b64decode }}"

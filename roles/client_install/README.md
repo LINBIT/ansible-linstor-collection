@@ -20,7 +20,7 @@ See `defaults/main.yml`.
 
 The role always writes the full list of controller addresses to `linstor-client.conf`.
 The LINSTOR client walks the list and connects to the first responder, so HA failover works without a virtual IP.
-If `linstor_ha_vip` is set in inventory it is used by the `ha_database` role to wire up a floating IP for the LINSTOR GUI and external API users, but the client config does not consume it.
+The client config lists every controller and never the HA controller VIP, since the client fails over across the controllers on its own.
 
 The token-bearing configs are written by the `configure-control-node` task (the Ansible control node's `linstor_client_config_file`) and the `configure-controller-node` task (a controller's `/root/.config/linstor/linstor-client.conf`), both at mode `0600`.
 The `auth_init` role drives both.

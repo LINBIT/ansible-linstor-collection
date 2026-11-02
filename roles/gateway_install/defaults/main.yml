@@ -18,4 +18,5 @@ gateway_install_force_reconfigure: false
 
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint
+linstor_ha_vip: ""
 linstor_api_delegate: localhost

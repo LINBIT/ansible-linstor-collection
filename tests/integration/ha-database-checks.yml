@@ -37,6 +37,25 @@
       delay: 2
       run_once: true  # noqa: run-once[task]
 
+    # The GUI and some storage plugins reach the controller through the VIP, so the certificate of every controller must cover it
+    - name: Reach the controller through the HA VIP with certificate verification
+      ansible.builtin.uri:
+        url: https://{{ '[' ~ linstor_ha_vip ~ ']' if ':' in linstor_ha_vip else linstor_ha_vip }}:3371/v1/controller/version
+        ca_path: "{{ lookup('ansible.builtin.ini', 'cafile', section='global', file=_hadb_test_client_config) }}"
+        client_cert: "{{ _hadb_test_client_cert | default(omit, true) }}"
+        client_key: "{{ lookup('ansible.builtin.ini', 'keyfile', section='global', file=_hadb_test_client_config, default='') | default(omit, true) }}"
+        # mTLS replaces token authentication, so only a token cluster may refuse the anonymous request
+        status_code: "{{ [200] if _hadb_test_client_cert | length > 0 else [200, 401] }}"
+      vars:
+        _hadb_test_client_config: "{{ linstor_client_config_file | default(lookup('env', 'HOME') ~ '/.config/linstor/linstor-client.conf') }}"
+        _hadb_test_client_cert: "{{ lookup('ansible.builtin.ini', 'certfile', section='global', file=_hadb_test_client_config, default='') }}"
+      delegate_to: localhost
+      become: false
+      run_once: true  # noqa: run-once[task]
+      when:
+        - _hadb_test_ssl
+        - linstor_ha_vip | default('') != ''
+
     - name: Assert the controller marks the cluster as HA
       ansible.builtin.assert:
         that: _hadb_test_controller.properties['Aux/ClusterIsHA'] | default('') == 'True'
@@ -128,6 +147,22 @@
             src: /root/.config/linstor/linstor-client.conf
           register: _hadb_test_root_config
           when: _hadb_test_root_config_stat.stat.exists
+
+        # Root's linstor client falls back to the satellite token, so only the file itself shows a missing copy
+        - name: Assert every controller has the root client config when any has it
+          ansible.builtin.assert:
+            that: >-
+              groups['linstor_controllers'] | map('extract', hostvars, ['_hadb_test_root_config_stat', 'stat', 'exists'])
+              | unique | length == 1
+            fail_msg: >-
+              Root's linstor-client.conf exists on
+              {{ groups['linstor_controllers'] | select('in', _hadb_test_with_root_config) | list }} only.
+            quiet: true
+          vars:
+            _hadb_test_with_root_config: >-
+              {{ groups['linstor_controllers'] | map('extract', hostvars)
+                 | selectattr('_hadb_test_root_config_stat.stat.exists') | map(attribute='inventory_hostname') | list }}
+          run_once: true  # noqa: run-once[task]
 
         - name: Assert the root client config lists every controller
           ansible.builtin.assert:

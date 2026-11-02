@@ -25,6 +25,9 @@
     - _ha_db_pool_names | length > 1
   run_once: true  # noqa: run-once[task]
 
+- name: Prepare the combined nodes that are not controllers yet
+  ansible.builtin.include_tasks: prepare-controllers.yml
+
 # DRBD Reactor package (idempotent); OCF agents handled separately below
 - name: Install DRBD Reactor
   ansible.builtin.include_role:
@@ -34,12 +37,12 @@
     reactor_install_resource_agents: none
   when: inventory_hostname in _ha_db_combined_nodes
 
-# Only necessary when using ha_database_vip
+# Only necessary when using linstor_ha_vip
 - name: Check for IPaddr2 resource agent
   ansible.builtin.stat:
     path: "{{ _ha_db_ipaddr2_path }}"
   when:
-    - ha_database_vip | default('') != ''
+    - linstor_ha_vip | default('') != ''
     - inventory_hostname in _ha_db_combined_nodes
   register: _ha_db_ipaddr2_check
 
@@ -50,13 +53,14 @@
     resource_agents_upstream_list:
       - IPaddr2
   when:
-    - ha_database_vip | default('') != ''
+    - linstor_ha_vip | default('') != ''
     - inventory_hostname in _ha_db_combined_nodes
     - not (_ha_db_ipaddr2_check.stat.exists | default(false))
 
 - name: Set ControllerIsHA on combined controller nodes
   linbit.linstor.node:
     name: "{{ inventory_hostname }}"
+    node_type: Combined
     aux_properties:
       ControllerIsHA: "True"
   when: inventory_hostname in _ha_db_combined_nodes
@@ -250,8 +254,8 @@
 - name: Record aux prop to mark migration as completed
   linbit.linstor.controller:
     aux_properties: >-
-      {%- if ha_database_vip | default('') != '' -%}
-        {{ {'ClusterIsHA': 'True', 'ha_database_vip': ha_database_vip} }}
+      {%- if linstor_ha_vip | default('') != '' -%}
+        {{ {'ClusterIsHA': 'True', 'ha_database_vip': linstor_ha_vip} }}
       {%- else -%}
         {{ {'ClusterIsHA': 'True'} }}
       {%- endif -%}
@@ -260,3 +264,39 @@
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
+
+# The controller list grows here, and client_install renders it only when it installs the client
+- name: Read the LINSTOR client configs
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop: "{{ _ha_db_client_configs }}"
+  register: _ha_db_client_confs
+  failed_when: false
+  no_log: true
+
+- name: List every controller in the LINSTOR client configs
+  ansible.builtin.lineinfile:
+    path: "{{ item.source }}"
+    regexp: '^controllers *='
+    line: controllers={{ _ha_db_client_controllers }}
+  vars:
+    _ha_db_client_scheme: "{{ 'linstor+ssl://' if 'linstor+ssl://' in (item.content | b64decode) else '' }}"
+  loop: "{{ _ha_db_client_confs.results | selectattr('content', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.source }}"
+  no_log: true
+
+- name: List every controller in the control node client config
+  ansible.builtin.lineinfile:
+    path: "{{ _ha_db_control_node_config }}"
+    regexp: '^controllers *='
+    line: controllers={{ _ha_db_client_controllers }}
+  vars:
+    _ha_db_client_scheme: "{{ 'linstor+ssl://' if 'linstor+ssl://' in _ha_db_control_node_controllers else '' }}"
+  when:
+    - client_install_local_config | default(true) | bool
+    - _ha_db_control_node_controllers | length > 0
+  delegate_to: localhost
+  become: false
+  run_once: true  # noqa: run-once[task]
+  no_log: true

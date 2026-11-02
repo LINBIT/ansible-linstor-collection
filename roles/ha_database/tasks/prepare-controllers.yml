@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: MIT
+---
+# A satellite added to linstor_controllers for the conversion has never been set up as a
+# controller, so it takes the package from controller_install and its configuration from
+# the running controller, whichever roles set that up
+- name: Check for the LINSTOR controller package
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/system/linstor-controller.service
+  register: _ha_db_controller_unit
+  when: inventory_hostname in _ha_db_combined_nodes
+
+- name: Install the LINSTOR controller on combined nodes without it
+  ansible.builtin.include_role:
+    name: linbit.linstor.controller_install
+  when:
+    - inventory_hostname in _ha_db_combined_nodes
+    - not _ha_db_controller_unit.stat.exists
+
+# The Debian package starts the controller it installs, beside the running one
+- name: Stop the LINSTOR controller on the other combined nodes
+  ansible.builtin.systemd:
+    name: linstor-controller.service
+    state: stopped
+    enabled: false
+  when:
+    - inventory_hostname in _ha_db_combined_nodes
+    - inventory_hostname != _ha_db_primary_node
+    - not ansible_check_mode
+
+- name: Read the configuration of the running controller
+  ansible.builtin.slurp:
+    src: "{{ item }}"
+  loop: "{{ _ha_db_controller_configs }}"
+  register: _ha_db_primary_configs
+  delegate_to: "{{ _ha_db_primary_node }}"
+  failed_when: false
+  run_once: true  # noqa: run-once[task]
+  no_log: true
+
+- name: Check the files the controller configuration names
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ _ha_db_config_files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: _ha_db_config_file_stat
+  when: inventory_hostname in _ha_db_combined_nodes
+
+# Only the PEM files: a keystore holds the certificate of its own node, and ssl_init builds the truststores
+- name: Read the CA and client certificate files the other combined nodes are missing
+  ansible.builtin.slurp:
+    src: "{{ item.path }}"
+  loop: "{{ _ha_db_missing_files | selectattr('key', 'in', ['cafile', 'certfile', 'keyfile']) | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: _ha_db_shared_files
+  delegate_to: "{{ _ha_db_primary_node }}"
+  when: inventory_hostname in _ha_db_combined_nodes
+  no_log: true
+
+- name: Copy the CA and client certificate files to the other combined nodes
+  ansible.builtin.copy:
+    content: "{{ item.content | b64decode }}"
+    dest: "{{ item.source }}"
+    owner: root
+    mode: "{{ '0644' if item.item.key == 'cafile' else '0600' }}"
+  loop: "{{ _ha_db_shared_files.results | default([]) | selectattr('content', 'defined') | list }}"
+  when: inventory_hostname in _ha_db_combined_nodes
+  no_log: true
+
+- name: Create the root LINSTOR client config directory
+  ansible.builtin.file:
+    path: /root/.config/linstor
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  when:
+    - inventory_hostname in _ha_db_combined_nodes
+    - _ha_db_primary_configs.results | selectattr('content', 'defined')
+      | selectattr('source', 'search', '^/root/') | list | length > 0
+
+- name: Copy the configuration of the running controller to the other combined nodes
+  ansible.builtin.copy:
+    content: "{{ item.content | b64decode }}"
+    dest: "{{ item.source }}"
+    owner: root
+    mode: "{{ '0600' if item.source is search('^/root/') else '0640' }}"
+  loop: "{{ _ha_db_primary_configs.results | selectattr('content', 'defined') | list }}"
+  when:
+    - inventory_hostname in _ha_db_combined_nodes
+    - inventory_hostname != _ha_db_primary_node
+  no_log: true
+
+- name: Read the satellite configuration of the running controller
+  ansible.builtin.slurp:
+    src: /etc/linstor/linstor_satellite.toml
+  register: _ha_db_primary_satellite_config
+  delegate_to: "{{ _ha_db_primary_node }}"
+  failed_when: false
+  run_once: true  # noqa: run-once[task]
+
+# A new controller needs a certificate that covers every controller address and the VIP
+- name: Give the combined nodes the SSL setup of a controller
+  ansible.builtin.include_role:
+    name: linbit.linstor.ssl_init
+  vars:
+    ssl_init_https: true
+    ssl_init_https_mtls: "{{ _ha_db_primary_toml is search('(?m)^ *truststore *=') }}"
+    ssl_init_satellite: "{{ 'ANSIBLE MANAGED SSL BLOCK' in _ha_db_primary_satellite_toml }}"
+  when: _ha_db_primary_toml is search('(?m)^ *keystore *=')
+
+- name: Check the keystores the controller configuration names
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ _ha_db_config_files | selectattr('key', 'in', ['keystore', 'truststore']) | list }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: _ha_db_keystore_stat
+  when: inventory_hostname in _ha_db_combined_nodes
+
+# Only external certificates leave a node without one, since ssl_init cannot issue them
+- name: Assert every combined node has the keystores of a controller
+  ansible.builtin.assert:
+    that: _ha_db_missing_keystores | length == 0
+    fail_msg: >-
+      {{ inventory_hostname }} has no {{ _ha_db_missing_keystores | join(', ') }}. Place the
+      certificate of this node as ssl_init expects, then run linbit.linstor.ssl_init with the
+      node in linstor_controllers.
+    quiet: true
+  vars:
+    _ha_db_missing_keystores: >-
+      {{ _ha_db_keystore_stat.results | default([]) | selectattr('stat', 'defined')
+         | rejectattr('stat.exists') | map(attribute='item.path') | list }}
+  when: inventory_hostname in _ha_db_combined_nodes

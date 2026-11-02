@@ -31,21 +31,21 @@
     quiet: true
   run_once: true # noqa: run-once[task]
 
-- name: Validate ha_database_vip format
+- name: Validate linstor_ha_vip format
   ansible.builtin.assert:
     that:
-      - ha_database_vip is regex('^([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F]{0,4}(:[0-9a-fA-F]{0,4}){2,7})$')
-    fail_msg: "ha_database_vip must be a valid IP address: {{ ha_database_vip }}"
+      - linstor_ha_vip is regex('^([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9a-fA-F]{0,4}(:[0-9a-fA-F]{0,4}){2,7})$')
+    fail_msg: "linstor_ha_vip must be a valid IP address: {{ linstor_ha_vip }}"
     quiet: true
   run_once: true # noqa: run-once[task]
-  when: ha_database_vip | default('') != ''
+  when: linstor_ha_vip | default('') != ''
 
-- name: Validate ha_database_vip is in a subnet of each combined node
+- name: Validate linstor_ha_vip is in a subnet of each combined node
   ansible.builtin.assert:
     that: _ha_db_vip_subnets | length > 0
     fail_msg: >-
-      No interface on {{ inventory_hostname }} is in the subnet of ha_database_vip {{ ha_database_vip }}
+      No interface on {{ inventory_hostname }} is in the subnet of linstor_ha_vip {{ linstor_ha_vip }}
     quiet: true
   when:
-    - ha_database_vip | default('') != ''
+    - linstor_ha_vip | default('') != ''
     - inventory_hostname in _ha_db_combined_nodes
