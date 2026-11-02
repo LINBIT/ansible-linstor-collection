@@ -5,13 +5,12 @@ minor_changes:
     gateway_targets - new filter that normalizes an entry list of ``ha_gateway`` into the targets
     clients connect to, with the LINSTOR resource name, the IQN or NQN, the port, the full path of
     each NFS export and ``platform_storage`` as null, a boolean, or a dict that maps keys to
-    names. ``ha_gateway`` deploys from its output, so the platform integration roles that attach
-    the targets with ``platform_storage`` read the same names.
+    names or to options. ``ha_gateway`` deploys from its output, so the platform integration
+    roles that attach the targets with ``platform_storage`` read the same names.
   - >-
     ha_gateway - the ``platform_storage`` key of a target selects the storage that the platform
-    integration roles create on it, and the role stores it in the ``Aux/PlatformStorage``
-    properties of the resource definition of the target. ``false`` removes those properties,
-    and a target without the key keeps them.
+    integration roles create on it. They read it from the inventory list through the
+    ``gateway_targets`` filter.
 bugfixes:
   - >-
     ha_gateway - the duplicate resource name check now compares the resource names the role

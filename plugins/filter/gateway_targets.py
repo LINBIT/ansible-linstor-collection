@@ -26,10 +26,16 @@ DOCUMENTATION = '''
       roles in C(linbit.linstor_integrations) read it to attach the targets with a
       C(platform_storage) key to the platform, so the two cannot drift.
     - Each output entry keeps the keys of its input entry and sets C(type), C(resource),
-      C(state), C(platform_storage) as null, a boolean, or a dict that maps keys to names,
-      C(service_ips) without prefixes, C(address) (the first service IP) and C(port).
-    - The filter fails on a C(platform_storage) value that breaks the rules of
-      P(linbit.linstor.platform_storage_properties#filter).
+      C(state), C(platform_storage) as null, a boolean, or a dict that maps keys to names or to
+      options, C(service_ips) without prefixes, C(address) (the first service IP) and C(port).
+    - "C(platform_storage) is C(true) for the defaults of the platform, C(false) or null for none,
+      a list of keys, or a dict that maps each key to a name, or to a dict of a C(name) and
+      platform options, such as C({storage: {name: pve-nfs, content: iso}}). An empty,
+      whitespace-only or null name selects the default name of the platform."
+    - The filter checks only that form. It fails on an empty key, a key that is not a string or
+      reads as a boolean, such as C(yes) or C(1), a name that is not a string, and a value of any
+      other type. The platform integration roles in C(linbit.linstor_integrations) decide which
+      keys and options they accept.
     - An C(iscsi) entry gets C(iqn), an C(nvmeof) entry C(nqn) and C(transport), and each entry
       of an C(nfs) entry's C(exports) list gets C(export), its full path under
       C(/srv/gateway-exports/<resource>).
@@ -94,6 +100,9 @@ RETURN = '''
         defaults of the platform, or a dict that maps each key to a name, with an empty name for the
         default name. For example, the input C([system, image]) returns
         C({system: '', image: ''})."
+      - "A key that maps to a dict keeps its options and gets C(name), empty for the default name.
+        For example, the input C({storage: {content: iso}}) returns
+        C({storage: {content: iso, name: ''}})."
       - "Select on C(platform_storage) to keep the targets that back platform storage. The
         C(mapping) test separates explicit keys from C(true), and null separates an entry
         without the key from one that sets C(false)."

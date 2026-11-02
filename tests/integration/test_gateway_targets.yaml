@@ -17,7 +17,7 @@
 #   5. An iSCSI WWN with '_' and an NQN without three parts fail
 #   6. platform_storage: true stays true, a list and a dict become a dict,
 #      false stays false, absent becomes null, a whitespace-only name
-#      means the default name, and each form yields its Aux properties
+#      means the default name, and a key with options keeps them
 #   7. Invalid platform_storage values fail
 
 - name: Test the gateway_targets filter
@@ -51,6 +51,13 @@
       - name: slow
         service_ips: [192.168.222.244/24]
         volumes: [{size: 1G}]
+      - name: options
+        service_ips: [192.168.222.245/24]
+        volumes: [{size: 1G}]
+        platform_storage:
+          storage: {name: ' pve-iso ', content: iso}
+          image: {content: images}
+          system: fast_vms
     iscsi_out: "{{ iscsi | linbit.linstor.gateway_targets('iscsi') }}"
     nfs_out: "{{ nfs | linbit.linstor.gateway_targets('nfs') }}"
     nvmeof_out: "{{ nvmeof | linbit.linstor.gateway_targets('nvmeof') }}"
@@ -128,23 +135,15 @@
           - "nvmeof_out[0].platform_storage == {'system': 'fast_vms', 'image': '', 'backup': ''}"
           - nvmeof_out[1].platform_storage is none
           - (iscsi_out + nfs_out + nvmeof_out) | selectattr('platform_storage') | map(attribute='name') | list
-            == ['web', 'nfs-shared', 'fast']
+            == ['web', 'nfs-shared', 'fast', 'options']
 
-    - name: Test 6 - platform_storage properties
+    - name: Test 6 - platform_storage keys with options
       ansible.builtin.assert:
         that:
-          - "iscsi_out[0].platform_storage | linbit.linstor.platform_storage_properties
-            == {'Aux/PlatformStorage': 'True'}"
-          - iscsi_out[1].platform_storage | linbit.linstor.platform_storage_properties == {}
-          - "nfs_out[0].platform_storage | linbit.linstor.platform_storage_properties
-            == {'Aux/PlatformStorage': 'system,image'}"
-          - "nvmeof_out[0].platform_storage | linbit.linstor.platform_storage_properties
-            == {'Aux/PlatformStorage': 'system,image,backup', 'Aux/PlatformStorage/system/Name': 'fast_vms'}"
-          - "{'image': 'golden', 'system': none} | linbit.linstor.platform_storage_properties
-            == {'Aux/PlatformStorage': 'image,system', 'Aux/PlatformStorage/image/Name': 'golden'}"
-          - "['system'] | linbit.linstor.platform_storage_properties == {'Aux/PlatformStorage': 'system'}"
-          - none | linbit.linstor.platform_storage_properties == {}
-          - false | linbit.linstor.platform_storage_properties == {}
+          - "nvmeof_out[2].platform_storage
+            == {'storage': {'name': 'pve-iso', 'content': 'iso'}, 'image': {'name': '', 'content': 'images'},
+                'system': 'fast_vms'}"
+          - nvmeof_out[2].platform_storage | list == ['storage', 'image', 'system']
 
     - name: Test 7 - invalid platform_storage values fail
       ansible.builtin.include_tasks: platform-storage-invalid.yml
@@ -157,20 +156,20 @@
           message: has no keys
         - value: {}
           message: has no keys
-        - value: ['sys/tem']
-          message: "without '/'"
-        - value: ['sys,tem']
-          message: "without '/'"
-        - value: ['sys tem']
-          message: "without '/'"
         - value: ['']
-          message: "without '/'"
+          message: use a non-empty string
+        - value: ['  ']
+          message: use a non-empty string
         - value: [1]
-          message: "without '/'"
+          message: use a non-empty string
         - value: {system: 5}
           message: has the invalid name
         - value: {system: [a]}
           message: has the invalid name
+        - value: {system: {name: 5}}
+          message: has the invalid name
+        - value: {system: {1: a}}
+          message: has the invalid options
         - value: ['True']
           message: reads as a boolean
         - value: ['yes']
@@ -179,8 +178,6 @@
           message: reads as a boolean
         - value: {'on': fast_vms}
           message: reads as a boolean
-        - value: ["system\n"]
-          message: "without '/'"
       loop_control:
         loop_var: invalid
         label: "{{ invalid.value }}"

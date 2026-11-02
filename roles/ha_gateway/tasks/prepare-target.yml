@@ -12,7 +12,6 @@
     _gw_manual_place: { changed: false, results: [] }
     _gw_spawn_auto: { changed: false, results: [] }
     _gw_query: { results: [] }
-    _gw_rd_query: { resource_definitions: [] }
     _gw_resolved: []
     _gw_satellites: []
   run_once: true  # noqa: run-once[task]
@@ -261,33 +260,11 @@
   delegate_to: "{{ _export.0.nodes[0] }}"
   run_once: true  # noqa: run-once[task]
 
-- name: "Query resource definition properties - {{ _protocol }}"
-  linbit.linstor.resource_definition_info:
-  when: _gw_present | length > 0
-  delegate_to: "{{ linstor_api_delegate }}"
-  environment:
-    LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
-  run_once: true  # noqa: run-once[task]
-  register: _gw_rd_query
-
-- name: "Set DRBD resource options and platform storage properties - {{ _protocol }}"
+- name: "Set DRBD resource options - {{ _protocol }}"
   linbit.linstor.resource_definition:
     name: "{{ _target.resource }}"
     drbd_options:
       resource: "{{ ha_gateway_drbd_options }}"
-    properties: "{{ _gw_platform_properties }}"
-    delete_properties: "{{ _gw_platform_stale }}"
-  vars:
-    _gw_platform_properties: >-
-      {{ _target.platform_storage
-         | linbit.linstor.platform_storage_properties(_protocol ~ ' target ' ~ _target.name) }}
-    _gw_platform_current: >-
-      {{ _gw_rd_query.resource_definitions | default([])
-         | selectattr('name', 'eq', _target.resource) | map(attribute='properties') | first | default({}, true) }}
-    _gw_platform_stale: >-
-      {{ _gw_platform_current | list | select('match', '^Aux/PlatformStorage(/|$)')
-         | reject('in', _gw_platform_properties) | list
-         if _target.platform_storage is not none else [] }}
   loop: "{{ _gw_present }}"
   loop_control:
     loop_var: _target

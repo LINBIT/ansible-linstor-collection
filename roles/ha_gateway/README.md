@@ -16,9 +16,8 @@ A `resource_group` drives autoplace and is mutually exclusive with `nodes`.
 A pre-flight check asserts that `drbd-reactor.service` exists on each target's satellites.
 Setting `state: absent` on a target removes the promoter config (undeploying from all satellites) and deletes the LINSTOR resource.
 `platform_storage` on a target selects the storage that the platform integration roles in `linbit.linstor_integrations` create on it, such as a Proxmox VE storage or an oVirt data domain.
-It takes the same values as `platform_storage` on a `linstor_resource_groups` entry of the `resource_group` role: `true` for the defaults of the platform, a list of keys, or a dict that maps keys to names.
-The role stores it in the `Aux/PlatformStorage` properties of the resource definition of the target and removes the properties that the value no longer sets.
-`false` removes them all, and a target without `platform_storage`, or with null, keeps them.
+It takes the same values as `platform_storage` on a `linstor_resource_groups` entry of the `resource_group` role.
+This role does not use the key: the integration roles read it from these inventory lists through the `linbit.linstor.gateway_targets` filter.
 
 ## Requirements
 

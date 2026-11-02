@@ -117,10 +117,9 @@ argument_specs:
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
             C(linbit.linstor_integrations) create on the target: C(true) for the defaults of
-            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
-            C(Aux/PlatformStorage) properties of the resource definition and removes the
-            properties that the value no longer sets. C(false) removes them all, and an entry
-            without the key keeps them.
+            the platform, a list of keys, or a dict that maps keys to names or to dicts of a
+            C(name) and platform options. The integration roles read it from this list, and this
+            role does not use it.
       linstor_nfs_exports:
         type: list
         elements: dict
@@ -134,10 +133,9 @@ argument_specs:
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
             C(linbit.linstor_integrations) create on the export: C(true) for the defaults of
-            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
-            C(Aux/PlatformStorage) properties of the resource definition and removes the
-            properties that the value no longer sets. C(false) removes them all, and an entry
-            without the key keeps them.
+            the platform, a list of keys, or a dict that maps keys to names or to dicts of a
+            C(name) and platform options. The integration roles read it from this list, and this
+            role does not use it.
       linstor_nvmeof_targets:
         type: list
         elements: dict
@@ -152,10 +150,9 @@ argument_specs:
           - >-
             C(platform_storage) selects the storage that the platform integration roles in
             C(linbit.linstor_integrations) create on the target: C(true) for the defaults of
-            the platform, a list of keys, or a dict that maps keys to names. The role stores it in the
-            C(Aux/PlatformStorage) properties of the resource definition and removes the
-            properties that the value no longer sets. C(false) removes them all, and an entry
-            without the key keeps them.
+            the platform, a list of keys, or a dict that maps keys to names or to dicts of a
+            C(name) and platform options. The integration roles read it from this list, and this
+            role does not use it.
       linstor_api_delegate:
         type: str
         required: false

@@ -40,7 +40,7 @@ Each item supports the following keys:
 | `peer_slots` | no |  | Maximum number of DRBD peer slots |
 | `properties` | no |  | LINSTOR properties to set on the resource group |
 | `drbd_options` | no |  | DRBD options by category (`resource`, `net`, `disk`, `peer_device`) |
-| `platform_storage` | no |  | The platform storage objects that the resource group backs, see below |
+| `platform_storage` | no |  | The platform storage that the resource group backs, read by the integration roles, see below |
 | `volume_groups` | no | `[{volume_nr: 0}]` | Volume groups of the resource group, see below |
 
 The role passes every key other than `name`, `platform_storage`, and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
@@ -57,24 +57,22 @@ If an entry omits `volume_groups`, the role creates volume group `0` from `resou
 `linstor resource-group spawn-resources` and the platform plugins need that volume group.
 
 `platform_storage` selects the storage that the platform integration roles in `linbit.linstor_integrations` create on the resource group, such as a Proxmox VE storage or OpenNebula datastores.
+This role does not use the key.
+The integration roles read it from `linstor_resource_groups`, so the inventory that creates the resource group also attaches it to the platform.
 The keys come from the platform, and the README of each integration role lists them.
 These examples use the OpenNebula keys `system` and `image`:
 
-| Value | OpenNebula creates | Properties on the resource group |
-|---|---|---|
-| `true` | The default datastores, a system and an image datastore | `Aux/PlatformStorage=True` |
-| `[system, image]` | A system and an image datastore with their default names | `Aux/PlatformStorage=system,image` |
-| `{system: fast_vms, image: golden_images}` | The system datastore `fast_vms` and the image datastore `golden_images` | `Aux/PlatformStorage=system,image`, `Aux/PlatformStorage/system/Name=fast_vms`, `Aux/PlatformStorage/image/Name=golden_images` |
+| Value | OpenNebula creates |
+|---|---|
+| `true` | The default datastores, a system and an image datastore |
+| `[system, image]` | A system and an image datastore with their default names |
+| `{system: fast_vms, image: golden_images}` | The system datastore `fast_vms` and the image datastore `golden_images` |
+| `{system: {name: fast_vms, BRIDGE_LIST: opennebula-1}}` | The system datastore `fast_vms` with the bridge list `opennebula-1` |
+| `false` or null | Nothing |
 
-An empty, whitespace-only, or null name in the dict selects the default name.
-This role checks only that each key is a non-empty string without `/`, `,`, or whitespace that does not read as a boolean, such as `yes` or `1`.
+An empty, whitespace-only, or null name selects the default name, and so does a dict without `name`.
+The other keys of the dict are options of the storage, the keys an entry of the list variable of the integration role takes, such as `opennebula_datastores`.
 The integration role of each platform fails on a key its platform does not use.
-
-On a rerun, the role updates the `Aux/PlatformStorage` properties of a listed resource group only when its entry sets the key:
-
-- `true`, a list, or a dict: the role writes the properties and removes the ones the value no longer sets, so removing a key or a name also clears it in LINSTOR.
-- `false`: the role removes every `Aux/PlatformStorage` property of the resource group.
-- No `platform_storage` key, or null: the role keeps the `Aux/PlatformStorage` properties, including ones set by hand or by another inventory.
 
 ### `resource_group_defaults` (role default)
 
