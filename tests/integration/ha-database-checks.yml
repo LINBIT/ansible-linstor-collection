@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: MIT
+---
+# HA database checks shared by the two passes of test_ha_database.yaml
+- name: Verify the HA database
+  hosts: linstor_cluster
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  vars:
+    _hadb_test_ssl: "{{ linstor_ssl | default(false) | bool }}"
+    _hadb_test_combined: "{{ groups['linstor_controllers'] | intersect(groups['linstor_satellites']) }}"
+    _hadb_test_addresses: >-
+      {%- set result = [] -%}
+      {%- for a in query('linbit.linstor.group_addresses', 'linstor_controllers') -%}
+        {%- set _ = result.append('[' ~ a ~ ']' if ':' in a else a) -%}
+      {%- endfor -%}
+      {{ result | sort }}
+  tasks:
+    - name: Assert the inventory has at least two combined nodes
+      ansible.builtin.assert:
+        that: _hadb_test_combined | length >= 2
+        fail_msg: >-
+          ha_database needs two or more hosts in both linstor_controllers and linstor_satellites,
+          the inventory has {{ _hadb_test_combined }}.
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: Wait for the LINSTOR controller to answer the control node
+      linbit.linstor.controller_info:
+      delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+      become: false
+      environment:
+        LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+      register: _hadb_test_controller
+      until: _hadb_test_controller is succeeded
+      retries: 30
+      delay: 2
+      run_once: true  # noqa: run-once[task]
+
+    - name: Assert the controller marks the cluster as HA
+      ansible.builtin.assert:
+        that: _hadb_test_controller.properties['Aux/ClusterIsHA'] | default('') == 'True'
+        fail_msg: Aux/ClusterIsHA is '{{ _hadb_test_controller.properties['Aux/ClusterIsHA'] | default('') }}', not True.
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: Read the LINSTOR controller service state
+      ansible.builtin.command:
+        argv: [systemctl, is-active, linstor-controller.service]
+      register: _hadb_test_service
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: inventory_hostname in _hadb_test_combined
+
+    - name: Record the active combined node
+      ansible.builtin.set_fact:
+        _hadb_test_active: >-
+          {{ _hadb_test_combined | map('extract', hostvars)
+             | selectattr('_hadb_test_service.rc', 'eq', 0)
+             | map(attribute='inventory_hostname') | list }}
+      run_once: true  # noqa: run-once[task]
+
+    - name: Assert exactly one combined node runs the LINSTOR controller
+      ansible.builtin.assert:
+        that: _hadb_test_active | length == 1
+        fail_msg: The LINSTOR controller runs on {{ _hadb_test_active }}, expected exactly one of {{ _hadb_test_combined }}.
+        quiet: true
+      run_once: true  # noqa: run-once[task]
+
+    - name: Read the HA database role and mount on the active node
+      when: inventory_hostname == _hadb_test_active[0]
+      block:
+        - name: Read the DRBD role of the HA database
+          ansible.builtin.command:
+            argv: [drbdadm, role, linstor_db]
+          register: _hadb_test_role
+          changed_when: false
+          check_mode: false
+
+        - name: Read the device mounted on /var/lib/linstor
+          ansible.builtin.command:
+            argv: [findmnt, --noheadings, --output, SOURCE, /var/lib/linstor]
+          register: _hadb_test_mount
+          changed_when: false
+          check_mode: false
+
+        - name: Assert the active node holds the HA database
+          ansible.builtin.assert:
+            that:
+              - _hadb_test_role.stdout | trim == 'Primary'
+              - _hadb_test_mount.stdout is search('drbd')
+            fail_msg: >-
+              linstor_db is {{ _hadb_test_role.stdout | trim }} on {{ inventory_hostname }},
+              and /var/lib/linstor is mounted from '{{ _hadb_test_mount.stdout | trim }}'.
+            quiet: true
+
+    - name: Read the system-wide LINSTOR client config
+      ansible.builtin.slurp:
+        src: /etc/linstor/linstor-client.conf
+      register: _hadb_test_etc_config
+
+    - name: Assert the system-wide client config lists every controller
+      ansible.builtin.assert:
+        that:
+          - _hadb_test_listed | map('regex_replace', '^linstor[+]ssl://', '') | sort == _hadb_test_addresses
+          - not _hadb_test_ssl or _hadb_test_listed | reject('match', 'linstor[+]ssl://') | list | length == 0
+        fail_msg: >-
+          /etc/linstor/linstor-client.conf on {{ inventory_hostname }} lists {{ _hadb_test_listed }},
+          expected {{ _hadb_test_addresses }}{{ ' with linstor+ssl://' if _hadb_test_ssl else '' }}.
+        quiet: true
+      vars:
+        _hadb_test_listed: >-
+          {{ ((_hadb_test_etc_config.content | b64decode).splitlines()
+              | select('match', 'controllers *=') | first | default('=')).split('=', 1)[1].split(',')
+             | map('trim') | reject('eq', '') | list }}
+
+    - name: Read the root LINSTOR client config on the controllers
+      when: inventory_hostname in groups['linstor_controllers']
+      block:
+        - name: Check for the root LINSTOR client config
+          ansible.builtin.stat:
+            path: /root/.config/linstor/linstor-client.conf
+          register: _hadb_test_root_config_stat
+
+        - name: Read the root LINSTOR client config
+          ansible.builtin.slurp:
+            src: /root/.config/linstor/linstor-client.conf
+          register: _hadb_test_root_config
+          when: _hadb_test_root_config_stat.stat.exists
+
+        - name: Assert the root client config lists every controller
+          ansible.builtin.assert:
+            that: _hadb_test_listed | map('regex_replace', '^linstor[+]ssl://', '') | sort == _hadb_test_addresses
+            fail_msg: >-
+              /root/.config/linstor/linstor-client.conf on {{ inventory_hostname }} lists
+              {{ _hadb_test_listed }}, expected {{ _hadb_test_addresses }}.
+            quiet: true
+          vars:
+            _hadb_test_listed: >-
+              {{ ((_hadb_test_root_config.content | b64decode).splitlines()
+                  | select('match', 'controllers *=') | first | default('=')).split('=', 1)[1].split(',')
+                 | map('trim') | reject('eq', '') | list }}
+          when: _hadb_test_root_config_stat.stat.exists
+
+    - name: Run the LINSTOR client as root on every combined node
+      ansible.builtin.command:
+        argv: [linstor, --no-color, node, list]
+      changed_when: false
+      check_mode: false
+      when: inventory_hostname in _hadb_test_combined

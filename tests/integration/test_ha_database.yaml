@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify a LINSTOR cluster after ha_database has converted it, then fail the
+# controller over once and verify again.
+#
+# Run against a deployed cluster with two or three combined nodes (hosts in both
+# linstor_controllers and linstor_satellites), whether it was built with several
+# controllers from the start or grew from one controller and was converted in
+# place. Pass the same linstor_ssl the deploy used:
+#   ansible-playbook -i <inventory> ./test_ha_database.yaml
+#   ansible-playbook -i <inventory> ./test_ha_database.yaml -e linstor_ssl=true
+#
+# Tests, before and after the failover:
+#   1. Aux/ClusterIsHA is True on the controller
+#   2. Exactly one combined node runs linstor-controller, with the linstor_db
+#      DRBD resource Primary and mounted on /var/lib/linstor
+#   3. /etc/linstor/linstor-client.conf lists every controller, with the
+#      linstor+ssl scheme when SSL is on, and no other address such as a VIP
+#   4. root's linstor-client.conf on the controllers lists every controller too
+#   5. root's linstor client reaches the active controller from every combined node
+#   6. The control node reaches the active controller through the API modules
+# The failover evicts linstor_db from the active node with drbd-reactorctl, and
+# another combined node must take over.
+
+- name: Verify the HA database before the failover
+  ansible.builtin.import_playbook: ha-database-checks.yml
+
+- name: Fail the LINSTOR controller over to another combined node
+  hosts: linstor_controllers
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Record the active node before the failover
+      ansible.builtin.set_fact:
+        _hadb_test_before: "{{ _hadb_test_active[0] }}"
+
+    # Returns once another node has promoted linstor_db, or fails after the delay
+    - name: Evict the HA database from the active node
+      ansible.builtin.command:
+        argv: [drbd-reactorctl, evict, --delay, '120', linstor_db]
+      when: inventory_hostname == _hadb_test_before
+      changed_when: true
+
+- name: Verify the HA database after the failover
+  ansible.builtin.import_playbook: ha-database-checks.yml
+
+- name: Verify the controller moved
+  hosts: linstor_controllers
+  any_errors_fatal: true
+  gather_facts: false
+  tasks:
+    - name: Assert another combined node runs the LINSTOR controller
+      ansible.builtin.assert:
+        that: _hadb_test_active[0] != _hadb_test_before
+        fail_msg: The LINSTOR controller still runs on {{ _hadb_test_before }} after the eviction.
+        quiet: true
+      run_once: true  # noqa: run-once[task]
