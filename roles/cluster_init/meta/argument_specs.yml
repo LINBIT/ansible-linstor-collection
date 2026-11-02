@@ -55,6 +55,7 @@ argument_specs:
         description:
           - Restrict REST API to clients with a valid certificate.
           - Requires O(cluster_init_ssl) to be true.
+          - Set O(cluster_init_token_auth) to false to use mTLS instead of token authentication.
       cluster_init_token_auth:
         type: bool
         default: true
@@ -63,3 +64,4 @@ argument_specs:
           - The C(auth_init) role gates on the controller's running version reported by the
             REST API and skips cleanly on controllers older than 1.34.0.
           - Set to false to disable.
+          - Must be false when O(cluster_init_ssl_mtls) is true.

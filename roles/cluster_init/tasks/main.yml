@@ -1,5 +1,17 @@
 # SPDX-License-Identifier: MIT
 ---
+# mTLS and token authentication are alternative ways to authenticate REST API clients
+- name: Assert mTLS and token authentication are not both enabled
+  tags: always
+  ansible.builtin.assert:
+    that: not (cluster_init_ssl_mtls | bool and cluster_init_token_auth | bool)
+    fail_msg: >-
+      cluster_init_ssl_mtls and cluster_init_token_auth are both true. Choose one authentication
+      method: set cluster_init_token_auth to false for mTLS, or cluster_init_ssl_mtls to false
+      for token authentication.
+    quiet: true
+  run_once: true  # noqa: run-once[task]
+
 - name: Configure LINBIT public repo
   tags:
     - linstor

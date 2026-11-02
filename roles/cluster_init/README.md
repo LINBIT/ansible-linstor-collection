@@ -37,7 +37,7 @@ The following inventory groups are used:
 | `cluster_init_deploy_resource_groups` | `true` | Create resource groups from the `linstor_resource_groups` inventory variable |
 | `cluster_init_ha_database` | `true` | Convert LINSTOR database to HA. Auto-skips unless at least 2 combined controller+satellite nodes and at least 3 total satellites exist |
 | `cluster_init_ssl` | `false` | Encrypt all LINSTOR communication (HTTPS REST API + satellite SSL) |
-| `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl`) |
+| `cluster_init_ssl_mtls` | `false` | Restrict REST API to clients with a valid certificate (requires `cluster_init_ssl: true` and `cluster_init_token_auth: false`) |
 | `cluster_init_token_auth` | `true` | Require token authentication for the REST API; the `auth_init` role is skipped on controllers older than version 1.34.0. Set to `false` to disable |
 
 When `cluster_init_deploy_storage` is enabled, the role includes `linbit.linstor.storage_pool` which reads the `linstor_storage_pools` inventory variable.

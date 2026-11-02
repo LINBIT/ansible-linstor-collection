@@ -1,0 +1,6 @@
+---
+bugfixes:
+  - >-
+    cluster_init - fails before making changes when ``cluster_init_ssl_mtls`` and
+    ``cluster_init_token_auth`` are both true, since mTLS and token authentication are
+    alternative ways to authenticate REST API clients.
