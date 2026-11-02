@@ -127,6 +127,31 @@
   run_once: true  # noqa: run-once[task]
   failed_when: false
 
+# A node whose certificate no longer covers its names and addresses, such as a satellite that
+# became a controller, gets a new certificate, and a new controller gets the HTTPS settings
+- name: Read the names and addresses the certificate of this node covers
+  ansible.builtin.command:
+    argv: [openssl, x509, -in, "{{ ssl_init_dir }}/node.crt", -noout, -ext, subjectAltName]
+  register: _ssl_init_node_san
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - _ssl_init_local_check.stat.exists
+    - ssl_init_generate_certs | bool
+
+- name: Read the HTTPS keystore setting of the controller
+  ansible.builtin.command:
+    argv: [grep, -E, '^ *keystore *=', /etc/linstor/linstor.toml]
+  register: _ssl_init_https_keystore
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - _ssl_init_local_check.stat.exists
+    - ssl_init_https | bool
+    - inventory_hostname in groups['linstor_controllers']
+
 - name: Set SSL already configured fact
   ansible.builtin.set_fact:
     _ssl_init_already_configured: >-
@@ -135,7 +160,11 @@
          _ssl_init_satellite_check is succeeded and
          _ssl_init_satellite_check.nodes | default([]) | length > 0 and
          _ssl_init_satellite_check.nodes[0].connection_status | default('') == 'ONLINE' and
-         _ssl_init_satellite_check.nodes[0].com_type | default('') == 'SSL' }}
+         _ssl_init_satellite_check.nodes[0].com_type | default('') == 'SSL' and
+         (not ssl_init_generate_certs | bool or
+          _ssl_init_san | linbit.linstor.san_missing(_ssl_init_node_san.stdout | default('')) | length == 0) and
+         (not ssl_init_https | bool or inventory_hostname not in groups['linstor_controllers'] or
+          _ssl_init_https_keystore.rc | default(1) == 0) }}
 
 - name: Initialize SSL/TLS
   ansible.builtin.include_tasks: initialize-ssl.yml

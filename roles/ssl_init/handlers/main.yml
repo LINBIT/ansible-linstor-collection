@@ -26,10 +26,11 @@
 # leaves other reactors racing to promote during the restart window.
 - name: Disable DRBD Reactor management of linstor-controller
   ansible.builtin.command: drbd-reactorctl disable {{ _ssl_init_reactor_resource }}
-  when:
-    - _ssl_init_reactor_resource is defined
-    - inventory_hostname in groups['linstor_controllers']
+  when: _ssl_init_reactor_resource is defined
+  loop: "{{ groups['linstor_controllers'] }}"
   changed_when: true
+  delegate_to: "{{ item }}"
+  run_once: true  # noqa: run-once[task]
   listen: ssl_controller_changed
 
 - name: Restart active controller for SSL
@@ -64,10 +65,11 @@
 
 - name: Re-enable DRBD Reactor management of linstor-controller
   ansible.builtin.command: drbd-reactorctl enable {{ _ssl_init_reactor_resource }}
-  when:
-    - _ssl_init_reactor_resource is defined
-    - inventory_hostname in groups['linstor_controllers']
+  when: _ssl_init_reactor_resource is defined
+  loop: "{{ groups['linstor_controllers'] }}"
   changed_when: true
+  delegate_to: "{{ item }}"
+  run_once: true  # noqa: run-once[task]
   listen: ssl_controller_changed
 
 - name: Check if node is already registered

@@ -130,6 +130,13 @@ argument_specs:
         default: TLSv1.3
         description:
           - TLS protocol version for satellite SSL connections.
+      linstor_ha_vip:
+        type: str
+        required: false
+        default: ""
+        description:
+          - Virtual IP of the HA controller, which C(linbit.linstor.ha_database) floats with the active controller.
+          - Added to the certificate of every controller, so clients that reach the controller through the VIP can verify it.
       linstor_api_delegate:
         type: str
         required: false
