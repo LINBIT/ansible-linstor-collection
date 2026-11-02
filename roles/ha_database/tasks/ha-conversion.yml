@@ -260,15 +260,3 @@
   environment:
     LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
   run_once: true  # noqa: run-once[task]
-
-# Update linstor-client.conf to use VIP on all cluster nodes
-- name: Update linstor-client.conf to use HA VIP
-  ansible.builtin.copy:
-    content: |
-      [global]
-      controllers={{ '[' ~ ha_database_vip ~ ']' if ':' in ha_database_vip else ha_database_vip }}
-    dest: /etc/linstor/linstor-client.conf
-    owner: root
-    group: root
-    mode: '0644'
-  when: ha_database_vip | default('') != ''

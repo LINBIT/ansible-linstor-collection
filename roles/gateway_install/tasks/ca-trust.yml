@@ -48,9 +48,7 @@
   ansible.builtin.command:
     argv: "{{ ['python3', '-c', _gw_cert_fetch_script] + _gw_controller_addrs }}"
   vars:
-    _gw_controller_addrs: >-
-      {{ ([linstor_ha_vip] if linstor_ha_vip | default('') != '' else [])
-         + query('linbit.linstor.group_addresses', 'linstor_controllers') }}
+    _gw_controller_addrs: "{{ query('linbit.linstor.group_addresses', 'linstor_controllers') }}"
     _gw_cert_fetch_script: |
       import socket, ssl, sys
       socket.setdefaulttimeout(5)

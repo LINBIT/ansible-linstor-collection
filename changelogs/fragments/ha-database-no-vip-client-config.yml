@@ -1,0 +1,7 @@
+---
+bugfixes:
+  - >-
+    ha_database - no longer overwrites ``/etc/linstor/linstor-client.conf`` with the HA controller
+    VIP alone, which dropped the HTTPS scheme and certificate paths ``ssl_init`` had written. The
+    file keeps the list of every LINSTOR controller that ``client_install`` writes, and the client
+    fails over across it on its own.
