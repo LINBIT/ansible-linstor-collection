@@ -41,7 +41,9 @@ options:
     description: >-
       LINSTOR node type.
       Defaults to C(Satellite) when creating a new node.
-      Omit when managing properties on existing nodes to avoid type mismatch warnings.
+      Changes the type of an existing node when it differs, for example a satellite that joins
+      the controllers as a C(Combined) node.
+      Omit to leave the type of an existing node as it is.
     type: str
     choices: [Controller, Satellite, Combined, Auxiliary]
   ip:
@@ -621,10 +623,11 @@ def main():
         existing_ip = get_node_ip(existing_node, netif_name)
 
         if existing_type and node_type and node_type.upper() != existing_type.upper():
-            module.warn(
-                "Node '%s' exists with type '%s' but '%s' was requested. "
-                "Node type cannot be changed after creation." % (
-                    name, existing_type, node_type))
+            if not module.check_mode:
+                replies = lin.node_modify(name, node_type=NODE_TYPE_MAP[node_type])
+                check_api_response(module, replies, 'change the type of node %s' % name)
+            existing_type = node_type
+            changed = True
 
         if existing_ip and ip and not same_ip(existing_ip, ip):
             module.warn(
@@ -641,8 +644,7 @@ def main():
                                   if existing_netif else None) or 3366
             modify_port = port
             if modify_port is None:
-                existing_type = get_node_type_str(existing_node).upper()
-                is_controller = existing_type == 'CONTROLLER'
+                is_controller = (existing_type or '').upper() == 'CONTROLLER'
                 if com_type == 'SSL':
                     # SSL: pure Controller=3371, Satellite/Combined=3367
                     modify_port = 3371 if is_controller else 3367
