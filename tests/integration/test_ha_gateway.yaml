@@ -161,17 +161,17 @@
   become: true
   vars:
     linstor_iscsi_targets:
-      - {name: gw-iscsi-plain, state: absent}
-      - {name: gw-iscsi-luks, state: absent}
-      - {name: gw-iscsi-rgvg, state: absent}
-      - {name: gw-clicreate, state: absent}
+      - { name: gw-iscsi-plain, state: absent }
+      - { name: gw-iscsi-luks, state: absent }
+      - { name: gw-iscsi-rgvg, state: absent }
+      - { name: gw-clicreate, state: absent }
     linstor_nfs_exports:
-      - {name: gw-nfs, state: absent}
-      - {name: gw-nfs-ganesha-a, state: absent}
-      - {name: gw-nfs-ganesha-b, state: absent}
+      - { name: gw-nfs, state: absent }
+      - { name: gw-nfs-ganesha-a, state: absent }
+      - { name: gw-nfs-ganesha-b, state: absent }
     linstor_nvmeof_targets:
-      - {name: gw-nvme-plain, state: absent}
-      - {name: gw-nvme-luks, state: absent}
+      - { name: gw-nvme-plain, state: absent }
+      - { name: gw-nvme-luks, state: absent }
   tasks:
     - name: Remove any leftover test gateway targets
       ansible.builtin.import_role:
@@ -461,7 +461,7 @@
           - "{{ _gw_ips[6] }}"
         implementation: ganesha
         exports:
-          - {path: /data, size: 100M}
+          - { path: /data, size: 100M }
         nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
       - name: gw-nfs-ganesha-b
@@ -469,8 +469,8 @@
           - "{{ _gw_ips[8] }}"
         implementation: ganesha
         exports:
-          - {path: /one, size: 100M}
-          - {path: /two, size: 100M}
+          - { path: /one, size: 100M }
+          - { path: /two, size: 100M }
         nodes: "{{ _gw_nodes }}"
         storage_pool: "{{ test_storage_pool | default('sp0') }}"
   tasks:
@@ -555,8 +555,8 @@
     - name: Delete one target per protocol with the linstor-gateway CLI
       ansible.builtin.command: "linstor-gateway {{ item.proto }} delete {{ item.id }} -f"
       loop:
-        - {proto: iscsi, id: "iqn.2026-06.com.linbit:gw-iscsi-luks"}
-        - {proto: nvme, id: "nqn.2026-06.io.linbit:nvme:gw-nvme-plain"}
+        - { proto: iscsi, id: "iqn.2026-06.com.linbit:gw-iscsi-luks" }
+        - { proto: nvme, id: "nqn.2026-06.io.linbit:nvme:gw-nvme-plain" }
       loop_control:
         label: "{{ item.proto }} delete {{ item.id }}"
       register: _cli_delete
@@ -671,17 +671,17 @@
   become: true
   vars:
     linstor_iscsi_targets:
-      - {name: gw-iscsi-plain, state: absent}
-      - {name: gw-iscsi-luks, state: absent}
-      - {name: gw-iscsi-rgvg, state: absent}
-      - {name: gw-clicreate, state: absent}
+      - { name: gw-iscsi-plain, state: absent }
+      - { name: gw-iscsi-luks, state: absent }
+      - { name: gw-iscsi-rgvg, state: absent }
+      - { name: gw-clicreate, state: absent }
     linstor_nfs_exports:
-      - {name: gw-nfs, state: absent}
-      - {name: gw-nfs-ganesha-a, state: absent}
-      - {name: gw-nfs-ganesha-b, state: absent}
+      - { name: gw-nfs, state: absent }
+      - { name: gw-nfs-ganesha-a, state: absent }
+      - { name: gw-nfs-ganesha-b, state: absent }
     linstor_nvmeof_targets:
-      - {name: gw-nvme-plain, state: absent}
-      - {name: gw-nvme-luks, state: absent}
+      - { name: gw-nvme-plain, state: absent }
+      - { name: gw-nvme-luks, state: absent }
   tasks:
     - name: Remove all test gateway targets
       ansible.builtin.import_role:

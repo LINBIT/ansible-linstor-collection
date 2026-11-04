@@ -30,7 +30,7 @@ DOCUMENTATION = '''
       options, C(service_ips) without prefixes, C(address) (the first service IP) and C(port).
     - "C(platform_storage) is C(true) for the defaults of the platform, C(false) or null for none,
       a list of keys, or a dict that maps each key to a name, or to a dict of a C(name) and
-      platform options, such as C({storage: {name: pve-nfs, content: iso}}). An empty,
+      platform options, such as C({ storage: { name: pve-nfs, content: iso } }). An empty,
       whitespace-only or null name selects the default name of the platform."
     - The filter checks only that form. It fails on an empty key, a key that is not a string or
       reads as a boolean, such as C(yes) or C(1), a name that is not a string, and a value of any
@@ -99,10 +99,10 @@ RETURN = '''
       - "C(platform_storage) is null when the entry does not set it, C(false), C(true) for the
         defaults of the platform, or a dict that maps each key to a name, with an empty name for the
         default name. For example, the input C([system, image]) returns
-        C({system: '', image: ''})."
+        C({ system: '', image: '' })."
       - "A key that maps to a dict keeps its options and gets C(name), empty for the default name.
-        For example, the input C({storage: {content: iso}}) returns
-        C({storage: {content: iso, name: ''}})."
+        For example, the input C({ storage: { content: iso } }) returns
+        C({ storage: { content: iso, name: '' } })."
       - "Select on C(platform_storage) to keep the targets that back platform storage. The
         C(mapping) test separates explicit keys from C(true), and null separates an entry
         without the key from one that sets C(false)."

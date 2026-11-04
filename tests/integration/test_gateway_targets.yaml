@@ -27,36 +27,36 @@
     iscsi:
       - name: web
         service_ips: [192.168.222.240/24]
-        volumes: [{size: 1G}]
+        volumes: [{ size: 1G }]
         platform_storage: 'yes'
       - name: database
         iqn: iqn.2026-06.com.example:db
         target_port: 3261
         service_ips: [192.168.222.241, 10.0.0.241/8]
-        volumes: [{size: 1G}]
+        volumes: [{ size: 1G }]
         state: absent
         platform_storage: false
     nfs:
       - name: nfs-shared
         service_ips: [192.168.222.242/24]
         exports:
-          - {size: 1G}
-          - {size: 1G, path: /data}
+          - { size: 1G }
+          - { size: 1G, path: /data }
         platform_storage: [system, image]
     nvmeof:
       - name: fast
         service_ips: [192.168.222.243/24]
-        volumes: [{size: 1G}]
-        platform_storage: {system: fast_vms, image: '  ', backup: null}
+        volumes: [{ size: 1G }]
+        platform_storage: { system: fast_vms, image: '  ', backup: null }
       - name: slow
         service_ips: [192.168.222.244/24]
-        volumes: [{size: 1G}]
+        volumes: [{ size: 1G }]
       - name: options
         service_ips: [192.168.222.245/24]
-        volumes: [{size: 1G}]
+        volumes: [{ size: 1G }]
         platform_storage:
-          storage: {name: ' pve-iso ', content: iso}
-          image: {content: images}
+          storage: { name: ' pve-iso ', content: iso }
+          image: { content: images }
           system: fast_vms
     iscsi_out: "{{ iscsi | linbit.linstor.gateway_targets('iscsi') }}"
     nfs_out: "{{ nfs | linbit.linstor.gateway_targets('nfs') }}"
@@ -162,13 +162,13 @@
           message: use a non-empty string
         - value: [1]
           message: use a non-empty string
-        - value: {system: 5}
+        - value: { system: 5 }
           message: has the invalid name
-        - value: {system: [a]}
+        - value: { system: [a] }
           message: has the invalid name
-        - value: {system: {name: 5}}
+        - value: { system: { name: 5 } }
           message: has the invalid name
-        - value: {system: {1: a}}
+        - value: { system: { 1: a } }
           message: has the invalid options
         - value: ['True']
           message: reads as a boolean
@@ -176,7 +176,7 @@
           message: reads as a boolean
         - value: ['1']
           message: reads as a boolean
-        - value: {'on': fast_vms}
+        - value: { 'on': fast_vms }
           message: reads as a boolean
       loop_control:
         loop_var: invalid

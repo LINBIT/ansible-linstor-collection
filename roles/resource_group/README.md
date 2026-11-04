@@ -41,7 +41,7 @@ Each item supports the following keys:
 | `properties` | no |  | LINSTOR properties to set on the resource group |
 | `drbd_options` | no |  | DRBD options by category (`resource`, `net`, `disk`, `peer_device`) |
 | `platform_storage` | no |  | The platform storage that the resource group backs, read by the integration roles, see below |
-| `volume_groups` | no | `[{volume_nr: 0}]` | Volume groups of the resource group, see below |
+| `volume_groups` | no | `[{ volume_nr: 0 }]` | Volume groups of the resource group, see below |
 
 The role passes every key other than `name`, `platform_storage`, and `volume_groups` to the `linbit.linstor.resource_group` module option of the same name.
 An omitted key takes that module's default, so the module documentation is the reference for each value.
@@ -66,8 +66,8 @@ These examples use the OpenNebula keys `system` and `image`:
 |---|---|
 | `true` | The default datastores, a system and an image datastore |
 | `[system, image]` | A system and an image datastore with their default names |
-| `{system: fast_vms, image: golden_images}` | The system datastore `fast_vms` and the image datastore `golden_images` |
-| `{system: {name: fast_vms, BRIDGE_LIST: opennebula-1}}` | The system datastore `fast_vms` with the bridge list `opennebula-1` |
+| `{ system: fast_vms, image: golden_images }` | The system datastore `fast_vms` and the image datastore `golden_images` |
+| `{ system: { name: fast_vms, BRIDGE_LIST: opennebula-1 } }` | The system datastore `fast_vms` with the bridge list `opennebula-1` |
 | `false` or null | Nothing |
 
 An empty, whitespace-only, or null name selects the default name, and so does a dict without `name`.
