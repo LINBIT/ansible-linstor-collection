@@ -21,21 +21,10 @@ galaxy_info:
         - "8"
         - "9"
         - "10"
-    - name: opensuse
-      versions:
-        - "15.0"
-        - "15.1"
-        - "15.2"
-        - "15.3"
-        - "15.4"
-        - "15.5"
-        # - "15.6"
+    # Also covers openSUSE Leap 16 (missing from ansible-lint schema list)
     - name: SLES
       versions:
-        - 15SP4
-        - 15SP5
-        - 15SP6
-        - 15SP7
+        - "16"
 
   min_ansible_version: '2.16'
 
