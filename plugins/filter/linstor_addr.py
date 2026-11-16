@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Filter plugin: resolve a host's LINSTOR-facing address."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: linstor_addr
   short_description: Resolve a host's LINSTOR-facing address from its hostvars

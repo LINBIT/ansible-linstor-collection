@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Filter plugin: build manual placement list for ha_gateway resources."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: gateway_placement
   short_description: Build the manual placement list for an ha_gateway resource

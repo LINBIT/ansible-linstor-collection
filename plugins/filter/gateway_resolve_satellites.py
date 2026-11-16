@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Filter plugin: split LINSTOR-reported nodes into diskful and diskless."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: gateway_resolve_satellites
   short_description: Resolve diskful and diskless satellites for ha_gateway autoplaced resources

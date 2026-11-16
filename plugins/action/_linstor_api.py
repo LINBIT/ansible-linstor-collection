@@ -35,8 +35,6 @@ it, so one inventory variable points every LINSTOR module at a per-inventory
 client configuration instead of the shared ``~/.config/linstor`` file. The
 path names a file on the control node, so a remote delegate never gets it.
 """
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
 
 from ansible.plugins.action.normal import ActionModule as NormalAction
 
@@ -66,7 +64,7 @@ class LinstorActionModule(NormalAction):
             if self._connection is not None:
                 self._connection.become = None
             self._set_config_file(task_vars or {})
-        return super(LinstorActionModule, self).run(tmp, task_vars)
+        return super().run(tmp, task_vars)
 
     def _set_config_file(self, task_vars):
         if self._task.args.get('config_file'):

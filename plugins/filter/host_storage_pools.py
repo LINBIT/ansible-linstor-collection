@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Filter plugin: select the storage pools from linstor_storage_pools that target a host."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: host_storage_pools
   short_description: Select the linstor_storage_pools entries that target a given host

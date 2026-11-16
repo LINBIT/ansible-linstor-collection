@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Shared parsing of the platform_storage key of resource groups and ha_gateway targets."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 from collections.abc import Mapping
 
 from ansible.errors import AnsibleFilterError

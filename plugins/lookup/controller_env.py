@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Lookup plugin: build LS_CONTROLLERS URI string from inventory context."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: controller_env
   short_description: Build an LS_CONTROLLERS URI string from inventory context

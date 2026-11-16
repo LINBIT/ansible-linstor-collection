@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Filter plugin: normalize ha_gateway target lists with the names and addresses clients use."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 import re
 
 from ansible.errors import AnsibleFilterError

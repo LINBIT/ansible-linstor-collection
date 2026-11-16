@@ -5,9 +5,6 @@
 # The rest of the linbit.* collections remain MIT-licensed.
 """Lookup plugin: resolve LINSTOR-facing addresses for every host in a group."""
 
-from __future__ import absolute_import, division, print_function
-__metaclass__ = type
-
 DOCUMENTATION = '''
   name: group_addresses
   short_description: Resolve LINSTOR-facing addresses for every host in an Ansible group
