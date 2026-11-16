@@ -100,17 +100,17 @@ sanity:ansible-2.16:
   variables:
     ANSIBLE_CORE_SPEC: ">=2.16,<2.17"
 
-sanity:ansible-2.18:
-  <<: *sanity_template
-  image: python:3.13-slim
-  variables:
-    ANSIBLE_CORE_SPEC: ">=2.18,<2.19"
-
 sanity:ansible-2.20:
   <<: *sanity_template
   image: python:3.13-slim
   variables:
     ANSIBLE_CORE_SPEC: ">=2.20,<2.21"
+
+sanity:ansible-2.22:
+  <<: *sanity_template
+  image: python:3.13-slim
+  variables:
+    ANSIBLE_CORE_SPEC: ">=2.22,<2.23"
 
 # The docs come only from plugin docs, role argument specs and collection metadata
 .docs_rules: &docs_rules
