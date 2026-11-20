@@ -19,6 +19,7 @@ The following inventory group must be defined:
 | `satellite_install_package_state` | `present` | Package state for LINSTOR satellite packages; set `latest` to check for upgrades |
 | `linstor_install_version` | `""` | Pin `linstor-satellite` and `linstor-common` to a version, for example `1.33.3`, and lock them against upgrades; shared with `controller_install` for lockstep, empty installs newest |
 | `satellite_install_zfs` | `false` | Install ZFS on Debian (non-Ubuntu/Proxmox), Red Hat, and SUSE nodes (see [ZFS Support](#zfs-support)) |
+| `satellite_install_vdo` | `false` | Install the VDO tools and kernel module for VDO thin pools (see [VDO support](#vdo-support)) |
 | `satellite_install_firewall_rules` | `true` | Manage firewall rules for LINSTOR satellite ports; set `false` to skip |
 | `satellite_install_firewalld_zone` | `""` | firewalld zone to open the LINSTOR satellite ports in; empty uses the default zone, set it when a zone is bound to a source; ignored by UFW |
 | `satellite_install_firewall_ports` | `3366-3367/tcp`, `7000-8000/tcp` | Ports to open in firewalld or UFW for the LINSTOR satellite |
@@ -60,9 +61,15 @@ Ubuntu and Proxmox VE always have ZFS available with no flag required:
 For all other distributions, set `satellite_install_zfs: true` to include the [`linbit.common.zfs_install`](https://gitlab.at.linbit.com/ansible-collections/linbit.common/-/tree/main/roles/zfs_install) role.
 See that role's documentation for the per-distribution installation methods (Debian DKMS, Red Hat kmod and UEK DKMS, SUSE filesystems repository).
 
+## VDO support
+
+Set `satellite_install_vdo: true` to include the [`linbit.common.vdo_install`](https://gitlab.at.linbit.com/ansible-collections/linbit.common/-/tree/main/roles/vdo_install) role.
+It installs the VDO userspace tools and loads the VDO kernel module, which the [`storage_pool`](../storage_pool/README.md#vdo-thin-pools) role needs for `lvmthin` pools with `vdo: true`.
+See the `linbit.common.vdo_install` role documentation for the supported distributions and kernels.
+
 ## Dependencies
 
-`linbit.drbd.drbd_install`, `linbit.linstor.client_install`; includes `linbit.common.zfs_install` when `satellite_install_zfs: true`
+`linbit.drbd.drbd_install`, `linbit.linstor.client_install`; includes `linbit.common.zfs_install` when `satellite_install_zfs: true` and `linbit.common.vdo_install` when `satellite_install_vdo: true`
 
 ## Example playbook
 

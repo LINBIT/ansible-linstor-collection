@@ -22,7 +22,7 @@ argument_specs:
             Each item supports keys: C(name) (required), C(type), C(vg), C(vg_thinpool), C(zpool),
             C(wss), C(physical_devices), C(file_path), C(thinpool_size), C(pv_create_options),
             C(lv_create_options), C(zfs_create_options), C(zpool_vdev_type), C(zpool_properties),
-            C(vdevs), C(wipefs_force).
+            C(vdevs), C(wipefs_force), C(vdo), C(vdo_logical_size), C(vdo_slab_size).
           - >-
             C(vdevs) (zfs and zfsthin) is an optional list of additional vdevs appended to the pool at
             creation time, each a dict with C(disks) (required), optional C(type), and optional C(role)
@@ -35,6 +35,20 @@ argument_specs:
             SerialNumber, or UniqueId. Listed disks carrying old partitions are cleared before
             pooling; boot and system disks are refused. The thick and thin distinction lives in
             the LINSTOR driver, not in the pool.
+          - >-
+            C(vdo) (lvmthin only) builds the thin pool on an LVM VDO volume, which deduplicates and
+            compresses the data of every LINSTOR volume in the pool. The role creates the VDO volume
+            with C(thinpool_size) as its physical size and C(vdo_logical_size) as its logical size,
+            then converts it into the thin pool. The node needs LVM 2.03.24 or newer, C(vdoformat),
+            and the C(dm-vdo) or C(kvdo) kernel module. C(satellite_install_vdo) in
+            C(linbit.linstor.satellite_install) installs C(vdoformat) and the kernel module.
+          - >-
+            C(vdo_logical_size) is the thin pool size that LINSTOR reports, for example C(100G).
+            C(vdo_slab_size) is the VDO slab size, a power of two from C(128M) to C(32G). As in
+            C(linstor physical-storage create-device-pool), an empty value keeps the LVM default,
+            which for the logical size is the largest size that fits the physical size without
+            deduplication or compression. Set the logical size larger than the physical size to use
+            the space that deduplication and compression save.
           - >-
             C(type: diskless) registers a custom diskless pool. The role creates no storage on the
             node, so C(physical_devices) is not required.

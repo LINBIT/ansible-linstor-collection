@@ -32,7 +32,8 @@
     _pools_to_create: >-
       {{ _pools_to_create +
          [_check._pool | combine({
-           '_type': _check._pool.type | default(storage_pool_defaults.type)
+           '_type': _check._pool.type | default(storage_pool_defaults.type),
+           '_vdo': _check._pool.vdo | default(storage_pool_defaults.vdo | default(false)) | bool
          })] }}
   when:
     - _storage_pool_has_pools | bool
@@ -124,6 +125,21 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: Assert VDO keys are only used on VDO lvmthin pools
+  ansible.builtin.assert:
+    that:
+      - not item._vdo or item._type == 'lvmthin'
+      - item._vdo or (item.vdo_logical_size | default('') | string | length == 0
+        and item.vdo_slab_size | default('') | string | length == 0)
+    fail_msg: >-
+      Storage pool '{{ item.name }}': vdo is only supported on type 'lvmthin',
+      and vdo_logical_size and vdo_slab_size need vdo: true
+    quiet: true
+  when: _storage_pool_has_pools | bool
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # --- ZFS prerequisites ---
 
 - name: Check for ZFS
@@ -144,6 +160,66 @@
     - _storage_pool_has_pools | bool
     - _pools_to_create | default([]) | selectattr('_type', 'in', ['zfs', 'zfsthin']) | list | length > 0
     - not (_storage_pool_zfs_check.stat.exists | default(true))
+
+# --- VDO prerequisites ---
+
+# LVM runs vdoformat from this path (lvm.conf global/vdo_format_executable)
+- name: Check for vdoformat
+  ansible.builtin.stat:
+    path: /usr/bin/vdoformat
+  when: _storage_pool_has_vdo_pools | bool
+  register: _storage_pool_vdoformat_check
+
+- name: Check for the VDO kernel module
+  ansible.builtin.shell:
+    cmd: modinfo dm-vdo || modinfo kvdo
+  when: _storage_pool_has_vdo_pools | bool
+  register: _storage_pool_vdo_module_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Halt if VDO is not installed
+  ansible.builtin.fail:
+    msg: >-
+      VDO is not installed
+      ({{ (([] if _storage_pool_vdoformat_check.stat.exists else ['/usr/bin/vdoformat not found'])
+          + ([] if _storage_pool_vdo_module_check.rc == 0 else ['no dm-vdo or kvdo kernel module']))
+          | join(', ') }}).
+      Install VDO for VDO-backed storage pools, or set
+      `satellite_install_vdo: true` in linbit.linstor.satellite_install.
+  when:
+    - _storage_pool_has_vdo_pools | bool
+    - not _storage_pool_vdoformat_check.stat.exists or _storage_pool_vdo_module_check.rc != 0
+
+- name: Read the LVM version
+  ansible.builtin.command:
+    cmd: lvm version
+  when: _storage_pool_has_vdo_pools | bool
+  register: _storage_pool_lvm_version
+  changed_when: false
+  check_mode: false
+
+- name: List the LVM segment types
+  ansible.builtin.command:
+    cmd: lvm segtypes
+  when: _storage_pool_has_vdo_pools | bool
+  register: _storage_pool_lvm_segtypes
+  changed_when: false
+  check_mode: false
+
+- name: Halt if LVM cannot build a thin pool on VDO
+  ansible.builtin.fail:
+    msg: >-
+      LVM {{ _lvm_version }} cannot build a thin pool on VDO.
+      It needs LVM 2.03.24 or newer, built with VDO support (vdo in `lvm segtypes`).
+  vars:
+    _lvm_version_line: "{{ _storage_pool_lvm_version.stdout_lines | select('search', 'LVM version') | first }}"
+    _lvm_version: "{{ _lvm_version_line.split(':')[1] | trim | split('(') | first }}"
+  when:
+    - _storage_pool_has_vdo_pools | bool
+    - _lvm_version is version('2.03.24', '<')
+      or 'vdo' not in (_storage_pool_lvm_segtypes.stdout_lines | map('trim') | list)
 
 # --- Create storage backends ---
 # Each type file loops internally over the relevant pools from _pools_to_create.

@@ -10,6 +10,9 @@ satellite_install_package_state: present
 # Proxmox VE ships ZFS out of the box, no additional packages needed.
 satellite_install_zfs: false
 
+# linbit.common.vdo_install, for lvmthin storage pools with vdo: true
+satellite_install_vdo: false
+
 satellite_install_firewall_rules: true
 
 # firewalld zone for the ports below. Empty uses the default zone

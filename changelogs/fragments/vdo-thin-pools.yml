@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    satellite_install - new ``satellite_install_vdo`` toggle includes the ``linbit.common.vdo_install``
+    role to install the VDO userspace tools and load the VDO kernel module.
+  - >-
+    storage_pool - new ``vdo``, ``vdo_logical_size``, and ``vdo_slab_size`` keys for ``lvmthin``
+    pools build the thin pool on an LVM VDO volume, which deduplicates and compresses the data of
+    every LINSTOR volume in the pool. The role halts before it creates storage when the node lacks
+    ``vdoformat``, the VDO kernel module, or LVM 2.03.24 or newer.

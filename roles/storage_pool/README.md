@@ -47,6 +47,9 @@ Each item supports the following keys:
 | `zpool_properties` | no | `{}` | zfs, zfsthin |
 | `vdevs` | no | `[]` | zfs, zfsthin |
 | `wipefs_force` | no | `false` | lvm, lvmthin, zfs, zfsthin |
+| `vdo` | no | `false` | lvmthin |
+| `vdo_logical_size` | no | `""` | lvmthin with `vdo: true` |
+| `vdo_slab_size` | no | `""` | lvmthin with `vdo: true` |
 | `nodes` | no |  | all (targeting) |
 | `groups` | no |  | all (targeting) |
 
@@ -80,6 +83,9 @@ The `physical_devices` and `zpool_vdev_type` keys remain the pool's data vdev an
 
 By default, `wipefs` only runs on backing disks when the volume group or zpool does not yet exist.
 Set `wipefs_force: true` to always wipe disk signatures, even on subsequent runs.
+
+`vdo: true` builds an `lvmthin` pool on an LVM VDO volume, which deduplicates and compresses the data of every LINSTOR volume in the pool.
+See [VDO thin pools](#vdo-thin-pools).
 
 `wss` is the Windows Storage Spaces pool friendly name, the volume group analogue on Windows satellites.
 The role creates the Storage Spaces pool from the `physical_devices` entries, which match a disk's `DeviceId` (the disk number), `SerialNumber`, or `UniqueId`.
@@ -323,6 +329,68 @@ linstor_storage_pools:
 ```
 
 Entries match a disk's `DeviceId` (as shown by `Get-PhysicalDisk`), `SerialNumber`, or `UniqueId`.
+
+### VDO thin pools
+
+Set `vdo: true` on an `lvmthin` pool to place the thin pool data on an LVM VDO volume:
+
+```yaml
+# group_vars/all/storage.yaml
+linstor_storage_pools:
+  - name: sp-vdo
+    type: lvmthin
+    vg: vdopool
+    vg_thinpool: thinpool
+    vdo: true
+    physical_devices:
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+```
+
+The role creates the volume group as for any `lvmthin` pool.
+It then creates a VDO volume named after `vg_thinpool`, with `thinpool_size` as its physical size, and converts it into the thin pool.
+The result matches what `linstor physical-storage create-device-pool --vdo-enable` builds for an LVM thin pool.
+
+Without `vdo_logical_size`, the thin pool is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
+LINSTOR counts every write against the thin pool, so data that VDO deduplicates or compresses still uses its full size of LINSTOR capacity.
+
+Set `vdo_logical_size` larger than the physical size to let LINSTOR use the space that deduplication and compression save.
+For a 4 TB disk and data that VDO reduces to a third of its size, set it to `12T`.
+
+```yaml
+# group_vars/all/storage.yaml
+linstor_storage_pools:
+  - name: sp-vdo
+    type: lvmthin
+    vg: vdopool
+    vg_thinpool: thinpool
+    vdo: true
+    vdo_logical_size: 12T
+    physical_devices:
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+```
+
+> [!IMPORTANT]
+> With a logical size larger than the physical size, VDO can run out of physical space while LINSTOR still reports free capacity in the pool.
+> Writes that need new physical space then fail on every volume in the pool.
+> Monitor the VDO volume with `lvs -o name,data_percent,vdo_saving_percent vdopool`.
+
+`vdo_logical_size` and `vdo_slab_size` work as in `linstor physical-storage create-device-pool`: the role passes each one to LVM only when you set it, and an empty value keeps the LVM default.
+
+`vdo_slab_size` sets the VDO slab size, a power of two from `128M` to `32G`.
+A smaller slab suits a small backing disk, and the VDO volume grows in steps of one slab.
+`lv_create_options`, or the automatic striping across several `physical_devices`, applies to the VDO volume.
+
+The node needs:
+
+- LVM 2.03.24 or newer, built with VDO support, which is the first release that converts a VDO volume into a thin pool
+- `vdoformat` at `/usr/bin/vdoformat`
+- the `dm-vdo` kernel module (Linux 6.9 and newer), or `kvdo` on older Enterprise Linux kernels
+
+Set `satellite_install_vdo: true` in [`linbit.linstor.satellite_install`](../satellite_install/README.md) to install `vdoformat` and the VDO kernel module.
+The role halts before it creates storage when a node lacks any of these requirements.
+
+The role does not change an existing pool: `vdo`, `vdo_logical_size`, and `vdo_slab_size` only take effect when the role creates the thin pool.
+It refuses to use a `vg_thinpool` name that already belongs to a volume without VDO.
 
 ### Custom diskless pools
 

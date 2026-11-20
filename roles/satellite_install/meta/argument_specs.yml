@@ -60,6 +60,19 @@ argument_specs:
           - >-
             LINBIT does not support ZFS on non-Debian family operating systems, use for testing purposes or
             at your own risk.
+      satellite_install_vdo:
+        type: bool
+        default: false
+        description:
+          - >-
+            Install the VDO userspace tools and load the VDO kernel module by including the
+            C(linbit.common.vdo_install) role.
+          - >-
+            Needed for C(lvmthin) storage pools with C(vdo: true) in the C(linbit.linstor.storage_pool)
+            role.
+          - >-
+            The C(linbit.common.vdo_install) role fails on a distribution or kernel without VDO support,
+            and its documentation lists the supported ones.
       satellite_install_packages:
         type: list
         elements: str

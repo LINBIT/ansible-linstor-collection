@@ -12,6 +12,9 @@ storage_pool_defaults:
   zpool_properties: {}
   vdevs: []
   wipefs_force: false
+  vdo: false
+  vdo_logical_size: ""
+  vdo_slab_size: ""
 
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint

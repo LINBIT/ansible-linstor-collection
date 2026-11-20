@@ -44,6 +44,11 @@
         name: linbit.common.zfs_install
       when: satellite_install_zfs | bool
 
+    - name: Install VDO
+      ansible.builtin.include_role:
+        name: linbit.common.vdo_install
+      when: satellite_install_vdo | bool
+
     - name: Install satellite prerequisites
       ansible.builtin.package:
         name: "{{ _satellite_install_prereqs }}"
