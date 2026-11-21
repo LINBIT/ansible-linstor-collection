@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+minor_changes:
+  - >-
+    storage_pool - new ``raid`` key (``raid1``, ``raid5``, ``raid6``, or ``raid10``) for ``lvmthin``
+    pools, with or without VDO, builds the thin pool data on LVM RAID across ``physical_devices``.
+    The role derives the LVM options from the number of devices and scales a percentage
+    ``thinpool_size`` for the parity of ``raid5`` and ``raid6``.

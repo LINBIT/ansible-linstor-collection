@@ -33,7 +33,8 @@
       {{ _pools_to_create +
          [_check._pool | combine({
            '_type': _check._pool.type | default(storage_pool_defaults.type),
-           '_vdo': _check._pool.vdo | default(storage_pool_defaults.vdo | default(false)) | bool
+           '_vdo': _check._pool.vdo | default(storage_pool_defaults.vdo | default(false)) | bool,
+           '_raid': _check._pool.raid | default(storage_pool_defaults.raid | default('')) | string | lower
          })] }}
   when:
     - _storage_pool_has_pools | bool
@@ -135,6 +136,24 @@
       Storage pool '{{ item.name }}': vdo is only supported on type 'lvmthin',
       and vdo_logical_size and vdo_slab_size need vdo: true
     quiet: true
+  when: _storage_pool_has_pools | bool
+  loop: "{{ _pools_to_create | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Assert RAID settings fit the pool
+  ansible.builtin.assert:
+    that:
+      - item._raid in ['', 'raid1', 'raid5', 'raid6', 'raid10']
+      - item._raid == '' or item._type == 'lvmthin'
+      - item._raid == '' or item.physical_devices | length >= _min_devices.get(item._raid, 0)
+      - item._raid != 'raid10' or item.physical_devices | length is even
+    fail_msg: >-
+      Storage pool '{{ item.name }}': raid takes raid1 (2 or more physical_devices), raid5 (3 or more),
+      raid6 (5 or more), or raid10 (an even number, 4 or more), on type 'lvmthin'
+    quiet: true
+  vars:
+    _min_devices: { raid1: 2, raid5: 3, raid6: 5, raid10: 4 }
   when: _storage_pool_has_pools | bool
   loop: "{{ _pools_to_create | default([]) }}"
   loop_control:

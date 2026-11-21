@@ -22,7 +22,7 @@ argument_specs:
             Each item supports keys: C(name) (required), C(type), C(vg), C(vg_thinpool), C(zpool),
             C(wss), C(physical_devices), C(file_path), C(thinpool_size), C(pv_create_options),
             C(lv_create_options), C(zfs_create_options), C(zpool_vdev_type), C(zpool_properties),
-            C(vdevs), C(wipefs_force), C(vdo), C(vdo_logical_size), C(vdo_slab_size).
+            C(vdevs), C(wipefs_force), C(vdo), C(vdo_logical_size), C(vdo_slab_size), C(raid).
           - >-
             C(vdevs) (zfs and zfsthin) is an optional list of additional vdevs appended to the pool at
             creation time, each a dict with C(disks) (required), optional C(type), and optional C(role)
@@ -49,6 +49,14 @@ argument_specs:
             which for the logical size is the largest size that fits the physical size without
             deduplication or compression. Set the logical size larger than the physical size to use
             the space that deduplication and compression save.
+          - >-
+            C(raid) (lvmthin only) stores the thin pool data on LVM RAID across all
+            C(physical_devices): C(raid1) (2 or more devices), C(raid5) (3 or more), C(raid6) (5 or
+            more), or C(raid10) (4 or more, an even number). The role derives the LVM options from the
+            number of devices and appends C(lv_create_options). For C(raid5) and C(raid6), it scales a
+            percentage C(thinpool_size) by the share of data devices, because LVM applies the
+            percentage to the data and adds the parity on top. With C(vdo), the VDO volume sits on
+            the RAID volume.
           - >-
             C(type: diskless) registers a custom diskless pool. The role creates no storage on the
             node, so C(physical_devices) is not required.

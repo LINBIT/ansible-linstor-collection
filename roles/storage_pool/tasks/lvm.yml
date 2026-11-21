@@ -58,6 +58,104 @@
   loop_control:
     label: "{{ item.name }}"
 
+# lvol cannot build a thin pool on VDO or RAID, and would resize a converted pool on reruns
+- name: List logical volumes for VDO and RAID thin pools
+  ansible.builtin.command:
+    cmd: lvs --all --noheadings --separator , --options lv_name,segtype {{ item.vg }}
+  register: _storage_pool_convert_lvs
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: >-
+    {{ (_lvmthin_pools | selectattr('_vdo') | list)
+       + (_lvmthin_pools | rejectattr('_vdo') | rejectattr('_raid', 'equalto', '') | list) }}
+  vars:
+    _lvmthin_pools: "{{ _pools_to_create | selectattr('_type', 'equalto', 'lvmthin') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Initialize VDO and RAID thin pool list
+  ansible.builtin.set_fact:
+    _storage_pool_convert_thinpools: []
+
+- name: Build VDO and RAID thin pool list
+  ansible.builtin.set_fact:
+    _storage_pool_convert_thinpools: >-
+      {{ _storage_pool_convert_thinpools + [item.item | combine({
+           '_thinpool': _thinpool,
+           '_segtype': _segtypes.get(_thinpool, ''),
+           '_data_segtype': _segtypes.get(_thinpool ~ '_tdata', ''),
+           '_pool_segtype': _segtypes.get(_thinpool ~ '_vpool0', ''),
+           '_vdata_segtype': _segtypes.get(_thinpool ~ '_vpool0_vdata', ''),
+           '_size_opts': ('--extents ' if '%' in _scaled_size else '--size ') ~ _scaled_size,
+           '_vdo_opts': [_logical_size_opt, _slab_size_opt] | select | join(' '),
+           '_lv_opts': ([_raid_opts, _custom_opts] | select | join(' ')) if item.item._raid else (_custom_opts or _stripe_opts)
+         })] }}
+  vars:
+    _thinpool: "{{ item.item.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
+    _segtypes: "{{ dict(item.stdout_lines | map('trim') | map('replace', '[', '') | map('replace', ']', '') | map('split', ',')) }}"
+    _size: "{{ item.item.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
+    _logical_size: "{{ item.item.vdo_logical_size | default(storage_pool_defaults.vdo_logical_size | default('')) | string }}"
+    _logical_size_opt: "{{ ('--virtualsize ' ~ _logical_size) if _logical_size | length > 0 else '' }}"
+    _slab_size: "{{ item.item.vdo_slab_size | default(storage_pool_defaults.vdo_slab_size | default('')) | string }}"
+    _slab_size_opt: "{{ ('--vdosettings slab_size_mb=' ~ ((_slab_size | human_to_bytes) // 1048576)) if _slab_size | length > 0 else '' }}"
+    _custom_opts: "{{ (item.item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
+    _stripe_opts: "{{ ('-i ' ~ (item.item.physical_devices | length | string) ~ ' -I 64') if item.item.physical_devices | length > 1 else '' }}"
+    _devices: "{{ item.item.physical_devices | length }}"
+    _raid_opts: >-
+      {{ {'raid1': '--type raid1 -m ' ~ (_devices | int - 1),
+          'raid5': '--type raid5 -i ' ~ (_devices | int - 1),
+          'raid6': '--type raid6 -i ' ~ (_devices | int - 2),
+          'raid10': '--type raid10 -i ' ~ (_devices | int // 2) ~ ' -m 1'}.get(item.item._raid, '') }}
+    _parity: "{{ {'raid5': 1, 'raid6': 2}.get(item.item._raid, 0) }}"
+    _scaled_size: >-
+      {{ ((_size.split('%')[0] | int * (_devices | int - _parity | int) // _devices | int) ~ '%' ~ _size.split('%')[1])
+         if _parity | int > 0 and _size is match('^[0-9]+%') else _size }}
+  loop: "{{ _storage_pool_convert_lvs.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Refuse a VDO thin pool name taken by a volume without VDO
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.vg }}/{{ item._thinpool }} already exists as {{ item._segtype }} without VDO.
+      Remove it, or set another vg_thinpool for storage pool '{{ item.name }}'.
+  when:
+    - item._vdo
+    - item._segtype not in ['', 'vdo']
+    - item._segtype != 'thin-pool' or item._data_segtype != 'vdo'
+  loop: "{{ _storage_pool_convert_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Refuse a VDO thin pool on another RAID level
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.vg }}/{{ item._thinpool }} already exists with VDO on {{ _vdo_data_segtype }}, not {{ item._raid }}.
+      Remove it, or set another vg_thinpool for storage pool '{{ item.name }}'.
+  when:
+    - item._vdo
+    - item._raid != ''
+    - _vdo_data_segtype not in ['', item._raid]
+  vars:
+    _vdo_data_segtype: "{{ item._vdata_segtype if item._pool_segtype == 'vdo-pool' else item._pool_segtype }}"
+  loop: "{{ _storage_pool_convert_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Refuse a RAID thin pool name taken by another volume
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.vg }}/{{ item._thinpool }} already exists and is not a {{ item._raid }} volume or thin pool.
+      Remove it, or set another vg_thinpool for storage pool '{{ item.name }}'.
+  when:
+    - not item._vdo
+    - item._segtype not in ['', item._raid]
+    - item._segtype != 'thin-pool' or item._data_segtype != item._raid
+  loop: "{{ _storage_pool_convert_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # Stripe volumes by default when more than 1 device exists.
 # Each vars expression uses a single {{ }} output to avoid jinja2_native
 # returning None for empty >- block scalar templates.
@@ -77,65 +175,8 @@
     {{ _pools_to_create
        | selectattr('_type', 'equalto', 'lvmthin')
        | rejectattr('_vdo')
+       | selectattr('_raid', 'equalto', '')
        | list }}
-  loop_control:
-    label: "{{ item.name }}"
-
-# lvol cannot convert a VDO volume into a thin pool, and would resize the converted pool on reruns
-- name: List logical volumes for VDO thin pools
-  ansible.builtin.command:
-    cmd: lvs --all --noheadings --separator , --options lv_name,segtype {{ item.vg }}
-  register: _storage_pool_vdo_lvs
-  changed_when: false
-  failed_when: false
-  check_mode: false
-  loop: >-
-    {{ _pools_to_create
-       | selectattr('_type', 'equalto', 'lvmthin')
-       | selectattr('_vdo')
-       | list }}
-  loop_control:
-    label: "{{ item.name }}"
-
-- name: Initialize VDO thin pool list
-  ansible.builtin.set_fact:
-    _storage_pool_vdo_thinpools: []
-
-- name: Build VDO thin pool list
-  ansible.builtin.set_fact:
-    _storage_pool_vdo_thinpools: >-
-      {{ _storage_pool_vdo_thinpools + [item.item | combine({
-           '_thinpool': _thinpool,
-           '_segtype': _segtypes.get(_thinpool, ''),
-           '_data_segtype': _segtypes.get(_thinpool ~ '_tdata', ''),
-           '_pool_segtype': _segtypes.get(_thinpool ~ '_vpool0', ''),
-           '_size_opts': ('--extents ' if '%' in _size else '--size ') ~ _size,
-           '_vdo_opts': [_logical_size_opt, _slab_size_opt] | select | join(' '),
-           '_lv_opts': _custom_opts or _stripe_opts
-         })] }}
-  vars:
-    _thinpool: "{{ item.item.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
-    _segtypes: "{{ dict(item.stdout_lines | map('trim') | map('replace', '[', '') | map('replace', ']', '') | map('split', ',')) }}"
-    _size: "{{ item.item.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
-    _logical_size: "{{ item.item.vdo_logical_size | default(storage_pool_defaults.vdo_logical_size | default('')) | string }}"
-    _logical_size_opt: "{{ ('--virtualsize ' ~ _logical_size) if _logical_size | length > 0 else '' }}"
-    _slab_size: "{{ item.item.vdo_slab_size | default(storage_pool_defaults.vdo_slab_size | default('')) | string }}"
-    _slab_size_opt: "{{ ('--vdosettings slab_size_mb=' ~ ((_slab_size | human_to_bytes) // 1048576)) if _slab_size | length > 0 else '' }}"
-    _custom_opts: "{{ (item.item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
-    _stripe_opts: "{{ ('-i ' ~ (item.item.physical_devices | length | string) ~ ' -I 64') if item.item.physical_devices | length > 1 else '' }}"
-  loop: "{{ _storage_pool_vdo_lvs.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-
-- name: Refuse a VDO thin pool name taken by a volume without VDO
-  ansible.builtin.fail:
-    msg: >-
-      {{ item.vg }}/{{ item._thinpool }} already exists as {{ item._segtype }} without VDO.
-      Remove it, or set another vg_thinpool for storage pool '{{ item.name }}'.
-  when:
-    - item._segtype not in ['', 'vdo']
-    - item._segtype != 'thin-pool' or item._data_segtype != 'vdo'
-  loop: "{{ _storage_pool_vdo_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -145,10 +186,11 @@
       lvcreate --yes --type vdo --name {{ item._thinpool }} --vdopool {{ item._thinpool }}_vpool0
       {{ item._size_opts }} {{ item._vdo_opts }} {{ item.vg }}
   when:
+    - item._vdo
     - item._segtype == ''
     - item._lv_opts == ''
   changed_when: true
-  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop: "{{ _storage_pool_convert_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -159,11 +201,12 @@
       lvcreate --yes --name {{ item._thinpool }}_vpool0
       {{ item._size_opts }} {{ item._lv_opts }} {{ item.vg }}
   when:
+    - item._vdo
     - item._segtype == ''
     - item._lv_opts != ''
     - item._pool_segtype == ''
   changed_when: true
-  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop: "{{ _storage_pool_convert_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -173,19 +216,35 @@
       lvconvert --yes --type vdo-pool --name {{ item._thinpool }}
       {{ item._vdo_opts }} {{ item.vg }}/{{ item._thinpool }}_vpool0
   when:
+    - item._vdo
     - item._segtype == ''
     - item._lv_opts != ''
   changed_when: true
-  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop: "{{ _storage_pool_convert_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Convert VDO volume to LINSTOR thin pool
+- name: Create RAID volume for LINSTOR thin pool
+  ansible.builtin.command:
+    cmd: >-
+      lvcreate --yes --name {{ item._thinpool }}
+      {{ item._size_opts }} {{ item._lv_opts }} {{ item.vg }}
+  when:
+    - not item._vdo
+    - item._segtype == ''
+  changed_when: true
+  loop: "{{ _storage_pool_convert_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Convert VDO or RAID volume to LINSTOR thin pool
   ansible.builtin.command:
     cmd: lvconvert --yes --type thin-pool {{ item.vg }}/{{ item._thinpool }}
-  when: item._segtype in ['', 'vdo']
+  when: >-
+    item._segtype in ['', 'vdo'] if item._vdo
+    else item._segtype in ['', item._raid]
   changed_when: true
-  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop: "{{ _storage_pool_convert_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
 
@@ -200,7 +259,7 @@
   changed_when: false
   failed_when: false
   check_mode: false
-  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop: "{{ _storage_pool_convert_thinpools | selectattr('_vdo') | list }}"
   loop_control:
     label: "{{ item.name }}"
 

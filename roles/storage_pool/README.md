@@ -50,6 +50,7 @@ Each item supports the following keys:
 | `vdo` | no | `false` | lvmthin |
 | `vdo_logical_size` | no | `""` | lvmthin with `vdo: true` |
 | `vdo_slab_size` | no | `""` | lvmthin with `vdo: true` |
+| `raid` | no | `""` | lvmthin |
 | `nodes` | no |  | all (targeting) |
 | `groups` | no |  | all (targeting) |
 
@@ -68,6 +69,7 @@ When neither is set, the pool targets all `linstor_satellites`.
 For LVM non-thin pools, the value is set as the `StorDriver/LvcreateOptions` LINSTOR property.
 For LVM thin pools, the value is passed to `lvcreate` when creating the thin pool itself.
 When empty and multiple physical devices exist, the role auto-generates striping options (`-i N -I 64`).
+For RAID on a thin pool, set `raid` instead, because LVM does not accept a RAID `--type` in the `lvcreate` that creates a thin pool.
 
 `zfs_create_options` is set as the `StorDriver/ZfscreateOptions` LINSTOR property, which is appended to every `zfs create` call LINSTOR executes when creating zvols.
 
@@ -86,6 +88,9 @@ Set `wipefs_force: true` to always wipe disk signatures, even on subsequent runs
 
 `vdo: true` builds an `lvmthin` pool on an LVM VDO volume, which deduplicates and compresses the data of every LINSTOR volume in the pool.
 See [VDO thin pools](#vdo-thin-pools).
+
+`raid` stores the data of an `lvmthin` pool on LVM RAID across the `physical_devices`.
+See [RAID thin pools](#raid-thin-pools).
 
 `wss` is the Windows Storage Spaces pool friendly name, the volume group analogue on Windows satellites.
 The role creates the Storage Spaces pool from the `physical_devices` entries, which match a disk's `DeviceId` (the disk number), `SerialNumber`, or `UniqueId`.
@@ -391,12 +396,64 @@ The node needs:
 - `vdoformat` at `/usr/bin/vdoformat`
 - the `dm-vdo` kernel module (Linux 6.9 and newer), or `kvdo` on older Enterprise Linux kernels
 
+VDO needs about 5 GB of physical space with the default 2G slab, and about 3 GB with `vdo_slab_size: 128M`, after any RAID overhead.
+
 Set `satellite_install_vdo: true` in [`linbit.linstor.satellite_install`](../satellite_install/README.md) to install `vdoformat` and the VDO kernel module.
 The role halts before it creates storage when a node lacks any of these requirements.
 
 The role does not change the layout of an existing pool: `vdo`, `vdo_logical_size`, and `vdo_slab_size` only take effect when the role creates the thin pool.
 On an existing VDO thin pool that LINSTOR does not list yet, the role sets `max_discard` when the pool has no active thin volumes and its VDO volume is named `<vg_thinpool>_vpool0`.
 It refuses to use a `vg_thinpool` name that already belongs to a volume without VDO.
+
+### RAID thin pools
+
+Set `raid` on an `lvmthin` pool to store the thin pool data on LVM RAID across all `physical_devices`:
+
+```yaml
+# group_vars/all/storage.yaml
+linstor_storage_pools:
+  - name: sp-raid5
+    type: lvmthin
+    vg: raidpool
+    vg_thinpool: thinpool
+    raid: raid5
+    physical_devices:
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567890
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567891
+      - /dev/disk/by-id/nvme-INTEL_SSDPE2KX040T8_BTLJ1234567892
+```
+
+The role derives the LVM options from the number of devices:
+
+| `raid` | Devices | LVM options | Usable capacity |
+|---|---|---|---|
+| `raid1` | 2 or more | `--type raid1 -m N-1` | one device |
+| `raid5` | 3 or more | `--type raid5 -i N-1` | N-1 devices |
+| `raid6` | 5 or more | `--type raid6 -i N-2` | N-2 devices |
+| `raid10` | 4 or more, even | `--type raid10 -i N/2 -m 1` | half the devices |
+
+LVM needs at least three data stripes for `raid6`, so it takes five devices.
+The role appends `lv_create_options` to these options, for example `--nosync` to skip the initial RAID synchronization on new disks, which LVM does not accept for `raid6`.
+
+For `raid5` and `raid6`, LVM applies a percentage size to the data and adds the parity on top, so `95%VG` would take the whole volume group and leave no space for the thin pool metadata.
+The role scales a percentage `thinpool_size` by the share of data devices: `95%VG` becomes `63%VG` for `raid5` on three devices and `57%VG` for `raid6` on five.
+A fixed size, such as `11T`, passes through unchanged.
+
+> [!NOTE]
+> DRBD writes its metadata in 4 KiB blocks, which can cause frequent read-modify-write cycles on parity RAID, whose stripes are larger than 4 KiB.
+> This applies to RAID 5 and RAID 6 from LVM, mdraid, or a hardware RAID controller.
+> Internal metadata on parity RAID still performs acceptably.
+> For the best performance with write-heavy workloads, keep the DRBD metadata off parity RAID in a small separate storage pool, preferably on flash storage such as NVMe.
+> Set that pool as the `StorPoolNameDrbdMeta` property of the resource group.
+> Refer to [Optimizing Write Performance With DRBD and Parity RAID](https://kb.linbit.com/optimizing-write-performance-with-drbd-and-parity-raid) for details.
+
+A `raid5` or `raid6` thin pool without VDO does not pass discards down to the disks, because the kernel's `raid456` module disables discards for parity RAID by default (`devices_handle_discard_safely=N`).
+`raid1` and `raid10` pass discards down, and with `vdo: true` the thin pool passes discards to VDO on any RAID level.
+
+The role creates the RAID volume and converts it into the thin pool.
+With `vdo: true`, the VDO volume sits on the RAID volume, so the layers from the bottom are RAID, VDO, and the thin pool.
+The role refuses a `vg_thinpool` name that already belongs to another volume, or to a thin pool on another RAID level, with or without VDO.
+`raid` is not available for `lvm` pools, where RAID volumes come from `lv_create_options` through the `StorDriver/LvcreateOptions` LINSTOR property.
 
 ### Custom diskless pools
 

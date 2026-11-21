@@ -15,6 +15,7 @@ storage_pool_defaults:
   vdo: false
   vdo_logical_size: ""
   vdo_slab_size: ""
+  raid: ""
 
 # Delegation target for LINSTOR API tasks
 # Override if Ansible control node cannot reach LINSTOR controller API endpoint
