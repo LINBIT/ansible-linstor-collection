@@ -107,11 +107,22 @@
       {{ _storage_pool_vdo_thinpools + [item.item | combine({
            '_thinpool': _thinpool,
            '_segtype': _segtypes.get(_thinpool, ''),
-           '_data_segtype': _segtypes.get(_thinpool ~ '_tdata', '')
+           '_data_segtype': _segtypes.get(_thinpool ~ '_tdata', ''),
+           '_pool_segtype': _segtypes.get(_thinpool ~ '_vpool0', ''),
+           '_size_opts': ('--extents ' if '%' in _size else '--size ') ~ _size,
+           '_vdo_opts': [_logical_size_opt, _slab_size_opt] | select | join(' '),
+           '_lv_opts': _custom_opts or _stripe_opts
          })] }}
   vars:
     _thinpool: "{{ item.item.vg_thinpool | default(storage_pool_defaults.vg_thinpool) }}"
     _segtypes: "{{ dict(item.stdout_lines | map('trim') | map('replace', '[', '') | map('replace', ']', '') | map('split', ',')) }}"
+    _size: "{{ item.item.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
+    _logical_size: "{{ item.item.vdo_logical_size | default(storage_pool_defaults.vdo_logical_size | default('')) | string }}"
+    _logical_size_opt: "{{ ('--virtualsize ' ~ _logical_size) if _logical_size | length > 0 else '' }}"
+    _slab_size: "{{ item.item.vdo_slab_size | default(storage_pool_defaults.vdo_slab_size | default('')) | string }}"
+    _slab_size_opt: "{{ ('--vdosettings slab_size_mb=' ~ ((_slab_size | human_to_bytes) // 1048576)) if _slab_size | length > 0 else '' }}"
+    _custom_opts: "{{ (item.item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
+    _stripe_opts: "{{ ('-i ' ~ (item.item.physical_devices | length | string) ~ ' -I 64') if item.item.physical_devices | length > 1 else '' }}"
   loop: "{{ _storage_pool_vdo_lvs.results }}"
   loop_control:
     label: "{{ item.item.name }}"
@@ -132,18 +143,38 @@
   ansible.builtin.command:
     cmd: >-
       lvcreate --yes --type vdo --name {{ item._thinpool }} --vdopool {{ item._thinpool }}_vpool0
-      {{ '--extents' if '%' in _size else '--size' }} {{ _size }}
-      {{ ('--virtualsize ' ~ _logical_size) if _logical_size | length > 0 else '' }}
-      {{ ('--vdosettings slab_size_mb=' ~ ((_slab_size | human_to_bytes) // 1048576)) if _slab_size | length > 0 else '' }}
-      {{ _lv_opts }} {{ item.vg }}
-  vars:
-    _size: "{{ item.thinpool_size | default(storage_pool_defaults.thinpool_size) }}"
-    _logical_size: "{{ item.vdo_logical_size | default(storage_pool_defaults.vdo_logical_size | default('')) | string }}"
-    _slab_size: "{{ item.vdo_slab_size | default(storage_pool_defaults.vdo_slab_size | default('')) | string }}"
-    _custom_opts: "{{ (item.lv_create_options | default(storage_pool_defaults.lv_create_options)) | trim }}"
-    _stripe_opts: "{{ ('-i ' ~ (item.physical_devices | length | string) ~ ' -I 64') if item.physical_devices | length > 1 else '' }}"
-    _lv_opts: "{{ _custom_opts or _stripe_opts }}"
-  when: item._segtype == ''
+      {{ item._size_opts }} {{ item._vdo_opts }} {{ item.vg }}
+  when:
+    - item._segtype == ''
+    - item._lv_opts == ''
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# lvcreate --type vdo drops the stripe size but keeps the stripe count, which the kernel rejects
+- name: Create data volume with LV options for VDO volume
+  ansible.builtin.command:
+    cmd: >-
+      lvcreate --yes --name {{ item._thinpool }}_vpool0
+      {{ item._size_opts }} {{ item._lv_opts }} {{ item.vg }}
+  when:
+    - item._segtype == ''
+    - item._lv_opts != ''
+    - item._pool_segtype == ''
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Convert data volume to VDO volume
+  ansible.builtin.command:
+    cmd: >-
+      lvconvert --yes --type vdo-pool --name {{ item._thinpool }}
+      {{ item._vdo_opts }} {{ item.vg }}/{{ item._thinpool }}_vpool0
+  when:
+    - item._segtype == ''
+    - item._lv_opts != ''
   changed_when: true
   loop: "{{ _storage_pool_vdo_thinpools }}"
   loop_control:

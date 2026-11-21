@@ -348,9 +348,9 @@ linstor_storage_pools:
 
 The role creates the volume group as for any `lvmthin` pool.
 It then creates a VDO volume named after `vg_thinpool`, with `thinpool_size` as its physical size, and converts it into the thin pool.
-The result matches what `linstor physical-storage create-device-pool --vdo-enable` builds for an LVM thin pool.
+For a pool on one device, the result matches what `linstor physical-storage create-device-pool --vdo-enable` builds for an LVM thin pool.
 
-Without `vdo_logical_size`, the thin pool is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
+Without `vdo_logical_size`, the thin pool on one device is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
 LINSTOR counts every write against the thin pool, so data that VDO deduplicates or compresses still uses its full size of LINSTOR capacity.
 
 Set `vdo_logical_size` larger than the physical size to let LINSTOR use the space that deduplication and compression save.
@@ -378,7 +378,11 @@ linstor_storage_pools:
 
 `vdo_slab_size` sets the VDO slab size, a power of two from `128M` to `32G`.
 A smaller slab suits a small backing disk, and the VDO volume grows in steps of one slab.
-`lv_create_options`, or the automatic striping across several `physical_devices`, applies to the VDO volume.
+`lv_create_options`, or the automatic striping across several `physical_devices`, applies to the data volume beneath VDO.
+LVM cannot create a striped VDO volume in one step, so with `lv_create_options` or automatic striping, the role creates a plain volume with those options and converts it into the VDO volume.
+Set VDO options with `vdo_logical_size` and `vdo_slab_size`, because the plain volume does not accept VDO options such as `--vdosettings`.
+Without `vdo_logical_size`, LVM then sets the logical size to the physical size, which leaves no room for the VDO metadata.
+The metadata takes 1 to 2 percent of a large pool.
 
 The node needs:
 
