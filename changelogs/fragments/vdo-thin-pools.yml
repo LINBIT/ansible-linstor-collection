@@ -7,5 +7,6 @@ minor_changes:
   - >-
     storage_pool - new ``vdo``, ``vdo_logical_size``, and ``vdo_slab_size`` keys for ``lvmthin``
     pools build the thin pool on an LVM VDO volume, which deduplicates and compresses the data of
-    every LINSTOR volume in the pool. The role halts before it creates storage when the node lacks
-    ``vdoformat``, the VDO kernel module, or LVM 2.03.24 or newer.
+    every LINSTOR volume in the pool. The thin pool passes discards down to VDO. The role halts
+    before it creates storage when the node lacks ``vdoformat``, the VDO kernel module, or LVM
+    2.03.24 or newer.

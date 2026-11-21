@@ -188,3 +188,63 @@
   loop: "{{ _storage_pool_vdo_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
+
+# dm-thin passes discards down only when VDO accepts a whole chunk, and VDO accepts one 4 KiB block by default
+- name: Read chunk size, VDO discard limit, and active thin volumes of VDO thin pools
+  ansible.builtin.command:
+    cmd: >-
+      lvs --noheadings --nosuffix --units b --separator ,
+      --select 'lv_name={{ item._thinpool }} || lv_name={{ item._thinpool }}_vpool0 || pool_lv={{ item._thinpool }}'
+      --options lv_name,pool_lv,lv_active,chunk_size,vdo_max_discard {{ item.vg }}
+  register: _storage_pool_vdo_discard
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: "{{ _storage_pool_vdo_thinpools }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Initialize list of VDO thin pools without discard passdown
+  ansible.builtin.set_fact:
+    _storage_pool_vdo_nopassdown: []
+
+- name: Build list of VDO thin pools without discard passdown
+  ansible.builtin.set_fact:
+    _storage_pool_vdo_nopassdown: "{{ _storage_pool_vdo_nopassdown + [item.item | combine({'_chunk_blocks': _chunk_blocks | int})] }}"
+  vars:
+    _rows: "{{ item.stdout_lines | default([]) | map('trim') | map('split', ',') | list }}"
+    _pool_row: "{{ _rows | selectattr('0', 'equalto', item.item._thinpool) | first | default(['', '', '', '0', '']) }}"
+    _vdo_pool_rows: "{{ _rows | selectattr('0', 'equalto', item.item._thinpool ~ '_vpool0') | list }}"
+    _active_thin_volumes: "{{ _rows | selectattr('1', 'equalto', item.item._thinpool) | selectattr('2', 'equalto', 'active') | list | length }}"
+    _chunk_blocks: "{{ (_pool_row[3] | int) // 4096 }}"
+  when:
+    - _vdo_pool_rows | length > 0
+    - _active_thin_volumes | int == 0
+    - _vdo_pool_rows[0][4] | int < _chunk_blocks | int
+  loop: "{{ _storage_pool_vdo_discard.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Deactivate VDO thin pools without discard passdown
+  ansible.builtin.command:
+    cmd: lvchange --activate n {{ item.vg }}/{{ item._thinpool }}
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_nopassdown }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Let VDO accept discards of a whole thin pool chunk
+  ansible.builtin.command:
+    cmd: lvchange --vdosettings max_discard={{ item._chunk_blocks }} {{ item.vg }}/{{ item._thinpool }}_vpool0
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_nopassdown }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Activate VDO thin pools without discard passdown
+  ansible.builtin.command:
+    cmd: lvchange --activate y {{ item.vg }}/{{ item._thinpool }}
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_nopassdown }}"
+  loop_control:
+    label: "{{ item.name }}"

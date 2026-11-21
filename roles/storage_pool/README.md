@@ -348,6 +348,7 @@ linstor_storage_pools:
 
 The role creates the volume group as for any `lvmthin` pool.
 It then creates a VDO volume named after `vg_thinpool`, with `thinpool_size` as its physical size, and converts it into the thin pool.
+It also sets the VDO `max_discard` setting to the thin pool chunk size, so space freed in the thin pool returns to VDO.
 For a pool on one device, the result matches what `linstor physical-storage create-device-pool --vdo-enable` builds for an LVM thin pool.
 
 Without `vdo_logical_size`, the thin pool on one device is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
@@ -393,7 +394,8 @@ The node needs:
 Set `satellite_install_vdo: true` in [`linbit.linstor.satellite_install`](../satellite_install/README.md) to install `vdoformat` and the VDO kernel module.
 The role halts before it creates storage when a node lacks any of these requirements.
 
-The role does not change an existing pool: `vdo`, `vdo_logical_size`, and `vdo_slab_size` only take effect when the role creates the thin pool.
+The role does not change the layout of an existing pool: `vdo`, `vdo_logical_size`, and `vdo_slab_size` only take effect when the role creates the thin pool.
+On an existing VDO thin pool that LINSTOR does not list yet, the role sets `max_discard` when the pool has no active thin volumes and its VDO volume is named `<vg_thinpool>_vpool0`.
 It refuses to use a `vg_thinpool` name that already belongs to a volume without VDO.
 
 ### Custom diskless pools
