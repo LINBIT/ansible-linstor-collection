@@ -1,0 +1,212 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Test one pool layout - {{ _case.name }}"
+  vars:
+    _vdo: "{{ _case.vdo | default(false) | bool }}"
+    _passdown: "{{ _vdo | bool and _case.passdown | default(true) | bool }}"
+    _devices: "{{ _spl_loops[: _case.devices] }}"
+    _pool:
+      name: "{{ _case.name }}"
+      type: "{{ _case.type | default('lvmthin') }}"
+      vg: "{{ _case.name }}"
+      vdo: "{{ _case.vdo | default(false) }}"
+      raid: "{{ _case.raid | default('') }}"
+      physical_devices: "{{ _spl_loops[: _case.devices] }}"
+    _linstor_env:
+      LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
+  block:
+    - name: "Leave a half-built or different pool behind - {{ _case.name }}"
+      ansible.builtin.shell: |
+        set -e
+        vgcreate {{ _case.name }} {{ _devices | join(' ') }}
+        {% for command in _case.precreate %}
+        {{ command | replace('@vg@', _case.name) }}
+        {% endfor %}
+      changed_when: true
+      when: _case.precreate is defined
+
+    - name: "Clear the refusal - {{ _case.name }}"
+      ansible.builtin.set_fact:
+        _spl_refusal: ""
+
+    - name: "Build the pool - {{ _case.name }}"
+      block:
+        - name: "Run storage_pool - {{ _case.name }}"
+          ansible.builtin.include_role:
+            name: linbit.linstor.storage_pool
+          vars:
+            linstor_storage_pools: "{{ [_pool] }}"
+      rescue:
+        - name: "Record the refusal - {{ _case.name }}"
+          ansible.builtin.set_fact:
+            _spl_refusal: >-
+              {{ (ansible_failed_result.results | default([ansible_failed_result]))
+                 | selectattr('failed', 'defined') | selectattr('failed')
+                 | map(attribute='msg') | join(' ') | default('failed', true) }}
+
+    - name: "Check the refusal - {{ _case.name }}"
+      when: _case.refused | default(false)
+      block:
+        - name: "Look for the volume group - {{ _case.name }}"
+          ansible.builtin.command: vgs {{ _case.name }}
+          register: _spl_refused_vg
+          changed_when: false
+          failed_when: false
+
+        - name: "Check that the role refused before any change - {{ _case.name }}"
+          ansible.builtin.assert:
+            that:
+              - _spl_refusal is search(_case.refusal | default('raid takes'))
+              - _case.precreate is defined or _spl_refused_vg.rc != 0
+            fail_msg: "Expected a refusal before any change, got: {{ _spl_refusal | default('no failure', true) }}"
+            quiet: true
+
+    - name: "Check the pool - {{ _case.name }}"
+      when: not (_case.refused | default(false))
+      block:
+        - name: "Check that the role succeeded - {{ _case.name }}"
+          ansible.builtin.assert:
+            that: _spl_refusal == ''
+            fail_msg: "storage_pool failed: {{ _spl_refusal }}"
+            quiet: true
+
+        - name: "Read the pool layout - {{ _case.name }}"
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -e -o pipefail
+              lv() { lvs --all --noheadings --units b --nosuffix --select "lv_name=$1" -o "$2" {{ _case.name }} | xargs; }
+              echo "data=$(lv {{ _case.data_lv }} segtype)"
+              echo "stripes=$(lv {{ _case.data_lv }} stripes)"
+              echo "pool=$(lv thinpool segtype)"
+              echo "active=$(lv thinpool lv_active)"
+              echo "discards=$(lv thinpool kernel_discards)"
+              echo "chunk=$(lv thinpool chunk_size)"
+              echo "size=$(lv thinpool lv_size)"
+              echo "free=$(vgs --noheadings -o vg_free_count {{ _case.name }} | xargs)"
+              {% if _vdo | bool %}
+              echo "max_discard=$(lv {{ _case.vdo_pool | default('thinpool_vpool0') }} vdo_max_discard)"
+              {% endif %}
+          register: _spl_layout
+          changed_when: false
+
+        - name: "Check the pool layout - {{ _case.name }}"
+          ansible.builtin.assert:
+            that:
+              - _layout.pool == 'thin-pool'
+              - _layout.active == 'active'
+              - _layout.data == _case.expect
+              - _layout.stripes | int == _case.devices
+              - _layout.free | int > 0
+              - not (_passdown | bool) or _layout.discards == 'passdown'
+              - not (_passdown | bool) or _layout.max_discard | int == _layout.chunk | int // 4096
+              - not (_vdo | bool) or _passdown | bool or _layout.discards == 'nopassdown'
+            fail_msg: "Unexpected layout: {{ _layout }}"
+            quiet: true
+          vars:
+            _layout: "{{ dict(_spl_layout.stdout_lines | map('split', '=')) }}"
+
+        - name: "Check the LINSTOR storage pool - {{ _case.name }}"
+          linbit.linstor.storage_pool_info:
+            name: "{{ _case.name }}"
+            node: "{{ inventory_hostname }}"
+          delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+          environment: "{{ _linstor_env }}"
+          register: _spl_sp
+          failed_when: >-
+            _spl_sp.storage_pools | length != 1
+            or _spl_sp.storage_pools[0].provider_kind != 'LVM_THIN'
+            or (_spl_sp.storage_pools[0].total_capacity | default(0) | int) <= 0
+
+        - name: "Check that space freed in the thin pool returns to VDO - {{ _case.name }}"
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -e -o pipefail
+              used() {
+                lvs --all --noheadings --units b --nosuffix --select lv_name=thinpool_vpool0 -o lv_size,data_percent {{ _case.name }} \
+                  | awk '{printf "%d\n", $1 * $2 / 100}'
+              }
+              lvcreate --yes --quiet --virtualsize 2G --thin {{ _case.name }}/thinpool --name trimtest >/dev/null
+              mkfs.ext4 -q /dev/{{ _case.name }}/trimtest
+              mkdir -p /mnt/{{ _case.name }}
+              mount /dev/{{ _case.name }}/trimtest /mnt/{{ _case.name }}
+              dd if=/dev/urandom of=/mnt/{{ _case.name }}/data bs=1M count=256 status=none
+              sync
+              written=$(used)
+              rm /mnt/{{ _case.name }}/data
+              sync
+              fstrim /mnt/{{ _case.name }}
+              trimmed=$(used)
+              umount /mnt/{{ _case.name }}
+              echo $(( (written - trimmed) / 1048576 ))
+          when: _passdown | bool
+          register: _spl_returned
+          changed_when: true
+          failed_when: _spl_returned.rc != 0 or _spl_returned.stdout | int < 200
+
+        - name: "Rerun after the LINSTOR registration is lost - {{ _case.name }}"
+          when: _case.rerun | default(false)
+          block:
+            - name: "Remove only the LINSTOR registration - {{ _case.name }}"
+              linbit.linstor.storage_pool:
+                name: "{{ _case.name }}"
+                node: "{{ inventory_hostname }}"
+                state: absent
+              delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+              environment: "{{ _linstor_env }}"
+
+            - name: "Rerun storage_pool - {{ _case.name }}"
+              ansible.builtin.include_role:
+                name: linbit.linstor.storage_pool
+              vars:
+                linstor_storage_pools: "{{ [_pool] }}"
+
+            - name: "Read the pool layout again - {{ _case.name }}"
+              ansible.builtin.command: >-
+                lvs --all --noheadings --units b --nosuffix -o segtype,lv_size
+                --select 'lv_name={{ _case.data_lv }} || lv_name=thinpool' {{ _case.name }}
+              register: _spl_rerun_layout
+              changed_when: false
+
+            - name: "Check that the rerun kept the volumes - {{ _case.name }}"
+              ansible.builtin.assert:
+                that:
+                  - _rerun | map('first') | sort == [_case.expect, 'thin-pool'] | sort
+                  - (_rerun | selectattr('0', 'equalto', 'thin-pool') | first)[1] == _size
+                fail_msg: "Rerun changed the pool: {{ _rerun }}, thin pool size before {{ _size }}"
+                quiet: true
+              vars:
+                _rerun: "{{ _spl_rerun_layout.stdout_lines | map('split') | list }}"
+                _size: "{{ (_spl_layout.stdout_lines | select('match', 'size=') | first).split('=')[1] }}"
+
+            - name: "Check the LINSTOR storage pool again - {{ _case.name }}"
+              linbit.linstor.storage_pool_info:
+                name: "{{ _case.name }}"
+                node: "{{ inventory_hostname }}"
+              delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+              environment: "{{ _linstor_env }}"
+              register: _spl_sp_rerun
+              failed_when: _spl_sp_rerun.storage_pools | length != 1
+
+  always:
+    - name: "Remove the LINSTOR storage pool - {{ _case.name }}"
+      linbit.linstor.storage_pool:
+        name: "{{ _case.name }}"
+        node: "{{ inventory_hostname }}"
+        state: absent
+      delegate_to: "{{ linstor_api_delegate | default('localhost') }}"
+      environment: "{{ _linstor_env }}"
+
+    - name: "Remove the volume group and wipe the loop devices - {{ _case.name }}"
+      ansible.builtin.shell: |
+        umount /mnt/{{ _case.name }} 2>/dev/null
+        rmdir /mnt/{{ _case.name }} 2>/dev/null
+        vgremove --yes --force {{ _case.name }} >/dev/null 2>&1
+        for dev in {{ _spl_loops | join(' ') }}; do
+          pvremove --yes --force --force "$dev" >/dev/null 2>&1
+          wipefs --all --quiet "$dev"
+          blkdiscard --force "$dev" 2>/dev/null
+        done
+        exit 0
+      changed_when: true

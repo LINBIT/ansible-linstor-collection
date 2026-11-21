@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: MIT
+---
+# Build every LVM thin pool layout the storage_pool role supports on loop
+# devices, so any lab with LINSTOR satellites runs it without spare disks.
+#
+#   ansible-playbook -i hosts.yaml ./test_storage_pool_lvm.yaml
+#
+# Optional extra vars:
+#   spl_hosts=sat-1,sat-2   limit the run to these satellites
+#   spl_skip_vdo=true       skip the VDO cases everywhere
+#
+# Each node gets five sparse 6 GiB loop devices under /var/tmp/spl. The VDO
+# cases need the vdo userspace tools, a dm-vdo or kvdo module, and LVM 2.03.24
+# or newer (satellite_install_vdo), and are skipped where those are missing.
+#
+# Cases per node:
+#   1. lvmthin on two devices, striped by lvol
+#   2. VDO on one device (lvcreate --type vdo) and on two devices (striped, converted)
+#   3. raid1, raid5, raid6, and raid10 without VDO
+#   4. raid5 and raid10 with VDO
+#   5. raid6 on four devices, raid10 on five, raid on type lvm, and an existing
+#      raid1 thin pool, with or without VDO, for raid5 are refused
+#   6. a rerun after the LINSTOR registration is lost changes no LVM volumes
+#   7. a RAID volume left without a thin pool is converted, and a VDO thin pool
+#      left without discard passdown gets it
+#   8. a VDO thin pool with an active thin volume, or with a VDO volume under
+#      another name, stays active and keeps its discard setting
+# VDO cases also check discard passdown: space freed with fstrim returns to VDO.
+
+- name: Test storage_pool LVM thin pool layouts on loop devices
+  hosts: "{{ spl_hosts | default('linstor_satellites') }}"
+  any_errors_fatal: true
+  become: true
+  gather_facts: true
+  vars:
+    _spl_cases:
+      - { name: spl-thin, devices: 2, data_lv: thinpool_tdata, expect: striped }
+      - { name: spl-vdo1, devices: 1, vdo: true, data_lv: thinpool_vpool0_vdata, expect: linear }
+      - { name: spl-vdo2, devices: 2, vdo: true, data_lv: thinpool_vpool0_vdata, expect: striped }
+      - { name: spl-r1, devices: 2, raid: raid1, data_lv: thinpool_tdata, expect: raid1 }
+      - { name: spl-r5, devices: 3, raid: raid5, data_lv: thinpool_tdata, expect: raid5, rerun: true }
+      - { name: spl-r6, devices: 5, raid: raid6, data_lv: thinpool_tdata, expect: raid6 }
+      - { name: spl-r10, devices: 4, raid: raid10, data_lv: thinpool_tdata, expect: raid10 }
+      - { name: spl-vr5, devices: 3, raid: raid5, vdo: true, data_lv: thinpool_vpool0_vdata, expect: raid5, rerun: true }
+      - { name: spl-vr10, devices: 4, raid: raid10, vdo: true, data_lv: thinpool_vpool0_vdata, expect: raid10 }
+      - { name: spl-x-r6, devices: 4, raid: raid6, refused: true }
+      - { name: spl-x-r10, devices: 5, raid: raid10, refused: true }
+      - { name: spl-x-lvm, devices: 3, raid: raid5, type: lvm, refused: true }
+      - name: spl-x-level
+        devices: 3
+        raid: raid5
+        refused: true
+        refusal: is not a raid5
+        precreate:
+          - lvcreate --yes --name thinpool --extents 60%VG --type raid1 -m 1 @vg@
+          - lvconvert --yes --type thin-pool @vg@/thinpool
+      - name: spl-resume
+        devices: 3
+        raid: raid5
+        data_lv: thinpool_tdata
+        expect: raid5
+        precreate:
+          - lvcreate --yes --name thinpool --extents 60%VG --type raid5 -i 2 @vg@
+      - name: spl-vdo-resume
+        devices: 1
+        vdo: true
+        data_lv: thinpool_vpool0_vdata
+        expect: linear
+        precreate:
+          - lvcreate --yes --type vdo --name thinpool --vdopool thinpool_vpool0 --extents 95%VG @vg@
+          - lvconvert --yes --type thin-pool @vg@/thinpool
+      - name: spl-vdo-busy
+        devices: 1
+        vdo: true
+        passdown: false
+        data_lv: thinpool_vpool0_vdata
+        expect: linear
+        precreate:
+          - lvcreate --yes --type vdo --name thinpool --vdopool thinpool_vpool0 --extents 95%VG @vg@
+          - lvconvert --yes --type thin-pool @vg@/thinpool
+          - lvcreate --yes --virtualsize 1G --thin @vg@/thinpool --name busy
+      - name: spl-vdo-other-name
+        devices: 1
+        vdo: true
+        passdown: false
+        vdo_pool: vpool
+        data_lv: vpool_vdata
+        expect: linear
+        precreate:
+          - lvcreate --yes --type vdo --name thinpool --vdopool vpool --extents 95%VG @vg@
+          - lvconvert --yes --type thin-pool @vg@/thinpool
+      - name: spl-x-vdo-level
+        devices: 3
+        raid: raid5
+        vdo: true
+        refused: true
+        refusal: on raid1, not raid5
+        precreate:
+          - lvcreate --yes --name thinpool_vpool0 --extents 60%VG --type raid1 -m 1 @vg@
+          - lvconvert --yes --type vdo-pool --name thinpool --vdosettings slab_size_mb=128 @vg@/thinpool_vpool0
+          - lvconvert --yes --type thin-pool @vg@/thinpool
+  tasks:
+    - name: Look for the VDO tooling
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -o pipefail
+          command -v vdoformat >/dev/null 2>&1 && echo vdoformat
+          modinfo dm-vdo >/dev/null 2>&1 && echo dmvdo
+          modinfo kvdo >/dev/null 2>&1 && echo kvdo
+          echo "lvm2=$(lvm version 2>/dev/null | awk '/LVM version/{print $3}' | sed 's/(.*//')"
+          exit 0
+      register: _spl_tools
+      changed_when: false
+      check_mode: false
+
+    - name: Record whether VDO thin pools are possible
+      ansible.builtin.set_fact:
+        _spl_has_vdo: >-
+          {{
+            not (spl_skip_vdo | default(false) | bool)
+            and 'vdoformat' in _spl_tools.stdout_lines
+            and ('dmvdo' in _spl_tools.stdout_lines or 'kvdo' in _spl_tools.stdout_lines)
+            and (_spl_tools.stdout_lines | select('match', '^lvm2=') | first | replace('lvm2=', ''))
+              is version('2.03.24', '>=')
+          }}
+
+    - name: Report skipped VDO cases
+      ansible.builtin.debug:
+        msg: >-
+          Skipping the VDO cases: {{ 'spl_skip_vdo is set' if spl_skip_vdo | default(false) | bool
+          else 'the node lacks vdoformat, a VDO kernel module, or LVM 2.03.24 or newer' }}
+      when: not _spl_has_vdo | bool
+
+    - name: Run the cases on loop devices
+      block:
+        - name: Create the loop devices
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -e -o pipefail
+              mkdir -p /var/tmp/spl
+              for i in 1 2 3 4 5; do
+                img=/var/tmp/spl/disk$i.img
+                [ -e "$img" ] || truncate -s 6G "$img"
+                losetup -j "$img" | grep -q . || losetup -f "$img"
+                losetup -j "$img" | cut -d: -f1
+              done
+          register: _spl_loop_devices
+          changed_when: true
+
+        - name: Record the loop devices
+          ansible.builtin.set_fact:
+            _spl_loops: "{{ _spl_loop_devices.stdout_lines }}"
+
+        - name: Run each case
+          ansible.builtin.include_tasks: storage-pool-lvm-case.yml
+          when: _spl_has_vdo | bool or not (_case.vdo | default(false) | bool)
+          loop: "{{ _spl_cases }}"
+          loop_control:
+            loop_var: _case
+            label: "{{ _case.name }}"
+
+      always:
+        - name: Remove the loop devices
+          ansible.builtin.shell:
+            executable: /bin/bash
+            cmd: |
+              set -o pipefail
+              for img in /var/tmp/spl/disk*.img; do
+                for dev in $(losetup -j "$img" | cut -d: -f1); do
+                  [ -e /etc/lvm/devices/system.devices ] && lvmdevices --yes --deldev "$dev" >/dev/null 2>&1
+                  losetup -d "$dev"
+                done
+              done
+              rm -rf /var/tmp/spl
+          changed_when: true
