@@ -294,7 +294,7 @@
   vars:
     _ha_db_client_scheme: "{{ 'linstor+ssl://' if 'linstor+ssl://' in _ha_db_control_node_controllers else '' }}"
   when:
-    - client_install_local_config | default(true) | bool
+    - client_install_local_config | default(linstor_api_delegate | default('localhost') == 'localhost') | bool
     - _ha_db_control_node_controllers | length > 0
   delegate_to: localhost
   become: false

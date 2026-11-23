@@ -98,7 +98,7 @@ _ha_db_control_node_config: >-
 
 _ha_db_control_node_controllers: >-
   {{ lookup('ansible.builtin.ini', 'controllers', section='global',
-            file=_ha_db_control_node_config, default='', errors='ignore') }}
+            file=_ha_db_control_node_config, default='', errors='ignore') | default('', true) }}
 
 _ha_db_controller_configs:
   - /etc/linstor/linstor.toml
