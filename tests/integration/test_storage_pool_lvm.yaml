@@ -15,17 +15,21 @@
 #
 # Cases per node:
 #   1. lvmthin on two devices, striped by lvol
-#   2. VDO on one device (lvcreate --type vdo) and on two devices (striped, converted)
+#   2. VDO on one device (lvcreate --type vdo) and on two devices (striped, converted),
+#      with and without vdo_logical_size
 #   3. raid1, raid5, raid6, and raid10 without VDO
 #   4. raid5 and raid10 with VDO
 #   5. raid6 on four devices, raid10 on five, raid on type lvm, and an existing
 #      raid1 thin pool, with or without VDO, for raid5 are refused
 #   6. a rerun after the LINSTOR registration is lost changes no LVM volumes
-#   7. a RAID volume left without a thin pool is converted, and a VDO thin pool
-#      left without discard passdown gets it
+#   7. a RAID volume left without a thin pool is converted, a striped VDO volume
+#      left at its physical size is reduced, and a VDO thin pool left without
+#      discard passdown gets it
 #   8. a VDO thin pool with an active thin volume, or with a VDO volume under
 #      another name, stays active and keeps its discard setting
-# VDO cases also check discard passdown: space freed with fstrim returns to VDO.
+# VDO cases also check the thin pool size, which is vdo_logical_size when set
+# and otherwise the logical size LVM gives a VDO volume on one device, and
+# discard passdown: space freed with fstrim returns to VDO.
 
 - name: Test storage_pool LVM thin pool layouts on loop devices
   hosts: "{{ spl_hosts | default('linstor_satellites') }}"
@@ -37,6 +41,7 @@
       - { name: spl-thin, devices: 2, data_lv: thinpool_tdata, expect: striped }
       - { name: spl-vdo1, devices: 1, vdo: true, data_lv: thinpool_vpool0_vdata, expect: linear }
       - { name: spl-vdo2, devices: 2, vdo: true, data_lv: thinpool_vpool0_vdata, expect: striped }
+      - { name: spl-vdo2-over, devices: 2, vdo: true, vdo_logical_size: 20G, data_lv: thinpool_vpool0_vdata, expect: striped }
       - { name: spl-r1, devices: 2, raid: raid1, data_lv: thinpool_tdata, expect: raid1 }
       - { name: spl-r5, devices: 3, raid: raid5, data_lv: thinpool_tdata, expect: raid5, rerun: true }
       - { name: spl-r6, devices: 5, raid: raid6, data_lv: thinpool_tdata, expect: raid6 }
@@ -61,6 +66,14 @@
         expect: raid5
         precreate:
           - lvcreate --yes --name thinpool --extents 60%VG --type raid5 -i 2 @vg@
+      - name: spl-vdo2-resume
+        devices: 2
+        vdo: true
+        data_lv: thinpool_vpool0_vdata
+        expect: striped
+        precreate:
+          - lvcreate --yes --name thinpool_vpool0 --extents 95%VG -i 2 -I 64 @vg@
+          - lvconvert --yes --type vdo-pool --name thinpool @vg@/thinpool_vpool0
       - name: spl-vdo-resume
         devices: 1
         vdo: true

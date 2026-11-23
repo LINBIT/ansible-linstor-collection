@@ -356,7 +356,7 @@ It then creates a VDO volume named after `vg_thinpool`, with `thinpool_size` as 
 It also sets the VDO `max_discard` setting to the thin pool chunk size, so space freed in the thin pool returns to VDO.
 For a pool on one device, the result matches what `linstor physical-storage create-device-pool --vdo-enable` builds for an LVM thin pool.
 
-Without `vdo_logical_size`, the thin pool on one device is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
+Without `vdo_logical_size`, the thin pool is the physical space minus the VDO metadata, the largest size that fits without deduplication or compression.
 LINSTOR counts every write against the thin pool, so data that VDO deduplicates or compresses still uses its full size of LINSTOR capacity.
 
 Set `vdo_logical_size` larger than the physical size to let LINSTOR use the space that deduplication and compression save.
@@ -388,7 +388,7 @@ A smaller slab suits a small backing disk, and the VDO volume grows in steps of 
 LVM cannot create a striped VDO volume in one step, so with `lv_create_options` or automatic striping, the role creates a plain volume with those options and converts it into the VDO volume.
 Set VDO options with `vdo_logical_size` and `vdo_slab_size`, because the plain volume does not accept VDO options such as `--vdosettings`.
 Without `vdo_logical_size`, LVM then sets the logical size to the physical size, which leaves no room for the VDO metadata.
-The metadata takes 1 to 2 percent of a large pool.
+The role reduces it to the logical size LVM gives a VDO volume on one device, which leaves room for the metadata and the VDO block map.
 
 The node needs:
 

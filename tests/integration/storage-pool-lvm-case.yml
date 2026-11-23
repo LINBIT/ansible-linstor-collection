@@ -11,6 +11,7 @@
       vg: "{{ _case.name }}"
       vdo: "{{ _case.vdo | default(false) }}"
       raid: "{{ _case.raid | default('') }}"
+      vdo_logical_size: "{{ _case.vdo_logical_size | default('') }}"
       physical_devices: "{{ _spl_loops[: _case.devices] }}"
     _linstor_env:
       LS_CONTROLLERS: "{{ lookup('linbit.linstor.controller_env') }}"
@@ -84,8 +85,11 @@
               echo "chunk=$(lv thinpool chunk_size)"
               echo "size=$(lv thinpool lv_size)"
               echo "free=$(vgs --noheadings -o vg_free_count {{ _case.name }} | xargs)"
+              echo "extent=$(vgs --noheadings --units b --nosuffix -o vg_extent_size {{ _case.name }} | xargs)"
               {% if _vdo | bool %}
               echo "max_discard=$(lv {{ _case.vdo_pool | default('thinpool_vpool0') }} vdo_max_discard)"
+              echo "vdo_size=$(lv {{ _case.vdo_pool | default('thinpool_vpool0') }} lv_size)"
+              echo "vdo_used=$(lv {{ _case.vdo_pool | default('thinpool_vpool0') }} vdo_used_size)"
               {% endif %}
           register: _spl_layout
           changed_when: false
@@ -101,10 +105,22 @@
               - not (_passdown | bool) or _layout.discards == 'passdown'
               - not (_passdown | bool) or _layout.max_discard | int == _layout.chunk | int // 4096
               - not (_vdo | bool) or _passdown | bool or _layout.discards == 'nopassdown'
-            fail_msg: "Unexpected layout: {{ _layout }}"
+              - not (_vdo | bool) or _layout.size | int == _logical | int
+            fail_msg: "Unexpected layout: {{ _layout }}{{ (', expected logical size ' ~ _logical) if _vdo | bool else '' }}"
             quiet: true
           vars:
             _layout: "{{ dict(_spl_layout.stdout_lines | map('split', '=')) }}"
+            # The logical size LVM gives a VDO volume on one device, which the role matches on several devices
+            _data_blocks: "{{ (_layout.vdo_size | int - _layout.vdo_used | int) // 4096 }}"
+            _level1: "{{ ((([(_data_blocks | int + 811) // 812, 1] | max) + 59) // 60 + 811) // 812 }}"
+            _level2: "{{ (_level1 | int + 811) // 812 }}"
+            _level3: "{{ (_level2 | int + 811) // 812 }}"
+            _level4: "{{ (_level3 | int + 811) // 812 }}"
+            _interior: "{{ 60 * (_level1 | int + _level2 | int + _level3 | int + 2 * _level4 | int) }}"
+            _block_map: "{{ _interior | int + (_data_blocks | int - _interior | int + 811) // 812 }}"
+            _logical: >-
+              {{ _case.vdo_logical_size | human_to_bytes if _case.vdo_logical_size is defined
+                 else (_data_blocks | int - _block_map | int) * 4096 // _layout.extent | int * _layout.extent | int }}
 
         - name: "Check the LINSTOR storage pool - {{ _case.name }}"
           linbit.linstor.storage_pool_info:

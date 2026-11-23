@@ -88,6 +88,7 @@
            '_pool_segtype': _segtypes.get(_thinpool ~ '_vpool0', ''),
            '_vdata_segtype': _segtypes.get(_thinpool ~ '_vpool0_vdata', ''),
            '_size_opts': ('--extents ' if '%' in _scaled_size else '--size ') ~ _scaled_size,
+           '_logical_size': _logical_size,
            '_vdo_opts': [_logical_size_opt, _slab_size_opt] | select | join(' '),
            '_lv_opts': ([_raid_opts, _custom_opts] | select | join(' ')) if item.item._raid else (_custom_opts or _stripe_opts)
          })] }}
@@ -223,6 +224,52 @@
   loop: "{{ _storage_pool_convert_thinpools }}"
   loop_control:
     label: "{{ item.name }}"
+
+- name: Read logical, physical, and used size of VDO volumes
+  ansible.builtin.command:
+    cmd: >-
+      lvs --noheadings --nosuffix --units b --separator ,
+      --select 'lv_name={{ item._thinpool }} || lv_name={{ item._thinpool }}_vpool0'
+      --options lv_name,lv_size,vdo_used_size,vg_extent_size {{ item.vg }}
+  register: _storage_pool_vdo_sizes
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop: >-
+    {{ _storage_pool_convert_thinpools
+       | selectattr('_vdo')
+       | selectattr('_segtype', 'in', ['', 'vdo'])
+       | selectattr('_logical_size', 'equalto', '')
+       | list }}
+  loop_control:
+    label: "{{ item.name }}"
+
+# lvconvert --type vdo-pool sets the logical size to the physical size, which leaves no room for the VDO metadata
+- name: Reduce VDO volumes to the physical space VDO can store
+  ansible.builtin.command:
+    cmd: lvreduce --yes --size {{ _fit }}b {{ item.item.vg }}/{{ item.item._thinpool }}
+  vars:
+    _rows: "{{ item.stdout_lines | default([]) | map('trim') | map('split', ',') | list }}"
+    _vdo_row: "{{ _rows | selectattr('0', 'equalto', item.item._thinpool) | first | default(['', '0', '0', '1']) }}"
+    _pool_row: "{{ _rows | selectattr('0', 'equalto', item.item._thinpool ~ '_vpool0') | first | default(['', '0', '0', '1']) }}"
+    _extent: "{{ _pool_row[3] | int }}"
+    _data_blocks: "{{ (_pool_row[1] | int - _pool_row[2] | int) // 4096 }}"
+    # VDO takes block map pages from the data space as blocks are first written: 812 entries a page, 60 trees
+    _level1: "{{ ((([(_data_blocks | int + 811) // 812, 1] | max) + 59) // 60 + 811) // 812 }}"
+    _level2: "{{ (_level1 | int + 811) // 812 }}"
+    _level3: "{{ (_level2 | int + 811) // 812 }}"
+    _level4: "{{ (_level3 | int + 811) // 812 }}"
+    _interior: "{{ 60 * (_level1 | int + _level2 | int + _level3 | int + 2 * _level4 | int) }}"
+    _block_map: "{{ _interior | int + (_data_blocks | int - _interior | int + 811) // 812 }}"
+    _fit: "{{ (_data_blocks | int - _block_map | int) * 4096 // ([_extent | int, 1] | max) * _extent | int }}"
+  when:
+    - _pool_row[2] | int > 0
+    - _vdo_row[1] | int == _pool_row[1] | int
+    - _fit | int > 0
+  changed_when: true
+  loop: "{{ _storage_pool_vdo_sizes.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
 
 - name: Create RAID volume for LINSTOR thin pool
   ansible.builtin.command:
