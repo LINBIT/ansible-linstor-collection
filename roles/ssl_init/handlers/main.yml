@@ -4,12 +4,21 @@
 # defined here, not the order they were notified. The controller restart
 # sequence must stay reactor-disable, restart, wait, reactor-enable.
 
+- name: Check for the DRBD Reactor config directory
+  ansible.builtin.stat:
+    path: /etc/drbd-reactor.d
+  delegate_to: "{{ _active_controller_node }}"
+  register: _ssl_init_reactor_dir
+  run_once: true  # noqa: run-once[task]
+  listen: ssl_controller_changed
+
 - name: Find DRBD Reactor config managing linstor-controller
   ansible.builtin.find:
     paths: /etc/drbd-reactor.d
     patterns: "*.toml"
     contains: "linstor-controller.service"
     read_whole_file: true
+  when: _ssl_init_reactor_dir.stat.isdir | default(false)
   delegate_to: "{{ _active_controller_node }}"
   register: _ssl_init_reactor_find
   run_once: true  # noqa: run-once[task]
